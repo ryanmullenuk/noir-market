@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Redhead Games logo, then the rainy NOIR MARKET title.
+/// Redhead Games logo, then NOIR MARKET under falling powder that settles on the buttons.
 struct TitleView: View {
     var hasSave: Bool
     var onContinue: () -> Void
@@ -11,6 +11,8 @@ struct TitleView: View {
 
     @State private var phase = 0 // 0 logo, 1 title
     @State private var titleIn = false
+    @State private var colliders: [String: CGRect] = [:]
+    @State private var sim = PowderSim()
 
     var body: some View {
         ZStack {
@@ -41,46 +43,44 @@ struct TitleView: View {
         }
     }
 
+    private func press(_ id: String, _ action: @escaping () -> Void) -> () -> Void {
+        {
+            sim.disturb(id)
+            Audio.shared.buzz(.tap)
+            action()
+        }
+    }
+
     private var title: some View {
         GeometryReader { geo in
             ZStack {
-                LinearGradient(colors: [Color(white: 0.16), Color(white: 0.05), Noir.ink],
-                               startPoint: .top, endPoint: .bottom)
+                // Night sky with a cold glow behind the title.
+                LinearGradient(colors: [Color(white: 0.13), Color(white: 0.04), Noir.ink], startPoint: .top, endPoint: .bottom)
                     .ignoresSafeArea()
-                // A moon behind the haze.
-                Circle()
-                    .fill(RadialGradient(colors: [Color(white: 0.75), Color(white: 0.35).opacity(0)],
-                                         center: .center, startRadius: 4, endRadius: 90))
-                    .frame(width: 180, height: 180)
-                    .position(x: geo.size.width * 0.74, y: geo.size.height * 0.16)
-                    .opacity(0.55)
-                Lightning()
-                // City-glow haze on the horizon so the black skyline reads against it.
-                LinearGradient(colors: [.clear, Color(white: 0.16), Color(red: 0.2, green: 0.12, blue: 0.1).opacity(0.9)],
-                               startPoint: .top, endPoint: .bottom)
-                    .frame(height: geo.size.height * 0.32)
+                RadialGradient(colors: [Color.white.opacity(0.10), .clear], center: .init(x: 0.5, y: 0.32), startRadius: 10, endRadius: 320)
+                    .ignoresSafeArea()
+                Skyline(seed: 1947, tint: Color(white: 0.025))
+                    .frame(height: geo.size.height * 0.42)
                     .frame(maxHeight: .infinity, alignment: .bottom)
-                    .offset(y: -geo.size.height * 0.12)
+                    .opacity(0.9)
                     .ignoresSafeArea()
-                Skyline(seed: 1947, tint: Color(white: 0.02))
-                    .frame(height: geo.size.height * 0.5)
+                LinearGradient(colors: [.clear, Noir.ink.opacity(0.85)], startPoint: .top, endPoint: .bottom)
+                    .frame(height: geo.size.height * 0.3)
                     .frame(maxHeight: .infinity, alignment: .bottom)
                     .ignoresSafeArea()
-                // Wet street reflection.
-                LinearGradient(colors: [.clear, Noir.ink.opacity(0.9), Noir.ink],
-                               startPoint: .top, endPoint: .bottom)
-                    .frame(height: geo.size.height * 0.2)
-                    .frame(maxHeight: .infinity, alignment: .bottom)
-                    .ignoresSafeArea()
-                Rain()
 
                 VStack(spacing: 0) {
                     Spacer().frame(height: geo.size.height * 0.2)
-                    VStack(spacing: 6) {
-                        Text("NOIR")
-                            .font(Noir.display(92, weight: .bold))
-                            .foregroundStyle(Noir.paper)
-                            .shadow(color: .black, radius: 12)
+                    VStack(spacing: 4) {
+                        HStack(spacing: 0) {
+                            ForEach(Array("NOIR".enumerated()), id: \.offset) { i, letter in
+                                Text(String(letter))
+                                    .font(Noir.display(96, weight: .bold))
+                                    .foregroundStyle(Noir.paper)
+                                    .shadow(color: .white.opacity(0.25), radius: 18)
+                                    .powderCollider("letter\(i)", topInset: 27, sideInset: 2)
+                            }
+                        }
                         NeonText(text: "MARKET", size: 22)
                     }
                     .opacity(titleIn ? 1 : 0)
@@ -90,35 +90,37 @@ struct TitleView: View {
                     .accessibilityAddTraits(.isHeader)
 
                     Text("Thirty days. Nobody’s clean.")
-                        .font(Noir.type(14))
+                        .font(Noir.type(15))
                         .foregroundStyle(Noir.silver)
                         .padding(.top, 18)
                         .opacity(titleIn ? 1 : 0)
 
                     Spacer()
 
-                    VStack(spacing: 10) {
+                    VStack(spacing: 12) {
                         if hasSave {
-                            Button("Continue", action: onContinue).buttonStyle(.noirPrimary)
-                            Button("New Game", action: onNewGame).buttonStyle(.noir)
+                            Button("Continue", action: press("continue", onContinue)).buttonStyle(.noirPrimary)
+                                .powderCollider("continue")
+                            Button("New Game", action: press("new", onNewGame)).buttonStyle(.noir)
+                                .powderCollider("new")
                         } else {
-                            Button("New Game", action: onNewGame).buttonStyle(.noirPrimary)
+                            Button("New Game", action: press("new", onNewGame)).buttonStyle(.noirPrimary)
+                                .powderCollider("new")
                         }
                         HStack(spacing: 10) {
-                            Button("How to Play", action: onHowTo).buttonStyle(.noirQuiet)
-                            Button("Records", action: onRecords).buttonStyle(.noirQuiet)
-                            Button {
-                                onSettings()
-                            } label: {
-                                Image(systemName: "gearshape")
-                            }
-                            .buttonStyle(.noirQuiet)
-                            .frame(width: 56)
-                            .accessibilityLabel("Settings")
+                            Button("How to Play", action: press("how", onHowTo)).buttonStyle(.noir)
+                                .powderCollider("how")
+                            Button("Records", action: press("records", onRecords)).buttonStyle(.noir)
+                                .powderCollider("records")
+                            Button(action: press("settings", onSettings)) { Image(systemName: "gearshape.fill") }
+                                .buttonStyle(.noir)
+                                .frame(width: 58)
+                                .powderCollider("settings")
+                                .accessibilityLabel("Settings")
                         }
                     }
                     .padding(.horizontal, 24)
-                    .padding(.bottom, 18)
+                    .padding(.bottom, 16)
                     .opacity(titleIn ? 1 : 0)
 
                     Text("A Redhead Games production · 17+ · Fiction. For entertainment only.")
@@ -126,8 +128,12 @@ struct TitleView: View {
                         .foregroundStyle(Noir.dim)
                         .padding(.bottom, 8)
                 }
-                FilmGrain()
+
+                PowderFall(colliders: titleIn ? colliders : [:], sim: sim)
+                    .opacity(titleIn ? 1 : 0)
             }
+            .coordinateSpace(name: "powder")
+            .onPreferenceChange(PowderColliderKey.self) { colliders = $0 }
         }
     }
 }

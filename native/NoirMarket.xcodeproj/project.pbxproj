@@ -7,14 +7,14 @@
 	objects = {
 
 /* Begin PBXContainerItemProxy section */
-		A10000000000000000000022 /* PBXContainerItemProxy */ = {
+		A10000000000000000000020 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = A10000000000000000000001 /* Project object */;
 			proxyType = 1;
 			remoteGlobalIDString = A10000000000000000000010;
 			remoteInfo = NoirMarket;
 		};
-		A10000000000000000000020 /* PBXContainerItemProxy */ = {
+		A10000000000000000000022 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = A10000000000000000000001 /* Project object */;
 			proxyType = 1;
@@ -24,17 +24,12 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		A10000000000000000000032 /* NoirMarketUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NoirMarketUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000030 /* NoirMarket.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NoirMarket.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000031 /* NoirMarketTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NoirMarketTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A10000000000000000000032 /* NoirMarketUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NoirMarketUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		A10000000000000000000042 /* NoirMarketUITests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = NoirMarketUITests;
-			sourceTree = "<group>";
-		};
 		A10000000000000000000040 /* NoirMarket */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = NoirMarket;
@@ -45,16 +40,14 @@
 			path = NoirMarketTests;
 			sourceTree = "<group>";
 		};
+		A10000000000000000000042 /* NoirMarketUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = NoirMarketUITests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		A10000000000000000000052 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		A10000000000000000000050 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -63,6 +56,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		A10000000000000000000051 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A10000000000000000000052 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -95,27 +95,6 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		A10000000000000000000012 /* NoirMarketUITests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = A10000000000000000000073 /* Build configuration list for PBXNativeTarget "NoirMarketUITests" */;
-			buildPhases = (
-				A10000000000000000000064 /* Sources */,
-				A10000000000000000000052 /* Frameworks */,
-				A10000000000000000000065 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				A10000000000000000000023 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				A10000000000000000000042 /* NoirMarketUITests */,
-			);
-			name = NoirMarketUITests;
-			productName = NoirMarketUITests;
-			productReference = A10000000000000000000032 /* NoirMarketUITests.xctest */;
-			productType = "com.apple.product-type.bundle.ui-testing";
-		};
 		A10000000000000000000010 /* NoirMarket */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = A10000000000000000000070 /* Build configuration list for PBXNativeTarget "NoirMarket" */;
@@ -156,6 +135,27 @@
 			productName = NoirMarketTests;
 			productReference = A10000000000000000000031 /* NoirMarketTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		A10000000000000000000012 /* NoirMarketUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A10000000000000000000073 /* Build configuration list for PBXNativeTarget "NoirMarketUITests" */;
+			buildPhases = (
+				A10000000000000000000064 /* Sources */,
+				A10000000000000000000052 /* Frameworks */,
+				A10000000000000000000065 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A10000000000000000000023 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				A10000000000000000000042 /* NoirMarketUITests */,
+			);
+			name = NoirMarketUITests;
+			productName = NoirMarketUITests;
+			productReference = A10000000000000000000032 /* NoirMarketUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
 
@@ -202,13 +202,6 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		A10000000000000000000065 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		A10000000000000000000062 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -223,16 +216,16 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-/* End PBXResourcesBuildPhase section */
-
-/* Begin PBXSourcesBuildPhase section */
-		A10000000000000000000064 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
+		A10000000000000000000065 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
 		A10000000000000000000060 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -247,50 +240,29 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		A10000000000000000000064 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		A10000000000000000000023 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = A10000000000000000000010 /* NoirMarket */;
-			targetProxy = A10000000000000000000022 /* PBXContainerItemProxy */;
-		};
 		A10000000000000000000021 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = A10000000000000000000010 /* NoirMarket */;
 			targetProxy = A10000000000000000000020 /* PBXContainerItemProxy */;
 		};
+		A10000000000000000000023 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A10000000000000000000010 /* NoirMarket */;
+			targetProxy = A10000000000000000000022 /* PBXContainerItemProxy */;
+		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		A10000000000000000000086 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 82XX49T84C;
-				GENERATE_INFOPLIST_FILE = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = games.redhead.noirmarket.uitests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = 1;
-				TEST_TARGET_NAME = NoirMarket;
-			};
-			name = Debug;
-		};
-		A10000000000000000000087 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = 82XX49T84C;
-				GENERATE_INFOPLIST_FILE = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = games.redhead.noirmarket.uitests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = 1;
-				TEST_TARGET_NAME = NoirMarket;
-			};
-			name = Release;
-		};
 		A10000000000000000000080 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -434,18 +406,37 @@
 			};
 			name = Release;
 		};
+		A10000000000000000000086 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 82XX49T84C;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = games.redhead.noirmarket.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = NoirMarket;
+			};
+			name = Debug;
+		};
+		A10000000000000000000087 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = 82XX49T84C;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = games.redhead.noirmarket.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_TARGET_NAME = NoirMarket;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		A10000000000000000000073 /* Build configuration list for PBXNativeTarget "NoirMarketUITests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				A10000000000000000000086 /* Debug */,
-				A10000000000000000000087 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		A10000000000000000000070 /* Build configuration list for PBXNativeTarget "NoirMarket" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -469,6 +460,15 @@
 			buildConfigurations = (
 				A10000000000000000000080 /* Debug */,
 				A10000000000000000000081 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A10000000000000000000073 /* Build configuration list for PBXNativeTarget "NoirMarketUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A10000000000000000000086 /* Debug */,
+				A10000000000000000000087 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

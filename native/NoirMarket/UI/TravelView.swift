@@ -14,7 +14,9 @@ struct TravelView: View {
 
                     MapView(s: s, selected: $selected)
                         .frame(height: 330)
+                        .background(RadialGradient(colors: [Noir.green.opacity(0.06), .clear], center: .center, startRadius: 10, endRadius: 260))
                         .card(padding: 0)
+                        .clipShape(RoundedRectangle(cornerRadius: Noir.radius, style: .continuous))
 
                     if let dest = selected {
                         DestinationCard(s: s, dest: dest, onGo: { go(dest) })
@@ -32,7 +34,7 @@ struct TravelView: View {
                                 HStack {
                                     if !open { Image(systemName: "lock.fill").font(.system(size: 11)).foregroundStyle(Noir.brass) }
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text(c.name).font(Noir.typeBold(15)).foregroundStyle(open ? Noir.paper : Noir.dim)
+                                        Text(c.name).font(.system(size: 15, weight: .semibold)).foregroundStyle(open ? Noir.paper : Noir.dim)
                                         Text(c.region).font(.system(size: 10)).foregroundStyle(Noir.dim)
                                     }
                                     Spacer()
@@ -44,12 +46,13 @@ struct TravelView: View {
                                 }
                                 .padding(.vertical, 10)
                                 .padding(.horizontal, 12)
-                                .background(selected == c.id ? Noir.smoke : .clear)
+                                .background(selected == c.id ? Noir.green.opacity(0.1) : .clear)
                             }
                             Rectangle().fill(Noir.rule).frame(height: 1)
                         }
                     }
                     .card(padding: 0)
+                    .clipShape(RoundedRectangle(cornerRadius: Noir.radius, style: .continuous))
 
                     if !unlock.unlocked { UnlockCard() }
                 }
@@ -98,7 +101,7 @@ private struct DestinationCard: View {
                 Button(flight ? "Fly to \(c.name)" : "Go to \(c.name)", action: onGo).buttonStyle(.noirPrimary)
             } else {
                 Button(unlock.busy ? "…" : "Unlock all cities") { Task { await unlock.purchase() } }
-                    .buttonStyle(NoirButtonStyle(kind: .secondary))
+                    .buttonStyle(.noirAmber)
             }
         }
         .card()
@@ -149,7 +152,7 @@ struct MapView: View {
                         var route = Path()
                         route.move(to: project(a.lon, a.lat))
                         route.addLine(to: project(b.lon, b.lat))
-                        ctx.stroke(route, with: .color(Noir.neon), style: StrokeStyle(lineWidth: 1.5, dash: [4, 4]))
+                        ctx.stroke(route, with: .color(Noir.amber), style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [5, 5]))
                     }
                 }
                 ForEach(Catalog.cities) { c in
@@ -162,12 +165,12 @@ struct MapView: View {
                     } label: {
                         ZStack {
                             Circle()
-                                .fill(here ? Noir.neon : selected == c.id ? Noir.paper : open ? Noir.silver : Noir.dim)
+                                .fill(here ? Noir.green : selected == c.id ? Noir.amber : open ? Noir.paper.opacity(0.8) : Noir.dim)
                                 .frame(width: here || selected == c.id ? 11 : 7)
-                                .shadow(color: here ? Noir.neon : .clear, radius: 6)
+                                .shadow(color: here ? Noir.green : selected == c.id ? Noir.amber : .clear, radius: 7)
                             Text(c.name)
                                 .font(.system(size: 9, weight: here || selected == c.id ? .bold : .regular))
-                                .foregroundStyle(here ? Noir.neon : open ? Noir.paper.opacity(0.85) : Noir.dim)
+                                .foregroundStyle(here ? Noir.green : selected == c.id ? Noir.amber : open ? Noir.paper.opacity(0.85) : Noir.dim)
                                 .fixedSize()
                                 .frame(width: 70, alignment: side == .left ? .trailing : side == .right ? .leading : .center)
                                 .offset(x: side == .left ? -41 : side == .right ? 41 : 0, y: side == .below ? 11 : side == .above ? -11 : 0)

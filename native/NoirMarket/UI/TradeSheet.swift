@@ -19,11 +19,7 @@ struct TradeSheet: View {
 
             VStack(alignment: .leading, spacing: 18) {
                 HStack(spacing: 14) {
-                    Image(systemName: g.symbol)
-                        .font(.system(size: 22))
-                        .foregroundStyle(Noir.ink)
-                        .frame(width: 52, height: 52)
-                        .background(Noir.paper, in: Circle())
+                    GlowIcon(symbol: g.symbol, color: selling ? Noir.red : Noir.green, size: 54)
                     VStack(alignment: .leading, spacing: 2) {
                         Text(g.name).font(Noir.display(30)).foregroundStyle(Noir.paper)
                         Text("\(Money.gbp(price)) each · \(s.markets[s.city].supply[good]) about")
@@ -32,11 +28,13 @@ struct TradeSheet: View {
                     Spacer()
                 }
 
-                Picker("", selection: $selling) {
-                    Text("Buy").tag(false)
-                    Text("Sell").tag(true)
+                HStack(spacing: 6) {
+                    segment("Buy", active: !selling, colour: Noir.green) { selling = false }
+                    segment("Sell", active: selling, colour: Noir.red) { selling = true }
                 }
-                .pickerStyle(.segmented)
+                .padding(4)
+                .background(Capsule().fill(Color.white.opacity(0.05)))
+                .overlay(Capsule().strokeBorder(Color.white.opacity(0.1)))
                 .onChange(of: selling) { qty = selling ? Double(owned) : 0 }
 
                 if maxQty == 0 {
@@ -57,7 +55,7 @@ struct TradeSheet: View {
                             }
                         }
                         Slider(value: $qty, in: 0...Double(max(1, maxQty)), step: 1)
-                            .tint(Noir.neon)
+                            .tint(selling ? Noir.red : Noir.green)
                         HStack(spacing: 8) {
                             chip("None") { qty = 0 }
                             chip("Half") { qty = Double(maxQty / 2) }
@@ -94,11 +92,10 @@ struct TradeSheet: View {
                             dismiss()
                         }
                     }
-                    .buttonStyle(selling ? NoirButtonStyle(kind: .secondary) : NoirButtonStyle(kind: .primary))
+                    .buttonStyle(selling ? NoirButtonStyle(kind: .danger) : NoirButtonStyle(kind: .primary))
                     .accessibilityIdentifier("tradeAction")
                     .disabled(q == 0)
-                    .opacity(q == 0 ? 0.4 : 1)
-                }
+                                    }
                 if let error = store.error {
                     Text(error).font(Noir.type(12)).foregroundStyle(Noir.neon)
                 }
@@ -110,6 +107,21 @@ struct TradeSheet: View {
                 qty = selling ? Double(owned) : 0
                 store.error = nil
             }
+        }
+    }
+
+    private func segment(_ title: String, active: Bool, colour: Color, action: @escaping () -> Void) -> some View {
+        Button {
+            withAnimation(.spring(duration: 0.25)) { action() }
+            Audio.shared.buzz(.tap)
+        } label: {
+            Text(title)
+                .font(Noir.label(13)).tracking(1.5).textCase(.uppercase)
+                .foregroundStyle(active ? colour : Noir.silver)
+                .frame(maxWidth: .infinity, minHeight: 40)
+                .background(Capsule().fill(active ? colour.opacity(0.18) : .clear))
+                .overlay(Capsule().strokeBorder(active ? colour.opacity(0.8) : .clear))
+                .shadow(color: active ? colour.opacity(0.45) : .clear, radius: 8)
         }
     }
 
@@ -125,6 +137,7 @@ struct TradeSheet: View {
             .font(Noir.label(11)).tracking(1.5).textCase(.uppercase)
             .foregroundStyle(Noir.silver)
             .frame(maxWidth: .infinity, minHeight: 34)
-            .background(Noir.smoke, in: RoundedRectangle(cornerRadius: 3))
+            .background(Capsule().fill(Color.white.opacity(0.07)))
+            .overlay(Capsule().strokeBorder(Color.white.opacity(0.12)))
     }
 }

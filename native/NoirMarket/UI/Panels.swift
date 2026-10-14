@@ -8,7 +8,8 @@ private struct ErrorLine: View {
             Text(e).font(Noir.type(13)).foregroundStyle(Noir.neon)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(10)
-                .background(Noir.neon.opacity(0.1), in: RoundedRectangle(cornerRadius: 3))
+                .background(Noir.red.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Noir.red.opacity(0.5)))
                 .onTapGesture { store.error = nil }
                 .task { try? await Task.sleep(for: .seconds(4)); store.error = nil }
         }
@@ -18,12 +19,19 @@ private struct ErrorLine: View {
 private struct Section<Content: View>: View {
     let title: String
     var note: String?
+    var boxed = true
     @ViewBuilder var content: Content
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(title).noirLabel(11, color: Noir.silver)
-            if let note { Text(note).font(Noir.type(12)).foregroundStyle(Noir.dim).fixedSize(horizontal: false, vertical: true) }
-            content
+            Text(title).noirLabel(11, color: Noir.silver).padding(.leading, 4)
+            if let note { Text(note).font(Noir.type(12)).foregroundStyle(Noir.dim).fixedSize(horizontal: false, vertical: true).padding(.horizontal, 4) }
+            if boxed {
+                VStack(alignment: .leading, spacing: 8) { content }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .card(padding: 14)
+            } else {
+                content
+            }
         }
     }
 }
@@ -31,16 +39,18 @@ private struct Section<Content: View>: View {
 private struct SmallButton: View {
     let title: String
     var enabled = true
+    var tint: Color = Noir.green
     var action: () -> Void
     var body: some View {
         Button(action: action) {
             Text(title)
-                .font(Noir.label(10)).tracking(1.5).textCase(.uppercase)
-                .foregroundStyle(enabled ? Noir.paper : Noir.dim)
-                .padding(.horizontal, 12)
-                .frame(minHeight: 34)
-                .background(Noir.smoke, in: RoundedRectangle(cornerRadius: 3))
-                .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Noir.rule))
+                .font(Noir.label(11)).tracking(1.2).textCase(.uppercase)
+                .foregroundStyle(enabled ? tint : Noir.dim)
+                .padding(.horizontal, 14)
+                .frame(minHeight: 36)
+                .background(Capsule().fill(LinearGradient(colors: [(enabled ? tint : .white).opacity(enabled ? 0.2 : 0.05), (enabled ? tint : .white).opacity(0.04)], startPoint: .top, endPoint: .bottom)))
+                .overlay(Capsule().strokeBorder((enabled ? tint : .white).opacity(enabled ? 0.75 : 0.12)))
+                .shadow(color: enabled ? tint.opacity(0.35) : .clear, radius: 6)
         }
         .disabled(!enabled)
     }
@@ -78,8 +88,8 @@ struct StashView: View {
                         ForEach(held) { g in
                             row(g, qty: s.vault[s.city][g.id]) {
                                 HStack(spacing: 6) {
-                                    SmallButton(title: "Take") { store.act { try Engine.retrieve(&$0, good: g.id, qty: min($0.vault[$0.city][g.id], Engine.space($0))) } }
-                                    SmallButton(title: "Ship") { shipping = g.id }
+                                    SmallButton(title: "Take", tint: Noir.paper) { store.act { try Engine.retrieve(&$0, good: g.id, qty: min($0.vault[$0.city][g.id], Engine.space($0))) } }
+                                    SmallButton(title: "Ship", tint: Noir.amber) { shipping = g.id }
                                 }
                             }
                         }
@@ -129,7 +139,7 @@ struct StashView: View {
     private func row<Trailing: View>(_ g: Good, qty: Int, @ViewBuilder trailing: () -> Trailing) -> some View {
         HStack {
             Image(systemName: g.symbol).foregroundStyle(Noir.silver).frame(width: 24)
-            Text(g.name).font(Noir.typeBold(15)).foregroundStyle(Noir.paper)
+            Text(g.name).font(.system(size: 15, weight: .semibold)).foregroundStyle(Noir.paper)
             Text("×\(qty)").font(Noir.mono(13)).foregroundStyle(Noir.silver)
             Spacer()
             trailing()
@@ -165,8 +175,8 @@ struct MoneyView: View {
                             .font(Noir.mono(18))
                             .foregroundStyle(Noir.paper)
                             .padding(12)
-                            .background(Noir.coal, in: RoundedRectangle(cornerRadius: 3))
-                            .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Noir.rule))
+                            .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.white.opacity(0.12)))
                         HStack(spacing: 8) {
                             Button("Deposit") { bank(true, s) }.buttonStyle(.noir)
                             Button("Withdraw") { bank(false, s) }.buttonStyle(.noir)
@@ -178,12 +188,12 @@ struct MoneyView: View {
                     }
 
                     if !s.loans.isEmpty {
-                        Section(title: "What you owe") {
+                        Section(title: "What you owe", boxed: false) {
                             ForEach(s.loans) { loan in
                                 let owed = Engine.payoff(loan, day: s.day)
                                 VStack(alignment: .leading, spacing: 8) {
                                     HStack {
-                                        Text(Catalog.lenders[loan.lender].name).font(Noir.typeBold(16)).foregroundStyle(Noir.paper)
+                                        Text(Catalog.lenders[loan.lender].name).font(.system(size: 16, weight: .semibold)).foregroundStyle(Noir.paper)
                                         Spacer()
                                         Text(Money.gbp(owed)).font(Noir.mono(16)).foregroundStyle(Noir.neon)
                                     }
@@ -201,12 +211,12 @@ struct MoneyView: View {
                         }
                     }
 
-                    Section(title: "Lenders", note: "One loan per lender. Miss a payment and the debt jumps 20%, then they come looking.") {
+                    Section(title: "Lenders", note: "One loan per lender. Miss a payment and the debt jumps 20%, then they come looking.", boxed: false) {
                         ForEach(Catalog.lenders) { l in
                             let has = s.loans.contains { $0.lender == l.id }
                             VStack(alignment: .leading, spacing: 6) {
                                 HStack {
-                                    Text(l.name).font(Noir.typeBold(16)).foregroundStyle(Noir.paper)
+                                    Text(l.name).font(.system(size: 16, weight: .semibold)).foregroundStyle(Noir.paper)
                                     Spacer()
                                     Text("up to \(Money.short(Engine.lenderLimit(s, l)))").font(Noir.mono(12)).foregroundStyle(Noir.silver)
                                 }
@@ -282,7 +292,7 @@ struct ShopView: View {
                     Section(title: "Carrying", note: "Bigger bags carry more. Each is a one-off purchase.") {
                         ForEach(Catalog.bags) { b in
                             let owned = s.bags.contains(b.id)
-                            item(b.name, "+\(b.slots) slots", price: b.price, owned: owned ? "Owned" : nil) {
+                            item(b.name, "+\(b.slots) slots", price: b.price, owned: owned ? "Owned" : nil, symbol: ["backpack.fill", "duffle.bag.fill", "car.fill", "box.truck.fill"][b.id]) {
                                 store.act { try Engine.buyBag(&$0, b.id) }
                             }
                         }
@@ -292,14 +302,14 @@ struct ShopView: View {
                         ForEach([25, 50, 100], id: \.self) { pts in
                             let real = min(pts, 100 - s.health)
                             item(pts == 100 ? "Full patch-up" : "+\(pts)% health", "You’re at \(s.health)%", price: Engine.doctorPrice(s, points: max(1, real)),
-                                 owned: real <= 0 ? "Healthy" : nil) {
+                                 owned: real <= 0 ? "Healthy" : nil, symbol: "cross.case.fill", colour: Noir.rag(s.health, highIsGood: true)) {
                                 store.act { try Engine.heal(&$0, points: pts) }
                             }
                         }
                     }
 
                     Section(title: "Burner phones", note: "One call a day to a contact with a deal. You’ve got \(s.phones).") {
-                        item("Burner Phone", "Single use", price: 500, owned: nil) { store.act { try Engine.buyPhone(&$0) } }
+                        item("Burner Phone", s.phones > 0 ? "\(s.phones) in your pocket" : "Single use", price: 500, owned: nil, symbol: "iphone.gen1", lit: s.phones > 0) { store.act { try Engine.buyPhone(&$0) } }
                     }
 
                     Section(title: "Hardware", note: "Better odds when it gets ugly. Every weapon draws heat, and police take them if you’re nicked.") {
@@ -307,7 +317,7 @@ struct ShopView: View {
                             HStack(alignment: .top) {
                                 VStack(alignment: .leading, spacing: 3) {
                                     HStack(spacing: 6) {
-                                        Text(w.name).font(Noir.typeBold(15)).foregroundStyle(Noir.paper)
+                                        Text(w.name).font(.system(size: 15, weight: .semibold)).foregroundStyle(Noir.paper)
                                         if s.weapons[w.id] > 0 { Text("×\(s.weapons[w.id])").font(Noir.mono(12)).foregroundStyle(Noir.brass) }
                                     }
                                     Text("\(w.note) · win \(Int(w.win * 100))% · heat +\(w.heat)").font(.system(size: 11)).foregroundStyle(Noir.dim)
@@ -316,7 +326,7 @@ struct ShopView: View {
                                 VStack(alignment: .trailing, spacing: 6) {
                                     SmallButton(title: Money.short(w.price), enabled: s.cash >= w.price) { store.act { try Engine.buyWeapon(&$0, w.id) } }
                                     if s.weapons[w.id] > 0 {
-                                        SmallButton(title: "Sell \(Money.short(w.price / 2))") { store.act { try Engine.sellWeapon(&$0, w.id) } }
+                                        SmallButton(title: "Sell \(Money.short(w.price / 2))", tint: Noir.red) { store.act { try Engine.sellWeapon(&$0, w.id) } }
                                     }
                                 }
                             }
@@ -330,10 +340,11 @@ struct ShopView: View {
         }
     }
 
-    private func item(_ name: String, _ detail: String, price: Int, owned: String?, buy: @escaping () -> Void) -> some View {
-        HStack {
+    private func item(_ name: String, _ detail: String, price: Int, owned: String?, symbol: String = "bag.fill", colour: Color = Noir.green, lit: Bool? = nil, buy: @escaping () -> Void) -> some View {
+        HStack(spacing: 12) {
+            GlowIcon(symbol: symbol, color: colour, size: 34, lit: lit ?? (owned != nil))
             VStack(alignment: .leading, spacing: 2) {
-                Text(name).font(Noir.typeBold(15)).foregroundStyle(Noir.paper)
+                Text(name).font(.system(size: 15, weight: .semibold)).foregroundStyle(Noir.paper)
                 Text(detail).font(.system(size: 11)).foregroundStyle(Noir.dim)
             }
             Spacer()
@@ -372,12 +383,12 @@ struct StreetView: View {
                         .transition(.opacity)
                     }
 
-                    Section(title: "Informants", note: "Each will talk once a day. Tips are about tomorrow, and only as good as the person selling them.") {
+                    Section(title: "Informants", note: "Each will talk once a day. Tips are about tomorrow, and only as good as the person selling them.", boxed: false) {
                         ForEach(Catalog.informants) { info in
                             let price = s.informantPrice[info.id]
                             VStack(alignment: .leading, spacing: 6) {
                                 HStack {
-                                    Text(info.name).font(Noir.typeBold(16)).foregroundStyle(Noir.paper)
+                                    Text(info.name).font(.system(size: 16, weight: .semibold)).foregroundStyle(Noir.paper)
                                     Spacer()
                                     Text(Money.gbp(price)).font(Noir.mono(14)).foregroundStyle(Noir.silver)
                                 }
@@ -394,7 +405,7 @@ struct StreetView: View {
                         }
                     }
 
-                    Section(title: "Contacts", note: "Burner phones: \(s.phones). One call a day. Deals settle on the spot.") {
+                    Section(title: "Contacts", note: "Burner phones: \(s.phones). One call a day. Deals settle on the spot.", boxed: false) {
                         if let deal = s.deal {
                             DealCard(deal: deal, s: s, onTake: {
                                 var out: Outcome?

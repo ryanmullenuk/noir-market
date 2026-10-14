@@ -141,7 +141,7 @@ private struct EncounterView: View {
                 Text(text).font(Noir.type(16)).foregroundStyle(Noir.silver)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 14) {
-                    Meter(label: "Health", value: s.health, colour: s.health <= 30 ? Noir.neon : Noir.paper)
+                    Meter(label: "Health", symbol: "heart.fill", value: s.health, colour: Noir.rag(s.health, highIsGood: true))
                 }
                 .padding(.vertical, 6)
                 VStack(spacing: 10) {
@@ -153,14 +153,19 @@ private struct EncounterView: View {
                                 Text(o.label)
                                 Spacer()
                                 if let odds = o.odds {
-                                    Text("\(Int((odds * 100).rounded()))%").font(Noir.mono(13))
+                                    let c = odds >= 0.6 ? Noir.green : odds >= 0.35 ? Noir.amber : Noir.red
+                                    Text("\(Int((odds * 100).rounded()))%")
+                                        .font(Noir.mono(13))
+                                        .foregroundStyle(c)
+                                        .padding(.horizontal, 8).padding(.vertical, 3)
+                                        .background(Capsule().fill(c.opacity(0.15)))
+                                        .shadow(color: c.opacity(0.5), radius: 5)
                                 }
                             }
                             .padding(.horizontal, 16)
                         }
                         .buttonStyle(NoirButtonStyle(kind: o.primary ? .primary : o.danger ? .danger : .secondary))
                         .disabled(!o.enabled)
-                        .opacity(o.enabled ? 1 : 0.35)
                         if let note = o.note {
                             Text(note).font(.system(size: 11)).foregroundStyle(Noir.dim)
                                 .frame(maxWidth: .infinity, alignment: .leading)

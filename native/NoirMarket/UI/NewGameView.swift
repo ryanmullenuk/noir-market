@@ -64,9 +64,10 @@ struct NewGameView: View {
                                         Text(c.name).font(Noir.type(14)).lineLimit(1).minimumScaleFactor(0.8)
                                     }
                                     .frame(maxWidth: .infinity, minHeight: 42)
-                                    .foregroundStyle(city == c.id ? Noir.ink : open ? Noir.paper : Noir.dim)
-                                    .background(city == c.id ? Noir.paper : Noir.coal, in: RoundedRectangle(cornerRadius: 3))
-                                    .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Noir.rule))
+                                    .foregroundStyle(city == c.id ? Noir.green : open ? Noir.paper : Noir.amber.opacity(0.8))
+                                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(city == c.id ? Noir.green.opacity(0.18) : Color.white.opacity(0.05)))
+                                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(city == c.id ? Noir.green : open ? Color.white.opacity(0.12) : Noir.amber.opacity(0.4), style: StrokeStyle(lineWidth: 1, dash: open ? [] : [4, 3])))
+                                    .shadow(color: city == c.id ? Noir.green.opacity(0.45) : .clear, radius: 8)
                                 }
                                 .accessibilityLabel(open ? c.name : "\(c.name), locked")
                             }
@@ -119,7 +120,7 @@ struct UnlockCard: View {
                 .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 8) {
                 Button(unlock.busy ? "…" : "Unlock all cities") { Task { await unlock.purchase() } }
-                    .buttonStyle(NoirButtonStyle(kind: .secondary))
+                    .buttonStyle(.noirAmber)
                     .disabled(unlock.busy)
                 Button("Restore") { Task { await unlock.restore() } }
                     .buttonStyle(.noirQuiet)
@@ -131,6 +132,6 @@ struct UnlockCard: View {
             }
         }
         .card()
-        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Noir.brass.opacity(0.35), style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+        
     }
 }
