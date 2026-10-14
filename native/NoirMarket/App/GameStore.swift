@@ -11,6 +11,7 @@ struct Record: Codable, Identifiable, Equatable, Sendable {
     var date: Date
     var fullGame: Bool
     var seed: UInt64 = 0
+    var mode: String?
 }
 
 /// Owns the live game, saves after every change, and keeps the records table.
@@ -20,10 +21,16 @@ final class GameStore {
     private(set) var state: GameState?
     private(set) var records: [Record] = []
     var error: String?
+    /// Achievement just earned, for the banner.
+    var toast: Achievement?
+    /// A big win to celebrate with the slow-motion moment.
+    var celebration: Int?
+    private(set) var achievements: Set<String> = Set(UserDefaults.standard.stringArray(forKey: "achievements") ?? [])
     var fullAccess = false {
         didSet {
             let god = state?.godMode == true
-            state?.fullAccess = fullAccess || god
+            let daily = state?.mode == GameMode.daily.rawValue
+            state?.fullAccess = !daily && (fullAccess || god)
             persist()
         }
     }
@@ -57,10 +64,12 @@ final class GameStore {
         set { UserDefaults.standard.set(String(newValue.prefix(20)), forKey: "playerName") }
     }
 
-    func newGame(city: Int) {
-        let seed = UInt64.random(in: 1...UInt64.max)
+    func newGame(city: Int, mode: GameMode = .standard, perk: Perk? = nil) {
+        let seed: UInt64 = mode == .daily ? GameMode.dailySeed() : mode == .tutorial ? 2026 : UInt64.random(in: 1...UInt64.max)
+        let start = mode == .daily || mode == .tutorial ? 0 : city
         let god = Self.isGodName(playerName)
-        var s = GameState(seed: seed, city: city, name: playerName, fullAccess: fullAccess || god)
+        var s = GameState(seed: seed, city: start, name: playerName, fullAccess: mode != .daily && (fullAccess || god))
+        Engine.configure(&s, mode: mode, perk: perk)
         if god {
             // Test mode: every city and a bottomless wallet.
             s.godMode = true
@@ -83,6 +92,7 @@ final class GameStore {
         do {
             try action(&s)
             if s.godMode == true, s.over == nil { s.cash = max(s.cash, Self.godCash) }
+            drainProgress(&s)
             state = s
             finishIfOver()
             persist()
@@ -91,6 +101,21 @@ final class GameStore {
             self.error = error.localizedDescription
             Audio.shared.buzz(.warning)
             return false
+        }
+    }
+
+    /// Files new achievements, reports them to Game Center, and queues celebrations.
+    private func drainProgress(_ s: inout GameState) {
+        for id in s.unlocked ?? [] where !achievements.contains(id) {
+            achievements.insert(id)
+            UserDefaults.standard.set(Array(achievements), forKey: "achievements")
+            GameCenter.report(achievement: id)
+            if let a = Achievement.all.first(where: { $0.id == id }) { toast = a }
+        }
+        s.unlocked = nil
+        if let win = s.lastBigWin {
+            celebration = win
+            s.lastBigWin = nil
         }
     }
 
@@ -106,9 +131,16 @@ final class GameStore {
 
     private func finishIfOver() {
         guard let s = state, let over = s.over, s.godMode != true else { return }
-        guard !records.contains(where: { $0.seed == s.seed }) else { return }
+        let mode = Engine.mode(s)
+        guard mode != .tutorial else { return }
+        if let i = records.firstIndex(where: { $0.seed == s.seed }) {
+            // Same seed (a replayed Daily Challenge): keep the better run.
+            guard over.worth > records[i].worth else { return }
+            records.remove(at: i)
+        }
         let record = Record(name: s.playerName.isEmpty ? "Anonymous" : s.playerName, worth: over.worth, rank: over.rank,
-                            died: over.died, date: .now, fullGame: s.fullAccess, seed: s.seed)
+                            died: over.died, date: .now, fullGame: s.fullAccess, seed: s.seed, mode: mode.rawValue)
+        if let board = mode.leaderboard { GameCenter.submit(score: over.worth, leaderboard: board) }
         records.append(record)
         records.sort { $0.worth > $1.worth }
         records = Array(records.prefix(20))

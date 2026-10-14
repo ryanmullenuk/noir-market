@@ -17,6 +17,7 @@ struct NoirMarketApp: App {
                 .buttonStyle(.plain)
                 .task {
                     unlock.onChange = { [store] entitled in store.fullAccess = entitled }
+                    GameCenter.authenticate()
                     await unlock.start()
                 }
         }
@@ -44,8 +45,8 @@ struct RootView: View {
                           onRecords: { sheet = .records })
                     .transition(.opacity)
             case .newGame:
-                NewGameView(onStart: { city in
-                    store.newGame(city: city)
+                NewGameView(onStart: { city, mode, perk in
+                    store.newGame(city: city, mode: mode, perk: perk)
                     Audio.shared.duck()
                     go(.game)
                 }, onBack: { go(.title) })
@@ -74,7 +75,8 @@ struct RootView: View {
         #if DEBUG
         let args = ProcessInfo.processInfo.arguments
         guard args.contains("-demo") else { return }
-        store.newGame(city: 0)
+        let mode = args.firstIndex(of: "-mode").flatMap { i in i + 1 < args.count ? GameMode(rawValue: args[i + 1]) : nil } ?? .standard
+        store.newGame(city: 0, mode: mode, perk: args.contains("-copper") ? .copper : nil)
         if let i = args.firstIndex(of: "-days"), i + 1 < args.count, let n = Int(args[i + 1]) {
             store.act { s in
                 s.cash = 40_000
@@ -107,6 +109,9 @@ struct RootView: View {
                 }
             }
         }
+        if args.contains("-newgame") { screen = .newGame; return }
+        if args.contains("-toast") { store.toast = Achievement.all[2] }
+        if args.contains("-bigwin") { store.celebration = 48_250 }
         screen = .game
         #endif
     }

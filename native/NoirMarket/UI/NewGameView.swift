@@ -1,13 +1,15 @@
 import SwiftUI
 
 struct NewGameView: View {
-    var onStart: (Int) -> Void
+    var onStart: (Int, GameMode, Perk?) -> Void
     var onBack: () -> Void
 
     @Environment(GameStore.self) private var store
     @Environment(Unlock.self) private var unlock
     @State private var name = ""
     @State private var city = 0
+    @State private var mode: GameMode = .standard
+    @State private var perk: Perk? = nil
     @FocusState private var nameFocused: Bool
 
     var body: some View {
@@ -41,6 +43,27 @@ struct NewGameView: View {
                     }
 
                     VStack(alignment: .leading, spacing: 10) {
+                        Text("The job").noirLabel()
+                        ForEach(GameMode.allCases) { m in
+                            choiceRow(symbol: m.symbol, title: m.title + (m == .daily ? " · " + Date.now.formatted(.dateTime.day().month()) : ""),
+                                      detail: m.blurb, selected: mode == m, tint: m == .daily ? Noir.amber : Noir.green) {
+                                mode = m
+                            }
+                        }
+                    }
+
+                    if mode != .daily && mode != .tutorial {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Your background").noirLabel()
+                            choiceRow(symbol: "person.fill", title: "Nobody special", detail: "No perks, no baggage.", selected: perk == nil, tint: Noir.green) { perk = nil }
+                            ForEach(Perk.allCases) { p in
+                                choiceRow(symbol: p.symbol, title: p.title, detail: p.blurb, selected: perk == p, tint: Noir.green) { perk = p }
+                            }
+                        }
+                    }
+
+                    if mode != .daily && mode != .tutorial {
+                    VStack(alignment: .leading, spacing: 10) {
                         Text("Where it starts").noirLabel()
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 8)], spacing: 8) {
                             ForEach(Catalog.cities) { c in
@@ -72,8 +95,10 @@ struct NewGameView: View {
                         }
                     }
 
+                    }
+
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("The job").noirLabel()
+                        Text("The rules").noirLabel()
                         Text("Thirty days. Buy low, sell high, keep your head down. Everything you own on the last night is your score. Half the news is true. Nobody will tell you which half.")
                             .font(Noir.type(15))
                             .foregroundStyle(Noir.silver)
@@ -83,7 +108,7 @@ struct NewGameView: View {
                     Button("Begin") {
                         store.playerName = name.trimmingCharacters(in: .whitespaces)
                         Audio.shared.buzz(.success)
-                        onStart(city)
+                        onStart(city, mode, perk)
                     }
                     .buttonStyle(.noirPrimary)
                     .padding(.top, 4)
@@ -94,6 +119,31 @@ struct NewGameView: View {
             FilmGrain()
         }
         .onAppear { name = store.playerName }
+    }
+}
+
+extension NewGameView {
+    func choiceRow(symbol: String, title: String, detail: String, selected: Bool, tint: Color, action: @escaping () -> Void) -> some View {
+        Button {
+            withAnimation(.spring(duration: 0.25)) { action() }
+            Audio.shared.buzz(.tap)
+        } label: {
+            HStack(spacing: 12) {
+                GlowIcon(symbol: symbol, color: tint, size: 34, lit: selected)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title.uppercased()).font(Noir.label(12)).tracking(1).foregroundStyle(selected ? tint : Noir.paper)
+                    Text(detail).font(Noir.ui(12)).foregroundStyle(Noir.silver).fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+                if selected { Image(systemName: "checkmark.circle.fill").foregroundStyle(tint) }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(selected ? tint.opacity(0.12) : Color.white.opacity(0.04)))
+            .overlay { if selected { RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(tint.opacity(0.8)) } }
+            .shadow(color: selected ? tint.opacity(0.3) : .clear, radius: 8)
+        }
+        .buttonStyle(.plain)
     }
 }
 

@@ -16,7 +16,7 @@ struct GameView: View {
         if let s = store.state {
             ZStack {
                 Noir.ink.ignoresSafeArea()
-                EdgeGlow(colour: condition(s))
+                EdgeGlow(colour: condition(s), heat: s.heat)
 
                 VStack(spacing: 0) {
                     Header(s: s, onMenu: { panel = .settings })
@@ -32,7 +32,17 @@ struct GameView: View {
                     Dock(onSelect: { panel = $0 }, onStay: { stay() }, s: s)
                 }
                 FilmGrain()
-                if let call = s.call, !overlayNeeded {
+                if let win = store.celebration, !overlayNeeded, trade == nil {
+                    BigWinMoment(amount: win) { store.celebration = nil }
+                        .zIndex(6)
+                }
+                VStack {
+                    AchievementToast()
+                    Spacer()
+                }
+                .zIndex(7)
+                .animation(.spring(duration: 0.4), value: store.toast?.id)
+                if let call = s.call, !overlayNeeded, panel == nil, trade == nil {
                     IncomingCallView(call: call, city: Catalog.cities[s.city].name)
                         .transition(.opacity.combined(with: .scale(scale: 0.95)))
                         .zIndex(5)
@@ -107,7 +117,10 @@ private struct TradeID: Identifiable { let id: Int }
 /// A very faint glow around the edge of the screen in the player's condition colour.
 private struct EdgeGlow: View {
     let colour: Color
+    var heat: Int = 0
     @State private var breathe = false
+    @State private var flash = 0.0
+    @State private var lastHeat: Int?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
@@ -115,7 +128,20 @@ private struct EdgeGlow: View {
             .strokeBorder(colour, lineWidth: 26)
             .blur(radius: 34)
             .opacity(colour == Noir.red ? (breathe ? 0.26 : 0.14) : 0.1)
+            .overlay {
+                // A heat spike flashes the edges red for a moment.
+                RoundedRectangle(cornerRadius: 54, style: .continuous)
+                    .strokeBorder(Noir.red, lineWidth: 34)
+                    .blur(radius: 30)
+                    .opacity(flash)
+            }
             .ignoresSafeArea()
+            .onChange(of: heat) { old, new in
+                guard new - old >= 8 else { return }
+                withAnimation(.easeOut(duration: 0.15)) { flash = 0.55 }
+                withAnimation(.easeIn(duration: 1.1).delay(0.2)) { flash = 0 }
+                Audio.shared.buzz(.warning)
+            }
             .allowsHitTesting(false)
             .animation(.easeInOut(duration: 0.8), value: colour)
             .onAppear {
@@ -150,6 +176,12 @@ private struct Header: View {
                     .shadow(color: Noir.green.opacity(0.35), radius: 10)
                     .lineLimit(1).minimumScaleFactor(0.6)
                 HStack(spacing: 6) {
+                    if let w = s.weather {
+                        Image(systemName: w == "rain" ? "cloud.rain.fill" : w == "fog" ? "cloud.fog.fill" : "moon.stars.fill")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(w == "rain" ? Noir.green : w == "fog" ? Noir.amber : Noir.silver)
+                            .accessibilityLabel(w == "clear" ? "Clear night" : w.capitalized)
+                    }
                     Text(Catalog.cities[s.city].region)
                         .font(Noir.label(10)).tracking(1.2).textCase(.uppercase)
                         .foregroundStyle(Noir.silver)
@@ -164,6 +196,19 @@ private struct Header: View {
                         Text("\(s.rankDays)/3 → \(Catalog.ranks[s.rankPending].name)")
                             .font(Noir.ui(10, weight: .medium)).foregroundStyle(Noir.dim)
                             .lineLimit(1)
+                    }
+                }
+                let tags = headerTags(s)
+                if !tags.isEmpty {
+                    HStack(spacing: 6) {
+                        ForEach(tags, id: \.0) { tag in
+                            Text(tag.0)
+                                .font(Noir.label(9)).tracking(1).textCase(.uppercase)
+                                .foregroundStyle(tag.1)
+                                .padding(.horizontal, 7).padding(.vertical, 2)
+                                .background(Capsule().fill(tag.1.opacity(0.13)))
+                                .overlay(Capsule().strokeBorder(tag.1.opacity(0.55)))
+                        }
                     }
                 }
             }
@@ -190,6 +235,16 @@ private struct Header: View {
     }
 }
 
+private func headerTags(_ s: GameState) -> [(String, Color)] {
+    var tags: [(String, Color)] = []
+    let mode = Engine.mode(s)
+    if mode != .standard { tags.append((mode.title, mode == .daily ? Noir.amber : Noir.green)) }
+    if let p = Engine.perk(s) { tags.append((p.title, Noir.silver)) }
+    if Engine.eventHere(s, "festival") { tags.append(("Festival", Noir.amber)) }
+    if Engine.eventHere(s, "match") { tags.append(("Match day", Noir.red)) }
+    return tags
+}
+
 // MARK: Stats
 
 private struct StatStrip: View {
@@ -202,6 +257,7 @@ private struct StatStrip: View {
         VStack(spacing: 10) {
             HStack(spacing: 8) {
                 tile("Cash", Money.short(s.cash), "sterlingsign", Noir.green, lit: true)
+                    .animation(.spring(duration: 0.8), value: s.cash)
                 tile("Bank", Money.short(s.bank), "building.columns.fill", Noir.green, lit: s.bank > 0)
                 tile("Debt", debt > 0 ? Money.short(debt) : "None", "exclamationmark.triangle.fill", dueSoon ? Noir.red : Noir.amber, lit: debt > 0)
                 tile("Bag", "\(Engine.carried(s))/\(Engine.capacity(s))", "bag.fill", fill >= 1 ? Noir.red : fill > 0.75 ? Noir.amber : Noir.green, lit: fill > 0)
@@ -322,7 +378,22 @@ private struct MarketList: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
-                if s.day <= 2 && !seenTips {
+                if let step = Engine.tutorialStep(s) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label(step.title, systemImage: "graduationcap.fill")
+                            .font(Noir.label(11)).tracking(1.2).textCase(.uppercase)
+                            .foregroundStyle(Noir.green)
+                        Text(step.text)
+                            .font(Noir.ui(14)).foregroundStyle(Noir.paper)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .card(padding: 14, tint: Noir.green)
+                    .shadow(color: Noir.green.opacity(0.25), radius: 12)
+                    .transition(.opacity)
+                }
+
+                if s.day <= 2 && !seenTips && Engine.mode(s) != .tutorial {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
                             Label("First night in town", systemImage: "lightbulb.fill")
@@ -441,6 +512,9 @@ private struct MarketRow: View {
                 }
             }
             Spacer(minLength: 4)
+            if let h = s.history?[s.city][good.id], h.count > 2 {
+                Sparkline(values: h).frame(width: 38, height: 18)
+            }
             VStack(alignment: .trailing, spacing: 4) {
                 Text(Money.gbp(price)).font(Noir.mono(16)).foregroundStyle(Noir.paper)
                     .contentTransition(.numericText())

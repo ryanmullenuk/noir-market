@@ -117,29 +117,62 @@ struct HowToPlayView: View {
 struct RecordsView: View {
     @Environment(GameStore.self) private var store
     @Environment(\.dismiss) private var dismiss
+    @State private var tab = 0
 
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 0) {
-                    if store.records.isEmpty {
-                        Text("No closed cases yet. Finish a game and it’ll be filed here.")
-                            .font(Noir.type(15)).foregroundStyle(Noir.silver)
-                            .padding(.vertical, 40)
+                VStack(alignment: .leading, spacing: 16) {
+                    HStack(spacing: 6) {
+                        tabButton("Records", 0)
+                        tabButton("Achievements", 1)
                     }
-                    ForEach(Array(store.records.enumerated()), id: \.element.id) { i, r in
-                        HStack(alignment: .firstTextBaseline, spacing: 14) {
-                            Text("\(i + 1)").font(Noir.display(24)).foregroundStyle(i == 0 ? Noir.brass : Noir.dim).frame(width: 30, alignment: .leading)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(r.name).font(Noir.typeBold(16)).foregroundStyle(Noir.paper)
-                                Text("\(Catalog.ranks[r.rank].name)\(r.died ? " · died" : "") · \(r.date.formatted(date: .abbreviated, time: .omitted))")
-                                    .font(Noir.ui(11)).foregroundStyle(Noir.dim)
-                            }
-                            Spacer()
-                            Text(Money.short(r.worth)).font(Noir.mono(16)).foregroundStyle(r.worth >= 0 ? Noir.paper : Noir.neon)
+                    .padding(4)
+                    .background(Capsule().fill(Color.white.opacity(0.05)))
+
+                    if tab == 1 {
+                        AchievementsList()
+                    } else {
+                        if store.records.isEmpty {
+                            Text("No closed cases yet. Finish a game and it’ll be filed here.")
+                                .font(Noir.ui(14)).foregroundStyle(Noir.silver)
+                                .padding(.vertical, 30)
                         }
-                        .padding(.vertical, 12)
-                        Rectangle().fill(Noir.rule).frame(height: 1)
+                        ForEach(Array(store.records.enumerated()), id: \.element.id) { i, r in
+                            HStack(alignment: .firstTextBaseline, spacing: 14) {
+                                Text("\(i + 1)").font(Noir.display(22)).foregroundStyle(i == 0 ? Noir.amber : Noir.dim).frame(width: 30, alignment: .leading)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(r.name).font(Noir.ui(15, weight: .semibold)).foregroundStyle(Noir.paper)
+                                    Text("\((GameMode(rawValue: r.mode ?? "") ?? .standard).title) · \(Catalog.ranks[r.rank].name)\(r.died ? " · died" : "") · \(r.date.formatted(date: .abbreviated, time: .omitted))")
+                                        .font(Noir.ui(10)).foregroundStyle(Noir.dim)
+                                }
+                                Spacer()
+                                Text(Money.short(r.worth)).font(Noir.mono(15)).foregroundStyle(r.worth >= 0 ? Noir.green : Noir.red)
+                            }
+                            .padding(.vertical, 8)
+                        }
+
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("Game Center leaderboards").noirLabel(11, color: Noir.silver)
+                            ForEach([GameMode.daily, .standard, .long, .sprint]) { m in
+                                Button {
+                                    if let id = m.leaderboard { GameCenter.showLeaderboard(id) }
+                                } label: {
+                                    HStack {
+                                        Image(systemName: m.symbol)
+                                        Text(m.title)
+                                        Spacer()
+                                        Image(systemName: "chevron.right").font(.system(size: 12, weight: .bold))
+                                    }
+                                    .padding(.horizontal, 16)
+                                }
+                                .buttonStyle(m == .daily ? NoirButtonStyle(kind: .amber) : NoirButtonStyle(kind: .outline))
+                            }
+                            if !GameCenter.signedIn {
+                                Text("Sign in to Game Center in Settings to post scores.").font(Noir.ui(11)).foregroundStyle(Noir.dim)
+                            }
+                        }
+                        .padding(.top, 10)
                     }
                 }
                 .padding(22)
@@ -149,6 +182,22 @@ struct RecordsView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         }
-        .tint(Noir.neon)
+        .tint(Noir.green)
+        .buttonStyle(.plain)
+    }
+
+    private func tabButton(_ title: String, _ i: Int) -> some View {
+        Button {
+            withAnimation(.spring(duration: 0.25)) { tab = i }
+            Audio.shared.buzz(.tap)
+        } label: {
+            Text(title)
+                .font(Noir.label(12)).tracking(1.2).textCase(.uppercase)
+                .foregroundStyle(tab == i ? Noir.amber : Noir.silver)
+                .frame(maxWidth: .infinity, minHeight: 38)
+                .background(Capsule().fill(tab == i ? Noir.amber.opacity(0.15) : .clear))
+                .overlay { if tab == i { Capsule().strokeBorder(Color.white.opacity(0.8)) } }
+        }
+        .buttonStyle(.plain)
     }
 }

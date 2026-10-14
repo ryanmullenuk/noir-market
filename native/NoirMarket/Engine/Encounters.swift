@@ -13,8 +13,10 @@ extension Engine {
         let value = carriedValue(s)
         let units = carried(s)
         let weapon = bestWeapon(s)
-        let bribe = min(60_000, max(500, 600 + value * 15 / 100 + s.heat * 30 + (airport ? 1_500 : 0))) / 10 * 10
-        let bribeChance = clamp(0.30 + Double(s.rep) / 250 - Double(s.heat) / 500 - (airport ? 0.10 : 0), 0.12, 0.85)
+        let copper = perk(s) == .copper
+        var bribe = min(60_000, max(500, 600 + value * 15 / 100 + s.heat * 30 + (airport ? 1_500 : 0))) / 10 * 10
+        if copper { bribe = bribe * 3 / 4 / 10 * 10 }
+        let bribeChance = clamp(0.30 + Double(s.rep) / 250 - Double(s.heat) / 500 - (airport ? 0.10 : 0) + (copper ? 0.15 : 0), 0.12, 0.9)
         let runChance = clamp(0.45 + (weapon?.escape ?? 0) * 0.35 - (airport ? 0.2 : 0) - Double(units) / 600, 0.10, 0.85)
         let fightChance = weapon.map { clamp(0.10 + $0.win * 0.55, 0.10, 0.70) } ?? 0.05
         let jail = (hasWeapons(s) || units > 50) ? s.rng.int(1, 3) : 0
@@ -115,6 +117,7 @@ extension Engine {
                 s.heat = max(0, s.heat - 5)
                 s.rep = min(100, s.rep + 1)
                 s.stats.bribesPaid += 1
+                if stop.airport { award(&s, "customs_bribe") }
                 return Outcome(title: "Understanding Reached", text: "The envelope disappears into a coat pocket. “Mind how you go.” \(Money.gbp(stop.bribe)) lighter, you mind how you go.", good: true)
             }
             s.heat = min(100, s.heat + 10)
@@ -153,6 +156,7 @@ extension Engine {
             var lines: [String] = []
             for _ in 0..<stop.jail where s.day <= s.maxDay { tick(&s, lines: &lines) }
             s.stats.jailDays += stop.jail
+            if s.stats.jailDays >= 3 { award(&s, "jailbird") }
             s.heat = max(0, s.heat - 10 * stop.jail)
             text += " You spend \(stop.jail) night\(stop.jail == 1 ? "" : "s") in a cell while the city moves on without you."
         }
@@ -199,6 +203,7 @@ extension Engine {
                 let dropped = s.rng.int(100, 400) * (t.attacker + 1) * (t.attacker + 1)
                 s.cash += dropped
                 s.stats.fightsWon += 1
+                if t.attacker == 3 && weapon == nil { award(&s, "bare_knuckle") }
                 return (Outcome(title: "Sent Packing", text: "\(a.name.prefix(1).uppercased() + a.name.dropFirst()) thought better of it. One of them dropped a wallet: \(Money.gbp(dropped)).", good: true), false)
             }
             // A miss: they hit back, then you decide again.

@@ -58,6 +58,12 @@ private struct Newspaper: View {
         let node = Catalog.cities[report.city].name.uppercased()
         add(">", "noirnet relay v2.7 :: handshake ok :: cipher aes-256", Noir.dim)
         add(">", "node \(node) :: day \(String(format: "%02d", report.day))/\(s.maxDay) :: \(report.travelled ? "new location" : "same location")", Noir.dim)
+        let voice = Press.cityVoice[Catalog.cities[report.city].name] ?? []
+        if !voice.isEmpty { add("LOCAL", voice[report.day % voice.count], Noir.paper) }
+        if let w = s.weather {
+            let line = w == "rain" ? "rain all night. coppers hate getting wet: fewer stops." : w == "fog" ? "thick fog. good for hiding, better for muggers." : "clear skies. nowhere to hide."
+            add("WEATHER", line, Noir.silver)
+        }
         for check in report.checks ?? [] {
             let good = check.hasPrefix("CONFIRMED") || check.hasPrefix("TIP PAID")
             add(good ? "VERIFIED" : "DEBUNKED", check, good ? Noir.green : Noir.red)

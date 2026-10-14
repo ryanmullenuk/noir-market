@@ -222,9 +222,10 @@ struct EngineTests {
             // Can't collect from the wrong city.
             #expect(throws: (any Error).self) { try Engine.collect(&s, shipment: s.shipments[0].id) }
             s.city = 1
+            let before = s.carry[good]
             try Engine.collect(&s, shipment: s.shipments[0].id)
-            #expect(s.carry[good] > 0)
-            #expect(s.carry[good] <= q)
+            #expect(s.carry[good] > before)
+            #expect(s.carry[good] - before <= q)
             if fate == "tipped" { #expect(s.encounters.contains { if case .police(let p) = $0 { p.depot == true } else { false } }) }
         }
         #expect((fates["clean"] ?? 0) > 100)
@@ -285,6 +286,76 @@ struct EngineTests {
             #expect(s.call == nil)
         }
         #expect(rang > 30 && rang < 120)
+    }
+
+    @Test func dailySeedIsSharedAndFreeOnly() {
+        var a = GameState(seed: GameMode.dailySeed(), city: 0, name: "A", fullAccess: true)
+        var b = GameState(seed: GameMode.dailySeed(), city: 0, name: "B", fullAccess: false)
+        Engine.configure(&a, mode: .daily, perk: .student)
+        Engine.configure(&b, mode: .daily, perk: nil)
+        #expect(a.fullAccess == false && a.perk == nil)
+        #expect(a.markets == b.markets)
+        try? Engine.stay(&a); try? Engine.stay(&b)
+        #expect(a.markets == b.markets && a.story == b.story)
+    }
+
+    @Test func sprintEndsAfterSevenDays() {
+        var s = fresh()
+        Engine.configure(&s, mode: .sprint, perk: nil)
+        #expect(s.maxDay == 7)
+        var guardrail = 0
+        while s.over == nil && guardrail < 100 {
+            guardrail += 1
+            if let e = s.encounters.first { _ = try? Engine.resolve(&s, e.defaultChoice(s)); continue }
+            try? Engine.stay(&s)
+        }
+        #expect(s.over != nil && s.day <= 7)
+        #expect(s.over?.died == true || (s.unlocked ?? []).contains("survive_sprint"))
+    }
+
+    @Test func perksChangeTheOdds() {
+        var plain = fresh(), student = fresh(), docker = fresh(), copper = fresh()
+        Engine.configure(&plain, mode: .standard, perk: nil)
+        Engine.configure(&student, mode: .standard, perk: .student)
+        Engine.configure(&docker, mode: .standard, perk: .docker)
+        Engine.configure(&copper, mode: .standard, perk: .copper)
+        #expect(Engine.fare(student, to: 1) < Engine.fare(plain, to: 1))
+        #expect(Engine.interceptionRisk(docker, to: 1) < Engine.interceptionRisk(plain, to: 1))
+        plain.carry[0] = 10; copper.carry[0] = 10
+        let p1 = Engine.policeStop(&plain, airport: false), p2 = Engine.policeStop(&copper, airport: false)
+        #expect(p2.bribe < p1.bribe && p2.bribeChance > p1.bribeChance)
+    }
+
+    @Test func tutorialScriptRunsAndGraduates() throws {
+        var s = GameState(seed: 2026, city: 0, name: "T", fullAccess: false)
+        Engine.configure(&s, mode: .tutorial, perk: nil)
+        #expect(Engine.tutorialStep(s)?.title.contains("Buy") == true)
+        let q = Engine.maxBuy(s, good: 6)
+        try Engine.buy(&s, good: 6, qty: q)
+        #expect(Engine.tutorialStep(s)?.title.contains("Travel") == true)
+        try Engine.travel(&s, to: 1)
+        #expect(s.encounters.contains { if case .police = $0 { true } else { false } })
+        try Engine.resolve(&s, .bribe)
+        s.encounters = []
+        try Engine.sell(&s, good: 6, qty: s.carry[6])
+        try Engine.stay(&s)
+        s.encounters = []
+        try Engine.stay(&s)
+        #expect(s.over != nil)
+        #expect((s.unlocked ?? []).contains("tutorial"))
+    }
+
+    @Test func rememberedPricesStopAtLastVisit() throws {
+        var s = fresh()
+        Engine.configure(&s, mode: .standard, perk: nil)
+        s.cash = 50_000
+        try Engine.travel(&s, to: 1)
+        s.encounters = []
+        let londonSeen = Engine.remembered(s, city: 0, good: 3)
+        try Engine.stay(&s); s.encounters = []
+        try Engine.stay(&s); s.encounters = []
+        #expect(Engine.remembered(s, city: 0, good: 3) == londonSeen)
+        #expect(Engine.remembered(s, city: 1, good: 3).count >= 3)
     }
 
     func cheapest(_ s: GameState) -> Int {

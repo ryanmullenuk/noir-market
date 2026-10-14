@@ -7,7 +7,7 @@ final class PlaythroughTests: XCTestCase {
     @MainActor
     func testStartTradeTravelAndSurviveAWeek() throws {
         let app = XCUIApplication()
-        app.launchArguments = ["-resetSave", "-musicOff"]
+        app.launchArguments = ["-resetSave", "-musicOff", "-noGameCenter"]
         app.launch()
 
         let newGame = button(app, "New Game")

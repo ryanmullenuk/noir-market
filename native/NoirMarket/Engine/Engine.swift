@@ -96,7 +96,8 @@ enum Engine {
         var r = SplitMix(seed: s.seed ^ UInt64(s.day * 10_007 + s.city * 131 + dest))
         let base = 40 + from.distanceKm(to: to) * 0.34 + (from.needsFlight(to: to) ? 60 : 0)
         let jitter = 0.9 + Double(r.next() % 1000) / 1000 * 0.3
-        return max(30, Int((base * jitter / 10).rounded()) * 10)
+        let perkFactor = perk(s) == .student ? 0.6 : 1
+        return max(20, Int((base * jitter * perkFactor / 10).rounded()) * 10)
     }
 
     /// Price after slippage for trading `qty` against local supply.
@@ -165,6 +166,9 @@ enum Engine {
         traded(&s, value: value)
         if qty >= 40 { s.heat = min(100, s.heat + qty / 40) }
         let profit = value - basis
+        award(&s, "first_sale")
+        if value >= 50_000 { award(&s, "big_sale") }
+        if profit >= 10_000 { s.lastBigWin = profit }
         s.notice = "Sold \(qty) \(Catalog.goods[good].name) for \(Money.gbp(value)). " +
             (profit >= 0 ? "\(Money.gbp(profit)) clean profit." : "A \(Money.gbp(-profit)) loss. It happens.")
     }
@@ -237,6 +241,9 @@ enum Engine {
                                     intercepted: fate == "stolen", fate: fate, landed: false))
         s.nextID += 1
         s.stats.shipmentsSent += 1
+        award(&s, "first_ship")
+        if !(s.shippedTo ?? []).contains(dest) { s.shippedTo = (s.shippedTo ?? []) + [dest] }
+        if Set(s.shippedTo ?? []).union([s.city]).count >= Catalog.cities.count - 1 { award(&s, "every_city") }
         s.notice = "\(units) units on the overnight run to \(Catalog.cities[dest].name). They’ll wait at the depot till you get there."
     }
 
@@ -297,12 +304,14 @@ enum Engine {
         var value = 0
         for g in goods.indices { value += goods[g] * s.markets[s.city].price[g] }
         let km = Catalog.cities[s.city].distanceKm(to: Catalog.cities[dest])
-        return Int((Double(value) * 0.05).rounded(.up)) + 150 + Int(km / 2)
+        let cost = Int((Double(value) * 0.05).rounded(.up)) + 150 + Int(km / 2)
+        return perk(s) == .docker ? cost * 7 / 10 : cost
     }
 
     static func interceptionRisk(_ s: GameState, to dest: Int) -> Double {
         let flight = Catalog.cities[s.city].needsFlight(to: Catalog.cities[dest])
-        return min(0.45, 0.10 + Double(s.heat) / 350 + (flight ? 0.06 : 0))
+        let risk = min(0.45, 0.10 + Double(s.heat) / 350 + (flight ? 0.06 : 0))
+        return perk(s) == .docker ? risk * 0.4 : risk
     }
 
     // MARK: Finance
@@ -350,6 +359,7 @@ enum Engine {
         let name = Catalog.lenders[s.loans[i].lender].name
         if amount >= owed {
             s.cash -= owed
+            if s.loans[i].lender == 4 { award(&s, "debt_free") }
             s.loans.remove(at: i)
             s.rep = min(100, s.rep + 5)
             s.notice = "\(name) is paid in full. He almost looks disappointed."
@@ -456,7 +466,7 @@ enum Engine {
 
     /// Rolls whether someone rings tonight. Snitches call cheap when they're desperate; unknown numbers are a gamble.
     static func maybeCall(_ s: inout GameState) {
-        guard s.call == nil, s.day < s.maxDay, s.rng.chance(0.22) else { return }
+        guard s.call == nil, s.day < s.maxDay, mode(s) != .tutorial, s.rng.chance(0.22) else { return }
         let caller = s.rng.int(0, 3) // 3 = unknown number
         let fee: Int, trust: Double
         if caller < 3 {
@@ -482,6 +492,7 @@ enum Engine {
         guard call.result == nil else { throw Failure.invalid("You’ve already paid.") }
         s.cash -= call.fee
         s.stats.tipsBought += 1
+        award(&s, "answered")
         let outcome = call.caller == 3 && s.rng.chance(0.15)
             ? Outcome(title: "Dead Line", text: "You send the money. The number stops working. Somewhere, someone is buying chips with it.", good: false)
             : makeTip(&s, informant: call.caller, trust: call.trust, title: callerName(call.caller))

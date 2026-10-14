@@ -15,6 +15,7 @@ extension Engine {
         let from = Catalog.cities[s.city].name
         s.city = dest
         s.stats.trips += 1
+        if !(s.visited ?? []).contains(dest) { s.visited = (s.visited ?? []) + [dest] }
         advance(&s, travelled: true, flight: flight,
                 opening: "\(flight ? "You fly" : "You take the late train") from \(from) to \(Catalog.cities[dest].name). \(Money.gbp(cost)) well spent, probably.")
     }
@@ -24,8 +25,10 @@ extension Engine {
         if s.day >= s.maxDay {
             // The last night: everything is valued at tonight's prices, right here.
             let worth = netWorth(s)
-            s.over = GameOver(worth: worth, rank: Catalog.rank(for: worth), died: false, epitaph: epitaph(worth))
+            s.over = GameOver(worth: worth, rank: Catalog.rank(for: worth), died: false,
+                              epitaph: mode(s) == .tutorial ? "Training’s over. The real thing won’t be this kind." : epitaph(worth))
             s.stats.bestWorth = max(s.stats.bestWorth, worth)
+            awardEnd(&s)
             return
         }
         s.stats.nightsIn += 1
@@ -59,13 +62,25 @@ extension Engine {
         s.heat = min(100, s.heat + armed / 2)
 
         // Street dangers: at most one encounter a night.
-        if s.encounters.isEmpty {
+        if mode(s) == .tutorial {
+            if s.day == 2, travelled, s.encounters.isEmpty {
+                // Scripted first stop: cheap, likely bribe so the lesson isn't a disaster.
+                var stop = policeStop(&s, airport: false)
+                stop.bribe = 200
+                stop.bribeChance = 0.9
+                stop.jail = 0
+                s.encounters.append(.police(stop))
+            }
+        } else if s.encounters.isEmpty {
             let weapons = hasWeapons(s)
             let value = Double(carriedValue(s))
             var police = 0.015 + Double(s.heat) / 260 + (carrying ? 0.035 + min(0.04, value / 500_000) : 0) + (weapons ? 0.03 : 0)
             if flight && (carrying || weapons) { police = max(police, 0.22 + Double(s.heat) / 300 + (weapons ? 0.15 : 0)) }
+            if s.weather == "rain" { police *= 0.6 }
+            if eventHere(s, "match") { police *= 1.4 }
             let worthRobbing = s.cash > 200 || carrying
-            let mugging = worthRobbing ? 0.06 + (s.cash > 20_000 ? 0.04 : 0) + (s.rep < 20 ? 0.03 : 0) : 0
+            var mugging = worthRobbing ? 0.06 + (s.cash > 20_000 ? 0.04 : 0) + (s.rep < 20 ? 0.03 : 0) : 0
+            if s.weather == "fog" { mugging *= 1.3 }
             let r = s.rng.unit()
             if r < police, carrying || weapons || s.heat > 60 {
                 s.encounters.append(.police(policeStop(&s, airport: flight)))
@@ -110,6 +125,7 @@ extension Engine {
             s.events.append(ActiveEvent(city: city, good: good.id, pct: template.pct, startsDay: s.day + 1, daysLeft: template.days - 1, title: template.title))
             ticker.append("\(Catalog.cities[city].name.uppercased()): \(template.title.uppercased()). \(template.text)")
         }
+        ticker.append(contentsOf: rollWeatherAndEvents(&s))
         ticker.append(headline(&s, city: s.city))
         s.ticker = ticker
         s.story = newStory(&s)
@@ -158,7 +174,11 @@ extension Engine {
         }
 
         updateRank(&s)
+        recordHistory(&s)
         s.stats.bestWorth = max(s.stats.bestWorth, netWorth(s))
+        let worth = netWorth(s)
+        if worth >= 1_000_000 { award(&s, "legend") }
+        if worth >= 10_000_000 { award(&s, "drug_lord") }
     }
 
     // MARK: Markets
@@ -266,6 +286,7 @@ extension Engine {
             let pool = right ? Press.tipRight : Press.tipWrong
             let quip = pool[s.rng.int(0, pool.count - 1)].replacingOccurrences(of: "{who}", with: who)
             out.append((right ? "TIP PAID OFF: " : "TIP WAS WRONG: ") + move + ". " + quip)
+            if right { award(&s, "tip_right") }
         }
         s.pendingTips = keep
         return out
@@ -292,10 +313,12 @@ extension Engine {
             s.encounters = []
             s.over = GameOver(worth: netWorth(s), rank: s.rankIndex, died: true,
                               epitaph: Press.deaths[s.rng.int(0, Press.deaths.count - 1)])
+            awardEnd(&s)
         } else if s.day > s.maxDay, s.encounters.isEmpty {
             s.day = s.maxDay
             let worth = netWorth(s)
             s.over = GameOver(worth: worth, rank: Catalog.rank(for: worth), died: false, epitaph: epitaph(worth))
+            awardEnd(&s)
         }
     }
 

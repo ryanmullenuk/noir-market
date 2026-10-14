@@ -95,6 +95,24 @@ struct TradeSheet: View {
                     .accessibilityIdentifier("tradeAction")
                     .disabled(q == 0)
                                     }
+                let elsewhere = (s.visited ?? []).filter { $0 != s.city }
+                if !elsewhere.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("\(g.name) where you’ve been · 7 days").noirLabel(10)
+                        ForEach(elsewhere, id: \.self) { c in
+                            HStack(spacing: 10) {
+                                Text(Catalog.cities[c].name.uppercased()).font(Noir.ui(12, weight: .semibold)).foregroundStyle(Noir.paper)
+                                    .frame(width: 104, alignment: .leading)
+                                let seen = Engine.remembered(s, city: c, good: good)
+                                Sparkline(values: seen).frame(height: 18)
+                                Text(Money.gbp(seen.last ?? 0)).font(Noir.mono(12)).foregroundStyle(Noir.silver)
+                                    .frame(width: 70, alignment: .trailing)
+                            }
+                        }
+                        Text("What you saw when you were last there. It will have moved since.").font(Noir.ui(10)).foregroundStyle(Noir.dim)
+                    }
+                    .padding(.top, 4)
+                }
                 if let error = store.error {
                     Text(error).font(Noir.type(12)).foregroundStyle(Noir.neon)
                 }

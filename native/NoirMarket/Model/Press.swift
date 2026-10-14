@@ -88,6 +88,38 @@ enum Press {
         "Gone. The pigeons in the square were the only witnesses, and they’re not talking.",
     ]
 
+    /// Local voice for NOIRNET's first line, by city.
+    static let cityVoice: [String: [String]] = [
+        "London": ["Alright, geezer. Market’s heaving and the Old Bill are proper on one round Zone 1.",
+                   "Big smoke, big money. Mind the gap, mind the coppers, mind your pockets."],
+        "Manchester": ["Now then, our kid. It’s mint out there if you keep your head down. Bring a brolly.",
+                       "Mad for it in town tonight. Don’t be a melt with the Old Bill about."],
+        "Birmingham": ["Ow am ya, bab? Traffic on the M6 is chocka, so stock’s moving slow.",
+                       "Tara-a-bit to anyone who got nicked last night. The rest of yer, crack on."],
+        "Liverpool": ["Alright, la. Docks are boss tonight. Don’t be a divvy and get clocked.",
+                      "Sound, lad. Scousers are buying; keep it on the down-low."],
+        "Leeds": ["Ey up. Weather’s grim, market’s not. Don’t get mardy if prices shift.",
+                  "Reyt busy tonight. Keep tha’ wits about thee."],
+        "Newcastle": ["Howay, pet. Toon’s mint tonight, but the polis are clocking every corner.",
+                      "Why aye, it’s heaving. Divvent be daft with your stash."],
+        "Bristol": ["Alright, my lover. Gert busy tonight, proper lush money if you’re careful.",
+                    "Cheers drive. Punters are buying all over; don’t get caught out, my babber."],
+        "Cardiff": ["Alright, butt? Tidy few quid to be made tonight if you’re not twp about it.",
+                    "Now in a minute, but… the heddlu are watching the bus station. Be careful, love."],
+        "Glasgow": ["Awrite, pal. It’s pure baltic but the market’s roastin’. Don’t get huckled.",
+                    "Gonnae keep the heid tonight. Polis are everywhere, nae messin’."],
+        "Edinburgh": ["Aye, it’s dreich. Tourists are buying anything with a tartan on it, including yours.",
+                      "Festival crowd’s in. Keep the heid and dinnae get greedy."],
+        "Aberdeen": ["Fit like? Loons and quines are spending oil money. Watch yersel.",
+                     "Aye, it’s blowin’ a hoolie. Fair few buyers about though."],
+        "Belfast": ["Bout ye? Market’s wee bit mental the night. Don’t be an eejit.",
+                    "What’s the craic? Peelers are out in force, so mind yerself, big lad."],
+        "Dublin": ["Howya. Grand night for it, but the guards are sniffin’ round Temple Bar.",
+                   "Story, bud? Deadly money about. Don’t be a gobshite and get caught."],
+        "Cork": ["Ah, how’s it goin’, boy? Langers everywhere tonight, cash in their pockets.",
+                 "The real capital’s buzzin’. Keep the head, like."],
+    ]
+
     static let lenderQuips: [String: [String]] = [
         "Spammer": [
             "“{amount}. Lovely. I’ve written your name in my little book. In pen.”",

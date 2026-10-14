@@ -175,6 +175,21 @@ struct GameState: Codable, Sendable, Equatable {
     var phones = 0
     var pendingTips: [PendingTip]?
     var call: IncomingCall?
+
+    // Added for modes, perks and progression. All optional so older saves still load.
+    var mode: String?
+    var perk: String?
+    /// Last seven closing prices per city per good.
+    var history: [[[Int]]]?
+    var visited: [Int]?
+    /// The last day you were in each city, so remembered prices stop there.
+    var seenDay: [Int]?
+    var weather: String?
+    var todayEvents: [String]?
+    /// Achievements earned this session, waiting for the store to file and report them.
+    var unlocked: [String]?
+    var shippedTo: [Int]?
+    var lastBigWin: Int?
     /// Test mode: unlimited cash and every city, enabled by the name GODMODE. Never counts for records.
     var godMode: Bool?
     var calledToday = false
