@@ -89,7 +89,7 @@ struct TitleView: View {
                     .accessibilityLabel("Noir Market")
                     .accessibilityAddTraits(.isHeader)
 
-                    Text("Thirty days. One city. Nobody's clean.")
+                    Text("Thirty days. Nobody’s clean.")
                         .font(Noir.type(14))
                         .foregroundStyle(Noir.silver)
                         .padding(.top, 18)

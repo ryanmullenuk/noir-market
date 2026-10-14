@@ -386,6 +386,7 @@ private struct CaseClosed: View {
                                 .font(Noir.type(13)).foregroundStyle(Noir.silver)
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .card(padding: 18)
 
                     let st = s.stats
