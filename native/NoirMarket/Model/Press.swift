@@ -121,6 +121,22 @@ enum Press {
         ],
     ]
 
+    /// What callers open with, by caller (0 Simon, 1 Lucy, 2 Pete, 3 unknown).
+    static let callOpeners: [[String]] = [
+        ["“It’s Simon. Don’t hang up. Please. I’ve got something and I’ve got a parking fine.”",
+         "“Are you alone? Good. I’m not. Long story. Listen, I’ve got a tip.”",
+         "“Simon here. I’m calling from a phone box. Do you know how hard those are to find?”"],
+        ["“Babe, it’s Lucy. You will not BELIEVE what I heard in the queue at Greggs.”",
+         "“Lucy. Quick one. Well, not quick, I never am. But it’s good.”",
+         "“I shouldn’t be telling you this. I’ve told four people already, but still.”"],
+        ["“Pete. I don’t ring people. I’m ringing you. Think about that.”",
+         "“Pete. Don’t say my name on this line. Yes, I just did. Listen.”",
+         "“It’s Pete. Rent’s due, so you’re getting mates’ rates. Once.”"],
+        ["Heavy breathing, then: “You’re the one moving stock in town, yeah? I’ve got something.”",
+         "“Wrong number. Unless you want a tip. Then it’s the right number.”",
+         "A voice run through a toy voice-changer: “I KNOW THINGS.” Then, normally: “Sorry, it’s stuck.”"],
+    ]
+
     static let intelTrue = [
         "The rumour mill grinds slow, but it grinds.",
         "Even a stopped clock, et cetera.",

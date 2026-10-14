@@ -266,6 +266,27 @@ struct EngineTests {
         #expect(Engine.carried(s) == 0 && !Engine.hasWeapons(s))
     }
 
+    @Test func snitchesRingWithHalfPriceTips() throws {
+        var rang = 0
+        for seed in 1...300 {
+            var s = fresh(seed: UInt64(seed))
+            s.cash = 50_000
+            try Engine.stay(&s)
+            guard let call = s.call else { continue }
+            rang += 1
+            if call.caller < 3 { #expect(call.fee <= max(20, s.informantPrice[call.caller] / 2 + 10)) }
+            Engine.answerCall(&s)
+            #expect(s.call?.answered == true)
+            let cash = s.cash
+            _ = try Engine.acceptCall(&s)
+            #expect(s.cash == cash - call.fee)
+            #expect(s.call?.result != nil)
+            Engine.declineCall(&s)
+            #expect(s.call == nil)
+        }
+        #expect(rang > 30 && rang < 120)
+    }
+
     func cheapest(_ s: GameState) -> Int {
         Catalog.goods.indices.filter { s.markets[s.city].supply[$0] > 0 }.min { s.markets[s.city].price[$0] < s.markets[s.city].price[$1] }!
     }

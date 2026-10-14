@@ -20,6 +20,7 @@ private struct Section<Content: View>: View {
     let title: String
     var note: String?
     var boxed = true
+    var ring: Color? = nil
     @ViewBuilder var content: Content
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -28,7 +29,7 @@ private struct Section<Content: View>: View {
             if boxed {
                 VStack(alignment: .leading, spacing: 8) { content }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .card(padding: 14)
+                    .card(padding: 14, ring: ring)
             } else {
                 content
             }
@@ -52,6 +53,7 @@ private struct SmallButton: View {
                 .overlay { if enabled { Capsule().strokeBorder(tint.opacity(0.75)) } }
                 .shadow(color: enabled ? tint.opacity(0.35) : .clear, radius: 6)
         }
+        .buttonStyle(.plain)
         .disabled(!enabled)
     }
 }
@@ -172,20 +174,21 @@ struct MoneyView: View {
                     .card()
                     ErrorLine()
 
-                    Section(title: "The bank", note: "Money in the bank can’t be stolen or seized. No interest, no questions.") {
+                    Section(title: "The bank", note: "Money in the bank can’t be stolen or seized. No interest, no questions.", ring: .white.opacity(0.75)) {
                         TextField("", text: $amount, prompt: Text("Amount").foregroundStyle(Noir.dim))
                             .keyboardType(.numberPad)
                             .font(Noir.mono(18))
                             .foregroundStyle(Noir.paper)
                             .padding(12)
-                            .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.white.opacity(0.32)))
                         HStack(spacing: 8) {
-                            Button("Deposit") { bank(true, s) }.buttonStyle(.noir)
-                            Button("Withdraw") { bank(false, s) }.buttonStyle(.noir)
+                            Button("Deposit") { bank(true, s) }.buttonStyle(.noirOutline)
+                            Button("Withdraw") { bank(false, s) }.buttonStyle(.noirOutline)
                         }
                         HStack(spacing: 8) {
-                            Button("Bank it all") { store.act { try Engine.deposit(&$0, $0.cash) } }.buttonStyle(.noirQuiet)
-                            Button("Take it all") { store.act { try Engine.withdraw(&$0, $0.bank) } }.buttonStyle(.noirQuiet)
+                            Button("Bank it all") { store.act { try Engine.deposit(&$0, $0.cash) } }.buttonStyle(.noirOutline)
+                            Button("Take it all") { store.act { try Engine.withdraw(&$0, $0.bank) } }.buttonStyle(.noirOutline)
                         }
                     }
 
@@ -259,6 +262,7 @@ struct MoneyView: View {
                     Spacer()
                 }
                 .padding(22)
+                .buttonStyle(.plain)
                 .presentationDetents([.medium])
                 .presentationBackground(Noir.coal)
             }
@@ -370,10 +374,10 @@ struct ShopView: View {
 // MARK: Street
 
 struct StreetView: View {
-    @Environment(GameStore.self) private var store
+    @Environment(GameStore.self) var store
     @State private var result: Outcome?
-    @State private var quip: Quip?
-    @State private var shortfall: Int?
+    @State var quip: Quip?
+    @State var shortfall: Int?
 
     var body: some View {
         if let s = store.state {
@@ -443,25 +447,30 @@ struct StreetView: View {
             }
             .background(Noir.ink)
             .overlay(alignment: .top) { QuipBanner(quip: $quip) }
-            .confirmationDialog(shortfall.map { "You’re \(Money.gbp($0)) short" } ?? "", isPresented: Binding(get: { shortfall != nil }, set: { if !$0 { shortfall = nil } }), titleVisibility: .visible) {
-                if let short = shortfall {
-                    let amount = max(500, Int((Double(short) / 500).rounded(.up)) * 500)
-                    ForEach(Catalog.lenders.filter { l in !s.loans.contains { $0.lender == l.id } && Engine.lenderLimit(s, l) >= amount }) { l in
-                        Button("Borrow \(Money.gbp(amount)) from \(l.name) · \(Int(l.rate * 100))% · \(l.term) days") {
-                            var line = ""
-                            if store.act({ try Engine.borrow(&$0, lender: l.id, amount: amount); line = Engine.lenderQuip(&$0, lender: l.id, amount: amount) }) {
-                                quip = Quip(name: l.name, text: line + " Now go and take that deal.")
-                                Audio.shared.buzz(.success)
-                            }
-                            shortfall = nil
-                        }
-                    }
+            .noirDialog(isPresented: Binding(get: { shortfall != nil }, set: { if !$0 { shortfall = nil } }),
+                        title: shortfall.map { "You’re \(Money.gbp($0)) short" } ?? "",
+                        message: "The voice on the phone won’t wait long. Borrow the difference and the deal stays on the table.",
+                        icon: "phone.fill", tint: Noir.amber, actions: shortfallActions(s))
+        }
+    }
+}
+
+extension StreetView {
+    func shortfallActions(_ s: GameState) -> [DialogAction] {
+        guard let short = shortfall else { return [] }
+        let amount = max(500, Int((Double(short) / 500).rounded(.up)) * 500)
+        var list = Catalog.lenders.filter { l in !s.loans.contains { $0.lender == l.id } && Engine.lenderLimit(s, l) >= amount }.map { l in
+            DialogAction(title: "\(l.name): \(Money.short(amount)) · \(Int(l.rate * 100))% · \(l.term)d", kind: .amber) {
+                var line = ""
+                if store.act({ try Engine.borrow(&$0, lender: l.id, amount: amount); line = Engine.lenderQuip(&$0, lender: l.id, amount: amount) }) {
+                    quip = Quip(name: l.name, text: line + " Now go and take that deal.")
+                    Audio.shared.buzz(.success)
                 }
-                Button("Never mind", role: .cancel) { shortfall = nil }
-            } message: {
-                Text("The voice on the phone won’t wait long. Borrow the difference and the deal stays on the table.")
+                shortfall = nil
             }
         }
+        list.append(DialogAction(title: "Never mind", kind: .quiet) { shortfall = nil })
+        return list
     }
 }
 

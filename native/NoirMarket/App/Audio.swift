@@ -23,7 +23,7 @@ final class Audio {
 
     private var effects: [String: AVAudioPlayer] = [:]
 
-    enum Effect: String { case cash, siren, page, thud, click, key, gunshot, swipe, boom, knuckles, train, bingbong }
+    enum Effect: String { case cash, siren, page, thud, click, key, gunshot, swipe, boom, knuckles, train, bingbong, ring }
 
     func play(_ effect: Effect, volume: Float = 0.6) {
         guard soundsOn else { return }
@@ -42,7 +42,11 @@ final class Audio {
         set { UserDefaults.standard.set(newValue, forKey: "hapticsOn") }
     }
 
-    func play(volume: Float = 0.8) {
+    private var firstPassTask: Task<Void, Never>?
+    private var firstPassDone = false
+
+    /// Plays the theme once at full volume, then keeps it looping at half volume.
+    func play(volume: Float = 1.0) {
         guard musicOn else { return }
         if player == nil, let url = Bundle.main.url(forResource: "game-music", withExtension: "mp3") {
             try? AVAudioSession.sharedInstance().setCategory(.ambient)
@@ -54,11 +58,21 @@ final class Audio {
         }
         guard let player else { return }
         if !player.isPlaying { player.play() }
-        fade(to: volume, over: 1.6)
+        let target: Float = firstPassDone ? 0.5 : volume
+        fade(to: target, over: 1.6)
+        if firstPassTask == nil && !firstPassDone {
+            let remaining = max(1, player.duration - player.currentTime)
+            firstPassTask = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(remaining))
+                guard let self, !Task.isCancelled else { return }
+                self.firstPassDone = true
+                self.fade(to: 0.5, over: 1.2)
+            }
+        }
     }
 
-    /// Duck the music once the game proper begins.
-    func duck() { fade(to: 0.4, over: 2) }
+    /// The game no longer ducks on entry; the volume drop happens after the first full play-through.
+    func duck() {}
 
     func stop() {
         fadeTask?.cancel()

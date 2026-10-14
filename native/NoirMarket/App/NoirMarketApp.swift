@@ -13,6 +13,8 @@ struct NoirMarketApp: App {
                 .environment(store)
                 .environment(unlock)
                 .preferredColorScheme(.dark)
+                // No system glass pills on custom buttons; every styled button sets its own look.
+                .buttonStyle(.plain)
                 .task {
                     unlock.onChange = { [store] entitled in store.fullAccess = entitled }
                     await unlock.start()
@@ -87,6 +89,12 @@ struct RootView: View {
         if args.contains("-holding") {
             store.act { s in
                 for g in [2, 6, 12] { try? Engine.buy(&s, good: g, qty: min(6, Engine.maxBuy(s, good: g))) }
+            }
+        }
+        if let i = args.firstIndex(of: "-call"), i + 1 < args.count, let caller = Int(args[i + 1]) {
+            store.act { s in
+                s.report = nil
+                s.call = IncomingCall(caller: caller, fee: 90, trust: 0.55, line: Press.callOpeners[caller][0], answered: args.contains("-answered"))
             }
         }
         if let i = args.firstIndex(of: "-encounter"), i + 1 < args.count {

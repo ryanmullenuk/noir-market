@@ -70,7 +70,7 @@ extension View {
     }
 
     /// Rounded glassy panel.
-    func card(padding: CGFloat = 16, radius: CGFloat = Noir.radius, tint: Color? = nil) -> some View {
+    func card(padding: CGFloat = 16, radius: CGFloat = Noir.radius, tint: Color? = nil, ring: Color? = nil) -> some View {
         self.padding(padding)
             .background {
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
@@ -83,8 +83,10 @@ extension View {
                     }
             }
             .overlay {
-                // Only tinted cards get an outline; plain cards sit on the black without a ring.
-                if let tint {
+                // Only tinted or ringed cards get an outline; plain cards sit on the black without a ring.
+                if let ring {
+                    RoundedRectangle(cornerRadius: radius, style: .continuous).strokeBorder(ring, lineWidth: 1.1)
+                } else if let tint {
                     RoundedRectangle(cornerRadius: radius, style: .continuous)
                         .strokeBorder(LinearGradient(colors: [tint.opacity(0.45), tint.opacity(0.06)], startPoint: .top, endPoint: .bottom), lineWidth: 1)
                 }
@@ -177,7 +179,7 @@ struct Rain: View {
 }
 
 struct NoirButtonStyle: ButtonStyle {
-    enum Kind { case primary, secondary, danger, quiet, amber }
+    enum Kind { case primary, secondary, danger, quiet, amber, outline }
     var kind: Kind = .secondary
     @Environment(\.isEnabled) private var enabled
 
@@ -204,8 +206,7 @@ struct NoirButtonStyle: ButtonStyle {
         case .primary: Noir.green
         case .danger: Noir.red
         case .amber: Noir.amber
-        case .secondary: .white
-        case .quiet: .white
+        case .secondary, .quiet, .outline: .white
         }
     }
     private var fillTop: Double {
@@ -213,13 +214,14 @@ struct NoirButtonStyle: ButtonStyle {
         case .primary, .danger, .amber: 0.22
         case .secondary: 0.09
         case .quiet: 0.03
+        case .outline: 0.04
         }
     }
     private var fillBottom: Double {
         switch kind {
         case .primary, .danger, .amber: 0.06
         case .secondary: 0.04
-        case .quiet: 0.0
+        case .quiet, .outline: 0.0
         }
     }
     private var stroke: Color {
@@ -227,12 +229,13 @@ struct NoirButtonStyle: ButtonStyle {
         case .primary, .danger, .amber: tint.opacity(0.85)
         case .secondary: .clear
         case .quiet: .clear
+        case .outline: .white.opacity(0.32)
         }
     }
     private var foreground: Color {
         switch kind {
         case .primary, .danger, .amber: tint
-        case .secondary: Noir.paper
+        case .secondary, .outline: Noir.paper
         case .quiet: Noir.silver
         }
     }
@@ -244,6 +247,7 @@ extension ButtonStyle where Self == NoirButtonStyle {
     static var noirDanger: NoirButtonStyle { NoirButtonStyle(kind: .danger) }
     static var noirQuiet: NoirButtonStyle { NoirButtonStyle(kind: .quiet) }
     static var noirAmber: NoirButtonStyle { NoirButtonStyle(kind: .amber) }
+    static var noirOutline: NoirButtonStyle { NoirButtonStyle(kind: .outline) }
 }
 
 /// SF Symbol, or one of our own drawn icons for things SF Symbols doesn't have.

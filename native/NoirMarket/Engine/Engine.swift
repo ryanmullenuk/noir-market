@@ -430,23 +430,66 @@ enum Engine {
             s.rep = max(0, s.rep - 1)
             return Outcome(title: "Played", text: info.scam, good: false)
         }
-        // Every tip looks the same; only the informant’s reliability tells you how much to trust it.
+        return makeTip(&s, informant: id, trust: info.trust, title: info.name)
+    }
+
+    /// Every tip looks the same; only the source's reliability says how far to trust it.
+    static func makeTip(_ s: inout GameState, informant: Int, trust: Double, title: String) -> Outcome {
         let cities = accessibleCities(s)
         let city = cities[s.rng.int(0, cities.count - 1)]
         let good = s.rng.int(0, Catalog.goods.count - 1)
         let up = s.rng.chance(0.5)
         let pct = (up ? 1 : -1) * s.rng.int(30, 60)
-        if s.rng.chance(info.trust) {
+        if s.rng.chance(trust) {
             s.events.append(ActiveEvent(city: city, good: good, pct: pct, startsDay: s.day + 1, daysLeft: 2, title: "Tip"))
         }
-        s.pendingTips = (s.pendingTips ?? []) + [PendingTip(informant: id, city: city, good: good, up: up,
+        s.pendingTips = (s.pendingTips ?? []) + [PendingTip(informant: informant, city: city, good: good, up: up,
                                                             price: s.markets[city].price[good], due: s.day + 1)]
         let name = Catalog.goods[good].name, place = Catalog.cities[city].name
         let line = up
             ? "\(place) is about to run dry on \(name). Tomorrow the price climbs, maybe a lot."
             : "Somebody in \(place) is about to dump \(name). Tomorrow it’ll be going cheap."
-        return Outcome(title: info.name, text: "“\(line)” Reliability: about \(Int(info.trust * 100))%.", good: true)
+        return Outcome(title: title, text: "“\(line)” Reliability: about \(Int(trust * 100))%.", good: true)
     }
+
+    // MARK: Incoming calls
+
+    /// Rolls whether someone rings tonight. Snitches call cheap when they're desperate; unknown numbers are a gamble.
+    static func maybeCall(_ s: inout GameState) {
+        guard s.call == nil, s.day < s.maxDay, s.rng.chance(0.22) else { return }
+        let caller = s.rng.int(0, 3) // 3 = unknown number
+        let fee: Int, trust: Double
+        if caller < 3 {
+            fee = max(20, s.informantPrice[caller] / 2 / 10 * 10)
+            trust = Catalog.informants[caller].trust
+        } else {
+            fee = s.rng.int(4, 18) * 10
+            trust = s.rng.uniform(0.3, 0.75)
+        }
+        let lines = Press.callOpeners[caller]
+        s.call = IncomingCall(caller: caller, fee: fee, trust: trust, line: lines[s.rng.int(0, lines.count - 1)], answered: false)
+    }
+
+    static func callerName(_ caller: Int) -> String { caller < 3 ? Catalog.informants[caller].name : "Unknown number" }
+
+    static func answerCall(_ s: inout GameState) {
+        s.call?.answered = true
+    }
+
+    static func acceptCall(_ s: inout GameState) throws -> Outcome {
+        guard let call = s.call else { throw Failure.invalid("Nobody’s there.") }
+        guard s.cash >= call.fee else { throw Failure.notEnoughCash }
+        guard call.result == nil else { throw Failure.invalid("You’ve already paid.") }
+        s.cash -= call.fee
+        s.stats.tipsBought += 1
+        let outcome = call.caller == 3 && s.rng.chance(0.15)
+            ? Outcome(title: "Dead Line", text: "You send the money. The number stops working. Somewhere, someone is buying chips with it.", good: false)
+            : makeTip(&s, informant: call.caller, trust: call.trust, title: callerName(call.caller))
+        s.call?.result = outcome
+        return outcome
+    }
+
+    static func declineCall(_ s: inout GameState) { s.call = nil }
 
     // MARK: Contacts
 

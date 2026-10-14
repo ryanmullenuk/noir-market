@@ -57,6 +57,8 @@ struct TitleView: View {
     }
 
     private var title: some View {
+        GeometryReader { outer in
+        let insets = outer.safeAreaInsets
         GeometryReader { geo in
             ZStack {
                 // Black, with a faint cold glow behind the title.
@@ -65,7 +67,7 @@ struct TitleView: View {
                     .opacity(titleIn ? 1 : 0)
 
                 VStack(spacing: 0) {
-                    Spacer().frame(height: geo.size.height * 0.2)
+                    Spacer().frame(height: insets.top + geo.size.height * 0.18)
                     VStack(spacing: -6) {
                         Text("NOIR")
                             .font(Noir.title(112))
@@ -131,6 +133,8 @@ struct TitleView: View {
             }
             .coordinateSpace(name: "powder")
             .onPreferenceChange(PowderColliderKey.self) { colliders = $0 }
+        }
+        .ignoresSafeArea()
         }
     }
 }

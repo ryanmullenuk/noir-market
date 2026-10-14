@@ -100,6 +100,15 @@ struct DayReport: Codable, Sendable, Equatable {
     var checks: [String]?
 }
 
+struct IncomingCall: Codable, Sendable, Equatable {
+    var caller: Int   // 0–2 informants, 3 unknown
+    var fee: Int
+    var trust: Double
+    var line: String
+    var answered: Bool
+    var result: Outcome?
+}
+
 struct PendingTip: Codable, Sendable, Equatable {
     var informant: Int
     var city: Int
@@ -165,6 +174,7 @@ struct GameState: Codable, Sendable, Equatable {
     var informantUsed: [Bool] = [false, false, false]
     var phones = 0
     var pendingTips: [PendingTip]?
+    var call: IncomingCall?
     /// Test mode: unlimited cash and every city, enabled by the name GODMODE. Never counts for records.
     var godMode: Bool?
     var calledToday = false

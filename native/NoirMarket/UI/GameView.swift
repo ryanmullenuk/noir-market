@@ -32,7 +32,13 @@ struct GameView: View {
                     Dock(onSelect: { panel = $0 }, onStay: { stay() }, s: s)
                 }
                 FilmGrain()
+                if let call = s.call, !overlayNeeded {
+                    IncomingCallView(call: call, city: Catalog.cities[s.city].name)
+                        .transition(.opacity.combined(with: .scale(scale: 0.95)))
+                        .zIndex(5)
+                }
             }
+            .animation(.spring(duration: 0.35), value: s.call == nil)
             .onAppear {
                 #if DEBUG
                 let args = ProcessInfo.processInfo.arguments
@@ -55,11 +61,13 @@ struct GameView: View {
                     })
                     }
                 }
+                .buttonStyle(.plain)
                 .presentationDragIndicator(.visible)
                 .presentationBackground(Noir.ink)
             }
             .sheet(item: Binding(get: { trade.map(TradeID.init) }, set: { trade = $0?.id })) { t in
                 TradeSheet(good: t.id)
+                    .buttonStyle(.plain)
                     .presentationDetents([.fraction(0.68), .large])
                     .presentationDragIndicator(.visible)
                     .presentationBackground(Noir.coal)
@@ -68,12 +76,9 @@ struct GameView: View {
                 Overlay(onQuit: {
                     onQuit()
                 })
+                .buttonStyle(.plain)
             }
-            .alert("Not so fast", isPresented: Binding(get: { store.error != nil && panel == nil && trade == nil }, set: { if !$0 { store.error = nil } })) {
-                Button("OK", role: .cancel) { store.error = nil }
-            } message: {
-                Text(store.error ?? "")
-            }
+            .noirErrors(store, when: panel == nil && trade == nil)
         } else {
             Color.black.onAppear { onQuit() }
         }
@@ -135,7 +140,7 @@ private struct Header: View {
                 Image(systemName: "line.3.horizontal")
                     .font(.system(size: 17, weight: .bold))
             }
-            .buttonStyle(AmberTile(size: 46))
+            .buttonStyle(AmberTile(size: 42))
             .accessibilityLabel("Menu")
 
             VStack(alignment: .leading, spacing: 4) {
@@ -508,12 +513,12 @@ private struct Dock: View {
             onSelect(panel)
         } label: {
             VStack(spacing: 4) {
-                Image(systemName: symbol).font(.system(size: 18, weight: .semibold))
-                Text(title).font(Noir.label(9)).tracking(0.6).textCase(.uppercase)
+                Image(systemName: symbol).font(.system(size: 16, weight: .semibold))
+                Text(title).font(Noir.label(8)).tracking(0.6).textCase(.uppercase)
             }
             .frame(maxWidth: .infinity)
         }
-        .buttonStyle(AmberTile(height: 58))
+        .buttonStyle(AmberTile(height: 52))
         .overlay(alignment: .topTrailing) {
             if let alert {
                 Circle().fill(alert).frame(width: 9, height: 9)

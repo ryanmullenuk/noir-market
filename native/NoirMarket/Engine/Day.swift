@@ -76,6 +76,7 @@ extension Engine {
             }
         }
 
+        maybeCall(&s)
         s.report = DayReport(day: s.day, city: s.city, travelled: travelled,
                              headline: s.ticker.first ?? "", story: s.story?.text ?? "", lines: lines, checks: checks)
         s.notice = lines.last ?? opening
@@ -259,7 +260,7 @@ extension Engine {
             if t.due > s.day { keep.append(t); continue }
             let now = s.markets[t.city].price[t.good]
             let right = t.up ? now > t.price : now < t.price
-            let who = Catalog.informants[t.informant].name
+            let who = t.informant < 3 ? Catalog.informants[t.informant].name : "The mystery caller"
             let pct = t.price > 0 ? Int((abs(Double(now - t.price)) / Double(t.price) * 100).rounded()) : 0
             let move = "\(Catalog.goods[t.good].name) in \(Catalog.cities[t.city].name) \(now >= t.price ? "up" : "down") \(pct)%"
             let pool = right ? Press.tipRight : Press.tipWrong

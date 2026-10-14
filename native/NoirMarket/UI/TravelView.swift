@@ -81,28 +81,29 @@ struct TravelView: View {
                 if ProcessInfo.processInfo.arguments.contains("-ship") { shipMode = true; selected = 1 }
                 #endif
             }
-            .alert("Not so fast", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) {
-                Button("OK", role: .cancel) { store.error = nil }
-            } message: { Text(store.error ?? "") }
-            .confirmationDialog("Airport security", isPresented: Binding(get: { preflight != nil }, set: { if !$0 { preflight = nil } }), titleVisibility: .visible) {
-                if let dest = preflight {
-                    if Engine.carried(s) > 0 {
-                        Button("Stash the stock here, then fly") {
-                            store.act { Engine.stashAll(&$0) }
-                            depart(dest)
-                        }
-                    }
-                    Button("Dump everything, then fly", role: .destructive) {
-                        store.act { Engine.dumpAll(&$0) }
-                        depart(dest)
-                    }
-                    Button("Risk it") { depart(dest) }
-                    Button("Stay on the ground", role: .cancel) { preflight = nil }
-                }
-            } message: {
-                Text(preflightMessage(s))
-            }
+            .noirErrors(store)
+            .noirDialog(isPresented: Binding(get: { preflight != nil }, set: { if !$0 { preflight = nil } }),
+                        title: "Airport security", message: preflightMessage(s), icon: "airplane.departure", tint: Noir.amber,
+                        actions: preflightActions(s))
         }
+    }
+
+    private func preflightActions(_ s: GameState) -> [DialogAction] {
+        guard let dest = preflight else { return [] }
+        var list: [DialogAction] = []
+        if Engine.carried(s) > 0 {
+            list.append(DialogAction(title: "Stash the stock, then fly", kind: .primary) {
+                store.act { Engine.stashAll(&$0) }
+                depart(dest)
+            })
+        }
+        list.append(DialogAction(title: "Dump everything, then fly", kind: .danger) {
+            store.act { Engine.dumpAll(&$0) }
+            depart(dest)
+        })
+        list.append(DialogAction(title: "Risk it", kind: .amber) { depart(dest) })
+        list.append(DialogAction(title: "Stay on the ground", kind: .quiet) { preflight = nil })
+        return list
     }
 
     private func preflightMessage(_ s: GameState) -> String {

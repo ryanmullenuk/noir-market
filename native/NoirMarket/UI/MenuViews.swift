@@ -59,9 +59,10 @@ struct SettingsView: View {
             .navigationTitle("Menu")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-            .confirmationDialog("Walk away?", isPresented: $confirmAbandon, titleVisibility: .visible) {
-                Button("Abandon this game", role: .destructive) { onAbandon() }
-            } message: { Text("This game will be lost and won’t count towards your records.") }
+            .noirDialog(isPresented: $confirmAbandon, title: "Walk away?", message: "This game will be lost and won’t count towards your records.",
+                        icon: "figure.walk", tint: Noir.red,
+                        actions: [DialogAction(title: "Abandon this game", kind: .danger) { onAbandon() },
+                                  DialogAction(title: "Keep playing", kind: .quiet)])
             .sheet(isPresented: $showHowTo) { HowToPlayView() }
         }
         .tint(Noir.neon)

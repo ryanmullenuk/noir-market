@@ -251,7 +251,7 @@ private struct EncounterView: View {
         switch encounter {
         case .police: PoliceLights()
         case .collector: TorchGlare()
-        case .trouble: StreetLamp()
+        case .trouble(let t): StreetLamp(figures: t.attacker + 1)
         }
     }
 
@@ -415,42 +415,137 @@ private struct PoliceLights: View {
     }
 }
 
+/// A lone street lamp in the rain: soft volumetric cone, drifting dust, wet-road reflection,
+/// low fog, and silhouettes waiting at the edge of the light.
 private struct StreetLamp: View {
+    var figures: Int = 2
     @State private var flicker = 1.0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         GeometryReader { geo in
-            let x = geo.size.width * 0.7, top = 120.0
+            let w = geo.size.width, h = geo.size.height
+            let lampX = w * 0.7, lampY = h * 0.09, ground = h * 0.37
             ZStack {
+                LinearGradient(colors: [Color(red: 0.03, green: 0.035, blue: 0.06), .black], startPoint: .top, endPoint: .init(x: 0.5, y: 0.6))
+
+                // Light cone, blurred so its edges fall off softly.
                 Path { p in
-                    p.move(to: CGPoint(x: x - 8, y: top))
-                    p.addLine(to: CGPoint(x: x + 8, y: top))
-                    p.addLine(to: CGPoint(x: geo.size.width * 1.2, y: geo.size.height))
-                    p.addLine(to: CGPoint(x: geo.size.width * 0.15, y: geo.size.height))
+                    p.move(to: CGPoint(x: lampX - 10, y: lampY))
+                    p.addLine(to: CGPoint(x: lampX + 10, y: lampY))
+                    p.addLine(to: CGPoint(x: lampX + w * 0.38, y: ground))
+                    p.addLine(to: CGPoint(x: lampX - w * 0.42, y: ground))
                     p.closeSubpath()
                 }
-                .fill(LinearGradient(colors: [Color(red: 1, green: 0.85, blue: 0.6).opacity(0.22 * flicker), .clear], startPoint: .top, endPoint: .bottom))
-                Path { p in
-                    p.move(to: CGPoint(x: x, y: top - 4))
-                    p.addLine(to: CGPoint(x: x, y: top - 30))
-                    p.addLine(to: CGPoint(x: x + 60, y: top - 30))
-                    p.addLine(to: CGPoint(x: x + 60, y: geo.size.height))
+                .fill(LinearGradient(colors: [Color(red: 1, green: 0.84, blue: 0.55).opacity(0.32 * flicker), Color(red: 1, green: 0.8, blue: 0.5).opacity(0.05)],
+                                     startPoint: .top, endPoint: .bottom))
+                .blur(radius: 12)
+
+                // Pool of light on the wet road and the lamp's long reflection.
+                Ellipse()
+                    .fill(RadialGradient(colors: [Color(red: 1, green: 0.85, blue: 0.6).opacity(0.3 * flicker), .clear], center: .center, startRadius: 2, endRadius: w * 0.4))
+                    .frame(width: w * 0.95, height: h * 0.07)
+                    .position(x: lampX - w * 0.04, y: ground)
+                Capsule()
+                    .fill(LinearGradient(colors: [Color(red: 1, green: 0.85, blue: 0.6).opacity(0.28 * flicker), .clear], startPoint: .top, endPoint: .bottom))
+                    .frame(width: 14, height: h * 0.14)
+                    .blur(radius: 6)
+                    .position(x: lampX, y: ground + h * 0.08)
+
+                Dust(lampX: lampX, lampY: lampY, size: CGSize(width: w, height: ground / 0.74))
+                    .opacity(flicker)
+
+                // Silhouettes waiting at the edge of the light, feet on the road.
+                ForEach(0..<figures, id: \.self) { i in
+                    let fh = h * (0.12 - Double(i % 2) * 0.01)
+                    Image(systemName: i % 2 == 0 ? "figure.stand" : "figure.walk")
+                        .resizable().scaledToFit()
+                        .frame(height: fh)
+                        .foregroundStyle(Color.black)
+                        .shadow(color: Color(red: 1, green: 0.8, blue: 0.5).opacity(0.45 * flicker), radius: 0.8, x: 1.5, y: 0)
+                        .position(x: w * (0.2 + Double(i) * 0.11), y: ground - fh / 2 + 2)
                 }
-                .stroke(Color(white: 0.16), lineWidth: 4)
-                Capsule().fill(Color(white: 0.2)).frame(width: 26, height: 8).position(x: x, y: top - 4)
-                Circle().fill(Color(red: 1, green: 0.9, blue: 0.7).opacity(flicker)).frame(width: 10).position(x: x, y: top)
-                    .shadow(color: .orange.opacity(0.8), radius: 12)
+
+                // Low fog drifting across the road.
+                Fog().frame(height: h * 0.14).position(x: w / 2, y: ground - h * 0.02)
+
+                // Lamp post and head with a warm halo.
+                Path { p in
+                    p.move(to: CGPoint(x: lampX, y: lampY - 4))
+                    p.addLine(to: CGPoint(x: lampX, y: lampY - 24))
+                    p.addLine(to: CGPoint(x: lampX + 48, y: lampY - 24))
+                    p.addLine(to: CGPoint(x: lampX + 48, y: ground))
+                }
+                .stroke(Color(white: 0.13), lineWidth: 5)
+                Circle()
+                    .fill(RadialGradient(colors: [Color(red: 1, green: 0.9, blue: 0.7).opacity(0.55 * flicker), .clear], center: .center, startRadius: 2, endRadius: 70))
+                    .frame(width: 140, height: 140)
+                    .position(x: lampX, y: lampY)
+                Capsule().fill(Color(white: 0.18)).frame(width: 30, height: 9).position(x: lampX, y: lampY - 4)
+                Circle().fill(Color(red: 1, green: 0.92, blue: 0.75).opacity(flicker)).frame(width: 11)
+                    .position(x: lampX, y: lampY + 1)
+                    .shadow(color: .orange.opacity(0.9), radius: 12)
             }
         }
         .ignoresSafeArea()
         .task {
+            guard !reduceMotion else { return }
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(Double.random(in: 1...4)))
-                flicker = 0.4
-                try? await Task.sleep(for: .milliseconds(70))
-                flicker = 1
+                try? await Task.sleep(for: .seconds(Double.random(in: 1.5...5)))
+                for _ in 0..<Int.random(in: 1...3) {
+                    flicker = Double.random(in: 0.25...0.6)
+                    try? await Task.sleep(for: .milliseconds(Int.random(in: 40...90)))
+                    flicker = 1
+                    try? await Task.sleep(for: .milliseconds(Int.random(in: 40...80)))
+                }
             }
         }
         .accessibilityHidden(true)
+    }
+}
+
+/// Dust and drizzle caught in the lamp's cone.
+private struct Dust: View {
+    let lampX: CGFloat, lampY: CGFloat, size: CGSize
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var body: some View {
+        TimelineView(.animation(paused: reduceMotion)) { ctx in
+            Canvas { g, _ in
+                let t = ctx.date.timeIntervalSinceReferenceDate
+                var r = SplitMix(seed: 99)
+                for _ in 0..<70 {
+                    let u = Double(r.next() % 1000) / 1000, v = Double(r.next() % 1000) / 1000
+                    let speed = 6 + Double(r.next() % 100) / 10
+                    let depth = (v * size.height * 0.74 + t * speed).truncatingRemainder(dividingBy: size.height * 0.74)
+                    let spread = depth / (size.height * 0.74)
+                    let x = lampX + (u - 0.5) * size.width * 1.0 * spread + sin(t * 0.6 + u * 9) * 6
+                    let y = lampY + depth
+                    let a = (1 - spread) * 0.5 + 0.1
+                    g.fill(Path(ellipseIn: CGRect(x: x, y: y, width: 1.6, height: 1.6)), with: .color(Color(red: 1, green: 0.9, blue: 0.75).opacity(a)))
+                }
+            }
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+private struct Fog: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var body: some View {
+        TimelineView(.animation(paused: reduceMotion)) { ctx in
+            let t = ctx.date.timeIntervalSinceReferenceDate
+            GeometryReader { geo in
+                ForEach(0..<3) { i in
+                    Ellipse()
+                        .fill(Color.white.opacity(0.05))
+                        .frame(width: geo.size.width * 0.9, height: geo.size.height * 0.5)
+                        .blur(radius: 24)
+                        .offset(x: CGFloat(sin(t * 0.08 + Double(i) * 2.1)) * geo.size.width * 0.3,
+                                y: geo.size.height * (0.2 + Double(i) * 0.15))
+                }
+            }
+        }
+        .allowsHitTesting(false)
     }
 }
 

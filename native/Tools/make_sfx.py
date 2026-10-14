@@ -129,3 +129,12 @@ for i in range(n):
     b = math.sin(2 * math.pi * 622 * (t - 0.45)) * math.exp(-3 * (t - 0.45)) if t > 0.45 else 0
     s.append((a + 0.6 * math.sin(2 * math.pi * 1568 * t) * math.exp(-6 * t)) * 0.5 + b * 0.6)
 write("bingbong", s)
+
+# Ring: a British double ring (400 + 450 Hz), 0.4 on, 0.2 off, 0.4 on.
+n = int(R * 1.2); s = []
+for i in range(n):
+    t = i / R
+    on = t < 0.4 or (0.6 <= t < 1.0)
+    tone = (math.sin(2 * math.pi * 400 * t) + math.sin(2 * math.pi * 450 * t)) * 0.5 if on else 0
+    s.append(tone * (0.6 + 0.4 * math.sin(2 * math.pi * 25 * t)))
+write("ring", s)
