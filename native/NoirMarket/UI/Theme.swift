@@ -1,18 +1,19 @@
 import SwiftUI
+import CoreText
 
 /// Noir palette: ink blacks and silver-screen greys, lit by red / amber / green signal glows.
 enum Noir {
-    static let ink = Color(red: 0.03, green: 0.03, blue: 0.035)
+    static let ink = Color(red: 0.035, green: 0.035, blue: 0.035)
     static let coal = Color(red: 0.075, green: 0.075, blue: 0.085)
     static let smoke = Color(red: 0.14, green: 0.14, blue: 0.155)
     static let rule = Color.white.opacity(0.09)
-    static let paper = Color(red: 0.95, green: 0.94, blue: 0.91)
+    static let paper = Color(red: 0.92, green: 0.93, blue: 0.92)
     static let silver = Color(red: 0.66, green: 0.66, blue: 0.69)
     static let dim = Color(red: 0.44, green: 0.44, blue: 0.47)
     static let blood = Color(red: 0.80, green: 0.14, blue: 0.16)
     static let neon = Color(red: 1.0, green: 0.30, blue: 0.30)
     static let brass = Color(red: 0.96, green: 0.74, blue: 0.30)
-    static let go = Color(red: 0.32, green: 0.88, blue: 0.42)
+    static let go = Color(red: 0.16, green: 1.0, blue: 0.52)
     static let rise = go
 
     // RAG signal colours.
@@ -28,26 +29,44 @@ enum Noir {
 
     static let radius: CGFloat = 18
 
-    /// Art Deco display face, used for titles and big numbers.
+    /// Space Grotesk for display headings.
     static func display(_ size: CGFloat, weight: Font.Weight = .bold) -> Font {
-        .custom("Didot", size: size).weight(weight)
+        let name = weight == .regular || weight == .light ? "SpaceGrotesk-Regular" : weight == .medium ? "SpaceGrotesk-Medium" : "SpaceGrotesk-Bold"
+        return .custom(name, size: size, relativeTo: .title)
     }
-    /// Typewriter face for flavour text and the newspaper.
-    static func type(_ size: CGFloat) -> Font { .custom("AmericanTypewriter", size: size, relativeTo: .body) }
-    static func typeBold(_ size: CGFloat) -> Font { .custom("AmericanTypewriter-Semibold", size: size, relativeTo: .headline) }
-    /// Clean UI text.
-    static func ui(_ size: CGFloat, weight: Font.Weight = .regular) -> Font { .system(size: size, weight: weight, design: .default) }
+    /// Mona Sans Black for the title lockup.
+    static func title(_ size: CGFloat, expanded: Bool = false) -> Font {
+        .custom(expanded ? "MonaSansExpanded-Black" : "MonaSans-Black", size: size)
+    }
+    /// JetBrains Mono for everything else.
+    static func monoName(_ weight: Font.Weight) -> String {
+        switch weight {
+        case .heavy, .black: "JetBrainsMono-ExtraBold"
+        case .bold: "JetBrainsMono-Bold"
+        case .semibold: "JetBrainsMono-SemiBold"
+        case .medium: "JetBrainsMono-Medium"
+        default: "JetBrainsMono-Regular"
+        }
+    }
+    static func type(_ size: CGFloat) -> Font { .custom(monoName(.regular), size: size, relativeTo: .body) }
+    static func typeBold(_ size: CGFloat) -> Font { .custom(monoName(.bold), size: size, relativeTo: .headline) }
+    static func ui(_ size: CGFloat, weight: Font.Weight = .regular) -> Font { .custom(monoName(weight), size: size, relativeTo: .body) }
     /// Small tracked caps labels.
-    static func label(_ size: CGFloat = 11) -> Font { .system(size: size, weight: .bold, design: .default) }
-    /// Figures: rounded, tabular.
-    static func mono(_ size: CGFloat, weight: Font.Weight = .bold) -> Font {
-        .system(size: size, weight: weight, design: .rounded).monospacedDigit()
+    static func label(_ size: CGFloat = 11) -> Font { .custom(monoName(.bold), size: size, relativeTo: .caption) }
+    /// Figures.
+    static func mono(_ size: CGFloat, weight: Font.Weight = .bold) -> Font { .custom(monoName(weight), size: size, relativeTo: .body) }
+
+    /// Registers the bundled fonts. Called once at launch.
+    static func registerFonts() {
+        for url in Bundle.main.urls(forResourcesWithExtension: "ttf", subdirectory: nil) ?? [] {
+            CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil)
+        }
     }
 }
 
 extension View {
     func noirLabel(_ size: CGFloat = 11, color: Color = Noir.dim) -> some View {
-        font(Noir.label(size)).tracking(1.8).textCase(.uppercase).foregroundStyle(color)
+        font(Noir.label(size)).tracking(1.2).textCase(.uppercase).foregroundStyle(color)
     }
 
     /// Rounded glassy panel.
@@ -162,7 +181,7 @@ struct NoirButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
         configuration.label
-            .font(Noir.label(13)).tracking(2).textCase(.uppercase)
+            .font(Noir.label(13)).tracking(1.4).textCase(.uppercase)
             .frame(maxWidth: .infinity, minHeight: 50)
             .foregroundStyle(foreground)
             .background {

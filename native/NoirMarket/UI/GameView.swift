@@ -113,18 +113,16 @@ private struct Header: View {
         HStack(alignment: .center, spacing: 14) {
             Button(action: onMenu) {
                 Image(systemName: "line.3.horizontal")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(Noir.paper)
-                    .frame(width: 44, height: 44)
-                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.white.opacity(0.07)))
-                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.white.opacity(0.12)))
+                    .font(.system(size: 17, weight: .bold))
             }
+            .buttonStyle(AmberTile(size: 46))
             .accessibilityLabel("Menu")
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(Catalog.cities[s.city].name)
-                    .font(Noir.display(36))
-                    .foregroundStyle(Noir.paper)
+                    .font(Noir.display(34))
+                    .foregroundStyle(Noir.green)
+                    .shadow(color: Noir.green.opacity(0.35), radius: 10)
                     .lineLimit(1).minimumScaleFactor(0.6)
                 HStack(spacing: 6) {
                     Text(Catalog.cities[s.city].region)
@@ -139,7 +137,7 @@ private struct Header: View {
                         .shadow(color: Noir.amber.opacity(0.4), radius: 6)
                     if s.rankPending > s.rankIndex {
                         Text("\(s.rankDays)/3 → \(Catalog.ranks[s.rankPending].name)")
-                            .font(.system(size: 10, weight: .medium)).foregroundStyle(Noir.dim)
+                            .font(Noir.ui(10, weight: .medium)).foregroundStyle(Noir.dim)
                             .lineLimit(1)
                     }
                 }
@@ -156,7 +154,7 @@ private struct Header: View {
                     .shadow(color: dayColour.opacity(0.7), radius: 6)
                 VStack(spacing: -2) {
                     Text("\(s.day)").font(Noir.mono(20)).foregroundStyle(Noir.paper)
-                    Text("of \(s.maxDay)").font(.system(size: 8, weight: .bold)).foregroundStyle(Noir.dim)
+                    Text("of \(s.maxDay)").font(Noir.ui(8, weight: .bold)).foregroundStyle(Noir.dim)
                 }
             }
             .frame(width: 56, height: 56)
@@ -259,7 +257,7 @@ struct Ticker: View {
                 .zIndex(1)
             GeometryReader { geo in
                 Text(text)
-                    .font(.system(size: 12, weight: .semibold))
+                    .font(Noir.ui(12, weight: .semibold))
                     .foregroundStyle(Noir.paper.opacity(0.85))
                     .fixedSize()
                     .background(GeometryReader { t in Color.clear.onAppear { width = t.size.width }.onChange(of: text) { width = t.size.width } })
@@ -339,7 +337,7 @@ private struct MarketList: View {
                 }
 
                 HStack(alignment: .firstTextBaseline) {
-                    Text("The Market").font(Noir.display(22)).foregroundStyle(Noir.paper)
+                    Text("The Market").font(Noir.display(22)).foregroundStyle(Noir.green)
                     Spacer()
                     Text("▲ rising").font(Noir.label(10)).foregroundStyle(Noir.green)
                     Text("▼ falling").font(Noir.label(10)).foregroundStyle(Noir.red)
@@ -371,7 +369,7 @@ private struct MarketList: View {
                             .foregroundStyle(Noir.amber)
                         Text(story.text).font(Noir.type(14)).foregroundStyle(Noir.paper.opacity(0.9))
                             .fixedSize(horizontal: false, vertical: true)
-                        Text("Half of what you hear is nonsense.").font(.system(size: 11)).foregroundStyle(Noir.dim)
+                        Text("Half of what you hear is nonsense.").font(Noir.ui(11)).foregroundStyle(Noir.dim)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .card(padding: 14, tint: Noir.amber)
@@ -403,7 +401,7 @@ private struct MarketRow: View {
             GlowIcon(symbol: good.symbol, color: owned > 0 ? Noir.paper : trend, size: 36, lit: owned > 0 || big)
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 6) {
-                    Text(good.name).font(.system(size: 16, weight: .semibold)).foregroundStyle(Noir.paper)
+                    Text(good.name).font(Noir.ui(16, weight: .semibold)).foregroundStyle(Noir.paper)
                     if factor < 1 { tag("cheap", Noir.green) }
                     if factor > 1 { tag("in demand", Noir.amber) }
                 }
@@ -411,11 +409,11 @@ private struct MarketRow: View {
                     let avg = s.carryCost[good.id] / max(1, owned)
                     let pnl = (price - avg) * owned
                     Text("You hold \(owned) · \(pnl >= 0 ? "+" : "−")\(Money.short(abs(pnl)))")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(Noir.ui(11, weight: .semibold))
                         .foregroundStyle(pnl >= 0 ? Noir.green : Noir.red)
                 } else {
                     Text(dry ? "Dry. Nobody’s selling." : "\(m.supply[good.id]) on the street")
-                        .font(.system(size: 11)).foregroundStyle(Noir.dim)
+                        .font(Noir.ui(11)).foregroundStyle(Noir.dim)
                 }
             }
             Spacer(minLength: 4)
@@ -438,7 +436,7 @@ private struct MarketRow: View {
 
     private func tag(_ text: String, _ colour: Color) -> some View {
         Text(text)
-            .font(.system(size: 8, weight: .heavy)).tracking(0.8).textCase(.uppercase)
+            .font(Noir.ui(8, weight: .heavy)).tracking(0.8).textCase(.uppercase)
             .foregroundStyle(colour)
             .padding(.horizontal, 6).padding(.vertical, 2)
             .background(Capsule().fill(colour.opacity(0.13)))
@@ -459,17 +457,13 @@ private struct Dock: View {
         let doctor = s.health < 50
         let streetAlert = s.deal != nil
         VStack(spacing: 10) {
-            HStack(spacing: 0) {
-                item("Travel", "tram.fill", .travel, glow: nil)
-                item("Stash", "shippingbox.fill", .stash, glow: stashAlert ? Noir.amber : nil)
-                item("Money", "sterlingsign.circle.fill", .money, glow: loanAlert ? Noir.red : nil)
-                item("Market", "bag.fill", .shop, glow: doctor ? Noir.red : nil)
-                item("Street", "phone.fill", .street, glow: streetAlert ? Noir.green : nil)
+            HStack(spacing: 8) {
+                item("Travel", "tram.fill", .travel, alert: nil)
+                item("Stash", "shippingbox.fill", .stash, alert: stashAlert ? Noir.paper : nil)
+                item("Money", "sterlingsign.circle.fill", .money, alert: loanAlert ? Noir.red : nil)
+                item("Market", "bag.fill", .shop, alert: doctor ? Noir.red : nil)
+                item("Street", "phone.fill", .street, alert: streetAlert ? Noir.green : nil)
             }
-            .padding(.vertical, 8)
-            .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(.ultraThinMaterial))
-            .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Color.black.opacity(0.4)))
-            .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(Color.white.opacity(0.1)))
 
             Button(action: onStay) {
                 HStack(spacing: 8) {
@@ -489,28 +483,44 @@ private struct Dock: View {
         )
     }
 
-    private func item(_ title: String, _ symbol: String, _ panel: Panel, glow: Color?) -> some View {
+    private func item(_ title: String, _ symbol: String, _ panel: Panel, alert: Color?) -> some View {
         Button {
             Audio.shared.buzz(.tap)
             onSelect(panel)
         } label: {
-            VStack(spacing: 5) {
-                ZStack(alignment: .topTrailing) {
-                    Image(systemName: symbol)
-                        .font(.system(size: 19, weight: .semibold))
-                        .foregroundStyle(glow ?? Noir.paper.opacity(0.85))
-                        .shadow(color: (glow ?? .clear).opacity(0.9), radius: 7)
-                    if let glow {
-                        Circle().fill(glow).frame(width: 7, height: 7)
-                            .shadow(color: glow, radius: 4)
-                            .offset(x: 6, y: -3)
-                    }
-                }
-                .frame(height: 22)
-                Text(title).font(.system(size: 10, weight: .semibold)).foregroundStyle(Noir.silver)
+            VStack(spacing: 4) {
+                Image(systemName: symbol).font(.system(size: 18, weight: .semibold))
+                Text(title).font(Noir.label(9)).tracking(0.6).textCase(.uppercase)
             }
-            .frame(maxWidth: .infinity, minHeight: 46)
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(AmberTile(height: 58))
+        .overlay(alignment: .topTrailing) {
+            if let alert {
+                Circle().fill(alert).frame(width: 9, height: 9)
+                    .shadow(color: alert, radius: 5)
+                    .offset(x: -6, y: 6)
+            }
         }
         .accessibilityIdentifier("dock-\(panel.rawValue)")
+    }
+}
+
+/// Amber glowing tile button, used for the dock and the menu button.
+struct AmberTile: ButtonStyle {
+    var size: CGFloat? = nil
+    var height: CGFloat = 46
+
+    func makeBody(configuration: Configuration) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        configuration.label
+            .foregroundStyle(Noir.amber)
+            .frame(width: size, height: size ?? height)
+            .frame(maxWidth: size == nil ? .infinity : nil)
+            .background(shape.fill(LinearGradient(colors: [Noir.amber.opacity(0.2), Noir.amber.opacity(0.05)], startPoint: .top, endPoint: .bottom)))
+            .overlay(shape.strokeBorder(Noir.amber.opacity(0.8), lineWidth: 1.1))
+            .shadow(color: Noir.amber.opacity(configuration.isPressed ? 0.7 : 0.32), radius: configuration.isPressed ? 12 : 7)
+            .scaleEffect(configuration.isPressed ? 0.95 : 1)
+            .animation(.spring(duration: 0.18), value: configuration.isPressed)
     }
 }

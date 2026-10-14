@@ -5,6 +5,8 @@ struct NoirMarketApp: App {
     @State private var store = GameStore()
     @State private var unlock = Unlock()
 
+    init() { Noir.registerFonts() }
+
     var body: some Scene {
         WindowGroup {
             RootView()

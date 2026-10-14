@@ -32,92 +32,147 @@ struct Overlay: View {
     }
 }
 
-// MARK: The morning paper
+// MARK: NOIRNET, the underground wire
 
+/// The morning report as an encrypted terminal feed, typed out fast with a block cursor.
 private struct Newspaper: View {
     let report: DayReport
     let s: GameState
     var onDone: () -> Void
 
+    struct Line: Identifiable {
+        let id: Int
+        let tag: String
+        let text: String
+        let colour: Color
+    }
+
+    @State private var typed = 0
+    @State private var cursorOn = true
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    private var lines: [Line] {
+        var out: [Line] = []
+        var n = 0
+        func add(_ tag: String, _ text: String, _ c: Color) { out.append(Line(id: n, tag: tag, text: text, colour: c)); n += 1 }
+        let node = Catalog.cities[report.city].name.uppercased()
+        add(">", "noirnet relay v2.7 :: handshake ok :: cipher aes-256", Noir.dim)
+        add(">", "node \(node) :: day \(String(format: "%02d", report.day))/\(s.maxDay) :: \(report.travelled ? "new location" : "same location")", Noir.dim)
+        add("INTEL", "\(report.story)  [unverified]", Noir.amber)
+        for line in s.ticker {
+            let parts = line.split(separator: ".", maxSplits: 1).map(String.init)
+            add("WIRE", parts.count > 1 ? "\(parts[0]) // \(parts[1].trimmingCharacters(in: .whitespaces))" : line, Noir.green)
+        }
+        for line in report.lines { add("YOU", line, Noir.paper) }
+        if !s.encounters.isEmpty {
+            add("ALERT", "movement detected near your position. respond now.", Noir.red)
+        }
+        add(">", "end of transmission", Noir.dim)
+        return out
+    }
+
+    private var total: Int { lines.reduce(0) { $0 + $1.tag.count + $1.text.count + 3 } }
+
     var body: some View {
         ZStack {
-            Noir.ink.ignoresSafeArea()
-            ScrollView {
-                VStack(spacing: 0) {
-                    VStack(spacing: 4) {
-                        Text("The Evening Ledger")
-                            .font(.custom("Didot", size: 34).weight(.bold))
-                            .italic()
-                        Rectangle().frame(height: 2)
-                        HStack {
-                            Text("Day \(report.day) of \(s.maxDay)")
-                            Spacer()
-                            Text(Catalog.cities[report.city].name + " edition")
-                            Spacer()
-                            Text("Price: 1p")
-                        }
-                        .font(.system(size: 10, weight: .semibold)).tracking(1).textCase(.uppercase)
-                        Rectangle().frame(height: 1)
-                    }
+            Color.black.ignoresSafeArea()
+            // Faint green phosphor wash and scanlines.
+            RadialGradient(colors: [Noir.green.opacity(0.10), .clear], center: .center, startRadius: 20, endRadius: 520)
+                .ignoresSafeArea()
+            Scanlines().ignoresSafeArea()
 
-                    Text(report.story)
-                        .font(.custom("Didot", size: 25).weight(.bold))
-                        .multilineTextAlignment(.center)
-                        .padding(.vertical, 18)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Text("Our reporters stand by roughly half of this.")
-                        .font(.system(size: 10)).italic()
-                        .padding(.bottom, 14)
-
-                    Rectangle().frame(height: 1)
-
-                    VStack(alignment: .leading, spacing: 12) {
-                        ForEach(Array(s.ticker.enumerated()), id: \.offset) { _, line in
-                            let parts = line.split(separator: ".", maxSplits: 1).map(String.init)
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(parts.first ?? line).font(.system(size: 12, weight: .heavy)).tracking(0.5)
-                                if parts.count > 1 {
-                                    Text(parts[1].trimmingCharacters(in: .whitespaces)).font(Noir.type(13))
-                                }
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                        }
-                    }
-                    .padding(.vertical, 14)
-
-                    Rectangle().frame(height: 1)
-
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Your night").font(.system(size: 11, weight: .heavy)).tracking(2).textCase(.uppercase)
-                        ForEach(Array(report.lines.enumerated()), id: \.offset) { _, line in
-                            Text(line).font(Noir.type(14)).fixedSize(horizontal: false, vertical: true)
-                        }
-                        if !s.encounters.isEmpty {
-                            Text("And then, on the way home…").font(Noir.type(14)).italic().foregroundStyle(Noir.blood)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.vertical, 14)
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 8) {
+                    Circle().fill(Noir.green).frame(width: 8, height: 8).glow(Noir.green, radius: 6)
+                    Text("NOIRNET").font(Noir.display(22)).foregroundStyle(Noir.green)
+                    Text("// SECURE CHANNEL").font(Noir.label(10)).tracking(1.2).foregroundStyle(Noir.green.opacity(0.7))
+                    Spacer()
+                    Text("DAY \(String(format: "%02d", report.day))").font(Noir.label(11)).foregroundStyle(Noir.green)
                 }
-                .foregroundStyle(Noir.ink)
-                .padding(20)
-                .background(Noir.paper)
-                .overlay(Rectangle().fill(.black.opacity(0.05)).blendMode(.multiply))
-                .rotationEffect(.degrees(-0.6))
-                .shadow(color: .black.opacity(0.6), radius: 20, y: 10)
-                .padding(16)
-                .padding(.top, 12)
+                .padding(.bottom, 12)
+                Rectangle().fill(Noir.green.opacity(0.35)).frame(height: 1)
 
-                Button(s.encounters.isEmpty ? "Turn the page" : "Uh oh") {
-                    Audio.shared.play(.page, volume: 0.4)
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 12) {
+                            ForEach(visible) { line in
+                                (Text(line.tag == ">" ? "> " : "[\(line.tag)] ").foregroundStyle(line.colour.opacity(0.95))
+                                 + Text(line.text).foregroundStyle(line.tag == ">" ? Noir.dim : Noir.paper.opacity(line.tag == "WIRE" ? 0.85 : 1))
+                                 + Text(line.id == lastVisibleID && typed < total ? (cursorOn ? "█" : " ") : "").foregroundStyle(Noir.green))
+                                    .font(Noir.ui(14))
+                                    .lineSpacing(3)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .id(line.id)
+                            }
+                            if typed >= total {
+                                Text(cursorOn ? "█" : " ").font(Noir.ui(14)).foregroundStyle(Noir.green).id(-1)
+                            }
+                        }
+                        .padding(.vertical, 16)
+                    }
+                    .scrollIndicators(.hidden)
+                    .onChange(of: typed) { proxy.scrollTo(typed >= total ? -1 : lastVisibleID, anchor: .bottom) }
+                }
+
+                Button(s.encounters.isEmpty ? "Disconnect" : "Respond") {
+                    Audio.shared.play(.click, volume: 0.7)
                     Audio.shared.buzz(s.encounters.isEmpty ? .tap : .warning)
                     onDone()
                 }
                 .buttonStyle(s.encounters.isEmpty ? NoirButtonStyle(kind: .primary) : NoirButtonStyle(kind: .danger))
-                .padding(.horizontal, 24)
-                .padding(.bottom, 30)
+                .opacity(typed >= total ? 1 : 0.35)
+                .padding(.top, 8)
+            }
+            .padding(20)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { typed = total }
+        .onAppear { Audio.shared.play(.click, volume: 0.7) }
+        .task {
+            if reduceMotion { typed = total; return }
+            while typed < total {
+                try? await Task.sleep(for: .milliseconds(12))
+                typed = min(total, typed + 5)
+                if typed % 40 < 5 { Audio.shared.play(.key, volume: 0.12) }
             }
         }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(420))
+                cursorOn.toggle()
+            }
+        }
+    }
+
+    /// Lines typed so far, with the last one cut at the current character.
+    private var visible: [Line] {
+        var left = typed
+        var out: [Line] = []
+        for line in lines {
+            let len = line.tag.count + line.text.count + 3
+            if left <= 0 { break }
+            if left >= len { out.append(line) } else {
+                out.append(Line(id: line.id, tag: line.tag, text: String(line.text.prefix(max(0, left - line.tag.count - 3))), colour: line.colour))
+            }
+            left -= len
+        }
+        return out
+    }
+
+    private var lastVisibleID: Int { visible.last?.id ?? 0 }
+}
+
+private struct Scanlines: View {
+    var body: some View {
+        Canvas { ctx, size in
+            var y = 0.0
+            while y < size.height {
+                ctx.fill(Path(CGRect(x: 0, y: y, width: size.width, height: 1)), with: .color(.white.opacity(0.025)))
+                y += 3
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 
@@ -167,7 +222,7 @@ private struct EncounterView: View {
                         .buttonStyle(NoirButtonStyle(kind: o.primary ? .primary : o.danger ? .danger : .secondary))
                         .disabled(!o.enabled)
                         if let note = o.note {
-                            Text(note).font(.system(size: 11)).foregroundStyle(Noir.dim)
+                            Text(note).font(Noir.ui(11)).foregroundStyle(Noir.dim)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.top, -6)
                         }

@@ -34,8 +34,8 @@ struct TravelView: View {
                                 HStack {
                                     if !open { Image(systemName: "lock.fill").font(.system(size: 11)).foregroundStyle(Noir.brass) }
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text(c.name).font(.system(size: 15, weight: .semibold)).foregroundStyle(open ? Noir.paper : Noir.dim)
-                                        Text(c.region).font(.system(size: 10)).foregroundStyle(Noir.dim)
+                                        Text(c.name).font(Noir.ui(15, weight: .semibold)).foregroundStyle(open ? Noir.paper : Noir.dim)
+                                        Text(c.region).font(Noir.ui(10)).foregroundStyle(Noir.dim)
                                     }
                                     Spacer()
                                     Image(systemName: Catalog.cities[s.city].needsFlight(to: c) ? "airplane" : "tram.fill")
@@ -169,7 +169,7 @@ struct MapView: View {
                                 .frame(width: here || selected == c.id ? 11 : 7)
                                 .shadow(color: here ? Noir.green : selected == c.id ? Noir.amber : .clear, radius: 7)
                             Text(c.name)
-                                .font(.system(size: 9, weight: here || selected == c.id ? .bold : .regular))
+                                .font(Noir.ui(9, weight: here || selected == c.id ? .bold : .regular))
                                 .foregroundStyle(here ? Noir.green : selected == c.id ? Noir.amber : open ? Noir.paper.opacity(0.85) : Noir.dim)
                                 .fixedSize()
                                 .frame(width: 70, alignment: side == .left ? .trailing : side == .right ? .leading : .center)
@@ -222,8 +222,9 @@ struct SheetTitle: View {
     let title: String
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(kicker).noirLabel(10, color: Noir.neon)
-            Text(title).font(Noir.display(38)).foregroundStyle(Noir.paper)
+            Text(kicker).noirLabel(10, color: Noir.green.opacity(0.8))
+            Text(title).font(Noir.display(38)).foregroundStyle(Noir.green)
+                .shadow(color: Noir.green.opacity(0.35), radius: 10)
         }
         .padding(.top, 8)
     }

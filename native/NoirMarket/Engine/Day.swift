@@ -91,8 +91,12 @@ extension Engine {
         var ticker: [String] = []
         let count = s.rng.chance(0.55) ? 2 : 1
         let cities = accessibleCities(s)
+        var used = Set<Int>()
         for _ in 0..<count {
-            let template = Press.events[s.rng.int(0, Press.events.count - 1)]
+            var pick = s.rng.int(0, Press.events.count - 1)
+            while used.contains(pick) { pick = (pick + 1) % Press.events.count }
+            used.insert(pick)
+            let template = Press.events[pick]
             guard let good = Catalog.good(named: template.good) else { continue }
             let city = cities[s.rng.int(0, cities.count - 1)]
             applyShock(&s, city: city, good: good.id, pct: template.pct)

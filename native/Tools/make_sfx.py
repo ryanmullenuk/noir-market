@@ -52,3 +52,20 @@ for i in range(n):
     ph += 2*math.pi*f / R
     s.append((math.sin(ph) + random.uniform(-0.3, 0.3) * math.exp(-40*t)) * math.exp(-9 * t))
 write("thud", s)
+
+# Click: a sharp relay click (two quick transients).
+n = int(R * 0.06); s = []
+for i in range(n):
+    t = i / R
+    a = math.exp(-900 * t) * random.uniform(-1, 1)
+    b = 0 if t < 0.012 else math.exp(-1400 * (t - 0.012)) * random.uniform(-1, 1) * 0.6
+    tone = math.sin(2 * math.pi * 3200 * t) * math.exp(-500 * t) * 0.5
+    s.append(a + b + tone)
+write("click", s)
+
+# Key: a tiny soft keystroke tick.
+n = int(R * 0.025); s = []
+for i in range(n):
+    t = i / R
+    s.append((random.uniform(-1, 1) * 0.6 + math.sin(2 * math.pi * 1800 * t) * 0.4) * math.exp(-700 * t))
+write("key", s)

@@ -139,7 +139,7 @@ struct StashView: View {
     private func row<Trailing: View>(_ g: Good, qty: Int, @ViewBuilder trailing: () -> Trailing) -> some View {
         HStack {
             Image(systemName: g.symbol).foregroundStyle(Noir.silver).frame(width: 24)
-            Text(g.name).font(.system(size: 15, weight: .semibold)).foregroundStyle(Noir.paper)
+            Text(g.name).font(Noir.ui(15, weight: .semibold)).foregroundStyle(Noir.paper)
             Text("×\(qty)").font(Noir.mono(13)).foregroundStyle(Noir.silver)
             Spacer()
             trailing()
@@ -193,7 +193,7 @@ struct MoneyView: View {
                                 let owed = Engine.payoff(loan, day: s.day)
                                 VStack(alignment: .leading, spacing: 8) {
                                     HStack {
-                                        Text(Catalog.lenders[loan.lender].name).font(.system(size: 16, weight: .semibold)).foregroundStyle(Noir.paper)
+                                        Text(Catalog.lenders[loan.lender].name).font(Noir.ui(16, weight: .semibold)).foregroundStyle(Noir.paper)
                                         Spacer()
                                         Text(Money.gbp(owed)).font(Noir.mono(16)).foregroundStyle(Noir.neon)
                                     }
@@ -216,7 +216,7 @@ struct MoneyView: View {
                             let has = s.loans.contains { $0.lender == l.id }
                             VStack(alignment: .leading, spacing: 6) {
                                 HStack {
-                                    Text(l.name).font(.system(size: 16, weight: .semibold)).foregroundStyle(Noir.paper)
+                                    Text(l.name).font(Noir.ui(16, weight: .semibold)).foregroundStyle(Noir.paper)
                                     Spacer()
                                     Text("up to \(Money.short(Engine.lenderLimit(s, l)))").font(Noir.mono(12)).foregroundStyle(Noir.silver)
                                 }
@@ -317,10 +317,10 @@ struct ShopView: View {
                             HStack(alignment: .top) {
                                 VStack(alignment: .leading, spacing: 3) {
                                     HStack(spacing: 6) {
-                                        Text(w.name).font(.system(size: 15, weight: .semibold)).foregroundStyle(Noir.paper)
+                                        Text(w.name).font(Noir.ui(15, weight: .semibold)).foregroundStyle(Noir.paper)
                                         if s.weapons[w.id] > 0 { Text("×\(s.weapons[w.id])").font(Noir.mono(12)).foregroundStyle(Noir.brass) }
                                     }
-                                    Text("\(w.note) · win \(Int(w.win * 100))% · heat +\(w.heat)").font(.system(size: 11)).foregroundStyle(Noir.dim)
+                                    Text("\(w.note) · win \(Int(w.win * 100))% · heat +\(w.heat)").font(Noir.ui(11)).foregroundStyle(Noir.dim)
                                 }
                                 Spacer()
                                 VStack(alignment: .trailing, spacing: 6) {
@@ -344,8 +344,8 @@ struct ShopView: View {
         HStack(spacing: 12) {
             GlowIcon(symbol: symbol, color: colour, size: 34, lit: lit ?? (owned != nil))
             VStack(alignment: .leading, spacing: 2) {
-                Text(name).font(.system(size: 15, weight: .semibold)).foregroundStyle(Noir.paper)
-                Text(detail).font(.system(size: 11)).foregroundStyle(Noir.dim)
+                Text(name).font(Noir.ui(15, weight: .semibold)).foregroundStyle(Noir.paper)
+                Text(detail).font(Noir.ui(11)).foregroundStyle(Noir.dim)
             }
             Spacer()
             if let owned {
@@ -388,7 +388,7 @@ struct StreetView: View {
                             let price = s.informantPrice[info.id]
                             VStack(alignment: .leading, spacing: 6) {
                                 HStack {
-                                    Text(info.name).font(.system(size: 16, weight: .semibold)).foregroundStyle(Noir.paper)
+                                    Text(info.name).font(Noir.ui(16, weight: .semibold)).foregroundStyle(Noir.paper)
                                     Spacer()
                                     Text(Money.gbp(price)).font(Noir.mono(14)).foregroundStyle(Noir.silver)
                                 }

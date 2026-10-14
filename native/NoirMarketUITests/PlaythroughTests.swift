@@ -71,8 +71,8 @@ final class PlaythroughTests: XCTestCase {
     @MainActor
     private func handleNight(_ app: XCUIApplication) {
         for _ in 0..<8 {
-            if button(app, "Turn the page").waitForExistence(timeout: 2) { button(app, "Turn the page").tap(); continue }
-            if button(app, "Uh oh").exists { button(app, "Uh oh").tap(); continue }
+            if button(app, "Disconnect").waitForExistence(timeout: 2) { button(app, "Disconnect").tap(); continue }
+            if button(app, "Respond").exists { button(app, "Respond").tap(); continue }
             if button(app, "Carry on").exists { button(app, "Carry on").tap(); continue }
             // An encounter: take the first enabled option.
             let options = app.buttons.allElementsBoundByIndex.filter { $0.isEnabled && $0.isHittable && !$0.label.isEmpty }

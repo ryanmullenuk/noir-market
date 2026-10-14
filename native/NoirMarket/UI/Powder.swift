@@ -33,17 +33,17 @@ final class PowderSim: @unchecked Sendable {
     private var spawnDebt = 0.0
     private var last: Date?
     var time = 0.0
+    private var seeded = false
 
-    let maxGrains = 900
-    let spawnRate = 150.0   // grains per second
+    let maxGrains = 2400
+    let spawnRate = 360.0   // grains per second
 
     func setColliders(_ frames: [String: CGRect]) {
         for (id, rect) in frames {
             // Only the top edge matters; keep the existing pile if the frame barely moved.
             if let old = surfaces[id], abs(old.rect.minY - rect.minY) < 1, abs(old.rect.width - (rect.width - 8)) < 1 { continue }
             // Title letters only catch some of the powder so the buttons below still get their share.
-            let title = id.hasPrefix("letter")
-            surfaces[id] = Surface(rect: rect.insetBy(dx: 4, dy: 0), maxHeight: title ? 12 : 16, catchRate: title ? 0.4 : 1)
+            surfaces[id] = Surface(rect: rect.insetBy(dx: 4, dy: 0), maxHeight: 11)
         }
         for id in surfaces.keys where frames[id] == nil { surfaces[id] = nil }
     }
@@ -61,13 +61,23 @@ final class PowderSim: @unchecked Sendable {
         last = now
         time += dt
         guard size.width > 0 else { return }
+        if !seeded {
+            // Start mid-snowfall: the sky is already full of drifting powder.
+            seeded = true
+            for _ in 0..<1600 {
+                let sz = r(0, 1) < 0.9 ? r(0.35, 1.1) : r(1.1, 1.9)
+                grains.append(Grain(x: r(-20, size.width + 20), y: r(-10, size.height), vx: 0, vy: r(7, 16) + sz * 7,
+                                    size: sz, alpha: r(0.25, 0.9), phase: r(0, 6.28)))
+            }
+        }
 
         spawnDebt += spawnRate * dt
         while spawnDebt >= 1, grains.count < maxGrains {
             spawnDebt -= 1
-            let s = r(0.7, 2.6)
-            grains.append(Grain(x: r(-20, size.width + 20), y: r(-30, -4), vx: 0, vy: r(18, 34) + s * 6,
-                                size: s, alpha: r(0.35, 0.95), phase: r(0, 6.28)))
+            // Mostly dust-fine specks with the odd heavier clump.
+            let s = r(0, 1) < 0.9 ? r(0.35, 1.1) : r(1.1, 1.9)
+            grains.append(Grain(x: r(-20, size.width + 20), y: r(-30, -4), vx: 0, vy: r(7, 16) + s * 7,
+                                size: s, alpha: r(0.25, 0.9), phase: r(0, 6.28)))
         }
         spawnDebt = min(spawnDebt, 4)
 
@@ -75,7 +85,8 @@ final class PowderSim: @unchecked Sendable {
         var i = 0
         while i < grains.count {
             var g = grains[i]
-            g.vx = wind + sin(time * 1.7 + g.phase) * 7
+            // Fine powder hangs in the air and swirls.
+            g.vx = wind + sin(time * (1.1 + g.phase * 0.2) + g.phase) * (6 + g.phase * 2) + cos(time * 2.9 + g.phase * 3) * 3
             g.y += g.vy * dt
             g.x += g.vx * dt
             if landed(&g) || g.y > size.height + 10 {
@@ -94,11 +105,11 @@ final class PowderSim: @unchecked Sendable {
             guard let top = surfaces[id]!.top(at: g.x), g.y >= top, g.y <= top + 6 else { continue }
             // Grains that miss a partial catcher fall past it (decided once, by their phase).
             if surfaces[id]!.catchRate < 1, g.phase / 6.28 > surfaces[id]!.catchRate { continue }
-            deposit(on: &surfaces[id]!, x: g.x, amount: g.size * 0.55)
+            deposit(on: &surfaces[id]!, x: g.x, amount: g.size * 0.45)
             return true
         }
         if var floor = ground, let top = floor.top(at: g.x), g.y >= top {
-            deposit(on: &floor, x: g.x, amount: g.size * 0.35)
+            deposit(on: &floor, x: g.x, amount: g.size * 0.22)
             ground = floor
             return true
         }
@@ -115,7 +126,7 @@ final class PowderSim: @unchecked Sendable {
             let lower = left < right ? i - 1 : i + 1
             let edge = lower < 0 || lower >= s.heights.count
             let neighbour = edge ? 0.0 : s.heights[lower]
-            let excess = s.heights[i] - neighbour - (edge ? 1.6 : 1.1)
+            let excess = s.heights[i] - neighbour - (edge ? 1.0 : 0.7)
             guard excess > 0 else { break }
             let move = excess / 2
             s.heights[i] -= move
@@ -163,10 +174,15 @@ final class PowderSim: @unchecked Sendable {
     }
 
     func draw(_ ctx: GraphicsContext) {
+        // Batch grains into a few brightness bands: thousands of specks, a handful of fills.
+        var bands = [Path(), Path(), Path()]
         for g in grains {
-            let rect = CGRect(x: g.x - g.size / 2, y: g.y - g.size / 2, width: g.size, height: g.size)
-            ctx.fill(Path(ellipseIn: rect), with: .color(.white.opacity(g.alpha)))
+            let band = g.alpha < 0.45 ? 0 : g.alpha < 0.7 ? 1 : 2
+            bands[band].addRect(CGRect(x: g.x - g.size / 2, y: g.y - g.size / 2, width: g.size, height: g.size))
         }
+        ctx.fill(bands[0], with: .color(.white.opacity(0.35)))
+        ctx.fill(bands[1], with: .color(.white.opacity(0.6)))
+        ctx.fill(bands[2], with: .color(.white.opacity(0.9)))
         for s in surfaces.values { drawPile(ctx, s) }
         if let ground { drawPile(ctx, ground) }
     }
@@ -181,8 +197,24 @@ final class PowderSim: @unchecked Sendable {
         p.addLine(to: CGPoint(x: s.rect.maxX, y: s.rect.minY))
         p.closeSubpath()
         let top = s.rect.minY - (s.heights.max() ?? 0)
-        ctx.fill(p, with: .linearGradient(Gradient(colors: [.white.opacity(0.97), Color(white: 0.82)]),
-                                          startPoint: CGPoint(x: 0, y: top), endPoint: CGPoint(x: 0, y: s.rect.minY)))
+        // Soft, slightly blurred body so it reads as powder, not a solid ledge.
+        ctx.drawLayer { layer in
+            layer.addFilter(.blur(radius: 0.9))
+            layer.fill(p, with: .linearGradient(Gradient(colors: [.white.opacity(0.92), Color(white: 0.78).opacity(0.95)]),
+                                                startPoint: CGPoint(x: 0, y: top), endPoint: CGPoint(x: 0, y: s.rect.minY)))
+        }
+        // Loose grains along the surface for texture.
+        var speck = SplitMix(seed: UInt64(abs(s.rect.minX * 7 + s.rect.minY)))
+        var dust = Path()
+        for (i, h) in s.heights.enumerated() where h > 0.3 {
+            let x = s.rect.minX + Double(i) * Surface.cell
+            for _ in 0..<2 {
+                let dx = Double(speck.next() % 100) / 100 * Surface.cell
+                let dy = Double(speck.next() % 100) / 100 * 1.6
+                dust.addRect(CGRect(x: x + dx, y: s.rect.minY - h - dy, width: 0.8, height: 0.8))
+            }
+        }
+        ctx.fill(dust, with: .color(.white.opacity(0.75)))
     }
 }
 

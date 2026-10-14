@@ -132,7 +132,7 @@ struct RecordsView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(r.name).font(Noir.typeBold(16)).foregroundStyle(Noir.paper)
                                 Text("\(Catalog.ranks[r.rank].name)\(r.died ? " · died" : "") · \(r.date.formatted(date: .abbreviated, time: .omitted))")
-                                    .font(.system(size: 11)).foregroundStyle(Noir.dim)
+                                    .font(Noir.ui(11)).foregroundStyle(Noir.dim)
                             }
                             Spacer()
                             Text(Money.short(r.worth)).font(Noir.mono(16)).foregroundStyle(r.worth >= 0 ? Noir.paper : Noir.neon)

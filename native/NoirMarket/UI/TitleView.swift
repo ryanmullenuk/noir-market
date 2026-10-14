@@ -71,26 +71,23 @@ struct TitleView: View {
 
                 VStack(spacing: 0) {
                     Spacer().frame(height: geo.size.height * 0.2)
-                    VStack(spacing: 4) {
-                        HStack(spacing: 0) {
-                            ForEach(Array("NOIR".enumerated()), id: \.offset) { i, letter in
-                                Text(String(letter))
-                                    .font(Noir.display(96, weight: .bold))
-                                    .foregroundStyle(Noir.paper)
-                                    .shadow(color: .white.opacity(0.25), radius: 18)
-                                    .powderCollider("letter\(i)", topInset: 27, sideInset: 2)
-                            }
-                        }
-                        NeonText(text: "MARKET", size: 22)
+                    VStack(spacing: -6) {
+                        Text("NOIR")
+                            .font(Noir.title(112))
+                            .foregroundStyle(Noir.paper)
+                            .shadow(color: .white.opacity(0.18), radius: 20)
+                        NeonText(text: "MARKET", size: 60, tracking: 1)
                     }
+                    .minimumScaleFactor(0.5)
+                    .lineLimit(1)
                     .opacity(titleIn ? 1 : 0)
                     .offset(y: titleIn ? 0 : 14)
                     .accessibilityElement(children: .ignore)
                     .accessibilityLabel("Noir Market")
                     .accessibilityAddTraits(.isHeader)
 
-                    Text("Thirty days. Nobody’s clean.")
-                        .font(Noir.type(15))
+                    Text("thirty days. nobody’s clean.")
+                        .font(Noir.ui(14))
                         .foregroundStyle(Noir.silver)
                         .padding(.top, 18)
                         .opacity(titleIn ? 1 : 0)
@@ -123,8 +120,10 @@ struct TitleView: View {
                     .padding(.bottom, 16)
                     .opacity(titleIn ? 1 : 0)
 
-                    Text("A Redhead Games production · 17+ · Fiction. For entertainment only.")
-                        .font(.system(size: 10))
+                    Text("a redhead games production · 17+ · fiction")
+                        .font(Noir.ui(9))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                         .foregroundStyle(Noir.dim)
                         .padding(.bottom, 8)
                 }
