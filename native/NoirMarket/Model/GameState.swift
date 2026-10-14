@@ -88,6 +88,17 @@ struct DayReport: Codable, Sendable, Equatable {
     var headline: String
     var story: String
     var lines: [String]
+    /// Next-day verdicts on yesterday's intel and tips. Optional so older saves still load.
+    var checks: [String]?
+}
+
+struct PendingTip: Codable, Sendable, Equatable {
+    var informant: Int
+    var city: Int
+    var good: Int
+    var up: Bool
+    var price: Int
+    var due: Int
 }
 
 struct Outcome: Codable, Sendable, Equatable {
@@ -145,6 +156,9 @@ struct GameState: Codable, Sendable, Equatable {
     var informantPrice: [Int] = [0, 0, 0]
     var informantUsed: [Bool] = [false, false, false]
     var phones = 0
+    var pendingTips: [PendingTip]?
+    /// Test mode: unlimited cash and every city, enabled by the name GODMODE. Never counts for records.
+    var godMode: Bool?
     var calledToday = false
     var deal: DealOffer?
     var tradedToday = false

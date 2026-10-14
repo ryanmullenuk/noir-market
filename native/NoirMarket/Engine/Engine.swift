@@ -268,6 +268,15 @@ enum Engine {
         s.notice = "\(l.name) counts out \(Money.gbp(amount)). Due back on day \(s.day + l.term)."
     }
 
+    /// A parting word from the lender once the deal is shaken on.
+    static func lenderQuip(_ s: inout GameState, lender: Int, amount: Int) -> String {
+        let l = Catalog.lenders[lender]
+        let due = s.day + l.term
+        let lines = Press.lenderQuips[l.name] ?? Press.lenderQuips["Spammer"]!
+        let line = lines[s.rng.int(0, lines.count - 1)]
+        return line.replacingOccurrences(of: "{amount}", with: Money.gbp(amount)).replacingOccurrences(of: "{day}", with: "\(due)")
+    }
+
     /// Pays towards a loan. A full payoff clears it; part payments reduce principal without touching accrued interest.
     static func repay(_ s: inout GameState, loan id: Int, amount: Int) throws {
         guard let i = s.loans.firstIndex(where: { $0.id == id }) else { throw Failure.invalid("No such loan.") }
@@ -365,6 +374,8 @@ enum Engine {
         if s.rng.chance(info.trust) {
             s.events.append(ActiveEvent(city: city, good: good, pct: pct, startsDay: s.day + 1, daysLeft: 2, title: "Tip"))
         }
+        s.pendingTips = (s.pendingTips ?? []) + [PendingTip(informant: id, city: city, good: good, up: up,
+                                                            price: s.markets[city].price[good], due: s.day + 1)]
         let name = Catalog.goods[good].name, place = Catalog.cities[city].name
         let line = up
             ? "\(place) is about to run dry on \(name). Tomorrow the price climbs, maybe a lot."

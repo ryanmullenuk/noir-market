@@ -11,12 +11,14 @@ struct TitleView: View {
 
     @State private var phase = 0 // 0 logo, 1 title
     @State private var titleIn = false
+    @State private var buttonsIn = false
     @State private var colliders: [String: CGRect] = [:]
     @State private var sim = PowderSim()
 
     var body: some View {
         ZStack {
-            Noir.ink.ignoresSafeArea()
+            // Pure black so the Redhead logo (on black) blends with no visible box.
+            Color.black.ignoresSafeArea()
             if phase == 0 {
                 Image("RedheadLogo")
                     .resizable().scaledToFit()
@@ -29,16 +31,19 @@ struct TitleView: View {
         }
         .task {
             try? await Task.sleep(for: .seconds(1.8))
-            withAnimation(.easeInOut(duration: 0.8)) { phase = 1 }
+            withAnimation(.easeInOut(duration: 0.9)) { phase = 1 }
             Audio.shared.play()
-            try? await Task.sleep(for: .seconds(0.3))
-            withAnimation(.easeOut(duration: 1.6)) { titleIn = true }
+            try? await Task.sleep(for: .seconds(0.5))
+            withAnimation(.easeOut(duration: 1.4)) { titleIn = true }
+            try? await Task.sleep(for: .seconds(1.3))
+            withAnimation(.easeOut(duration: 0.9)) { buttonsIn = true }
         }
         .onTapGesture {
             if phase == 0 {
                 withAnimation(.easeInOut(duration: 0.4)) { phase = 1 }
                 Audio.shared.play()
-                withAnimation(.easeOut(duration: 1.2)) { titleIn = true }
+                withAnimation(.easeOut(duration: 1.0)) { titleIn = true }
+                withAnimation(.easeOut(duration: 0.8).delay(0.6)) { buttonsIn = true }
             }
         }
     }
@@ -54,20 +59,10 @@ struct TitleView: View {
     private var title: some View {
         GeometryReader { geo in
             ZStack {
-                // Night sky with a cold glow behind the title.
-                LinearGradient(colors: [Color(white: 0.13), Color(white: 0.04), Noir.ink], startPoint: .top, endPoint: .bottom)
+                // Black, with a faint cold glow behind the title.
+                RadialGradient(colors: [Color.white.opacity(0.07), .clear], center: .init(x: 0.5, y: 0.36), startRadius: 10, endRadius: 300)
                     .ignoresSafeArea()
-                RadialGradient(colors: [Color.white.opacity(0.10), .clear], center: .init(x: 0.5, y: 0.32), startRadius: 10, endRadius: 320)
-                    .ignoresSafeArea()
-                Skyline(seed: 1947, tint: Color(white: 0.025))
-                    .frame(height: geo.size.height * 0.42)
-                    .frame(maxHeight: .infinity, alignment: .bottom)
-                    .opacity(0.9)
-                    .ignoresSafeArea()
-                LinearGradient(colors: [.clear, Noir.ink.opacity(0.85)], startPoint: .top, endPoint: .bottom)
-                    .frame(height: geo.size.height * 0.3)
-                    .frame(maxHeight: .infinity, alignment: .bottom)
-                    .ignoresSafeArea()
+                    .opacity(titleIn ? 1 : 0)
 
                 VStack(spacing: 0) {
                     Spacer().frame(height: geo.size.height * 0.2)
@@ -118,17 +113,20 @@ struct TitleView: View {
                     }
                     .padding(.horizontal, 24)
                     .padding(.bottom, 16)
-                    .opacity(titleIn ? 1 : 0)
+                    .opacity(buttonsIn ? 1 : 0)
+                    .offset(y: buttonsIn ? 0 : 10)
+                    .allowsHitTesting(buttonsIn)
 
                     Text("a redhead games production · 17+ · fiction")
                         .font(Noir.ui(9))
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
+                        .opacity(buttonsIn ? 1 : 0)
                         .foregroundStyle(Noir.dim)
                         .padding(.bottom, 8)
                 }
 
-                PowderFall(colliders: titleIn ? colliders : [:], sim: sim)
+                PowderFall(colliders: buttonsIn ? colliders : [:], sim: sim)
                     .opacity(titleIn ? 1 : 0)
             }
             .coordinateSpace(name: "powder")

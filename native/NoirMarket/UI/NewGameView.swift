@@ -13,24 +13,18 @@ struct NewGameView: View {
     var body: some View {
         ZStack {
             Noir.ink.ignoresSafeArea()
-            Skyline(seed: 77, tint: Noir.ink)
-                .frame(height: 220)
-                .frame(maxHeight: .infinity, alignment: .bottom)
-                .opacity(0.9)
-                .ignoresSafeArea()
-            Rain(intensity: 70)
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     HStack {
-                        Button { onBack() } label: { Image(systemName: "chevron.left").font(.title3) }
-                            .foregroundStyle(Noir.silver)
+                        Button { onBack() } label: { Image(systemName: "chevron.left").font(.system(size: 17, weight: .bold)) }
+                            .buttonStyle(AmberTile(size: 46))
                             .accessibilityLabel("Back")
                         Spacer()
                     }
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("Case File").noirLabel(12, color: Noir.neon)
-                        Text("Who are you?").font(Noir.display(40)).foregroundStyle(Noir.paper)
+                        Text("Case File").noirLabel(12, color: Noir.green.opacity(0.8))
+                        Text("Who are you?").font(Noir.display(40)).foregroundStyle(Noir.green)
                     }
 
                     VStack(alignment: .leading, spacing: 8) {
@@ -50,7 +44,7 @@ struct NewGameView: View {
                         Text("Where it starts").noirLabel()
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 8)], spacing: 8) {
                             ForEach(Catalog.cities) { c in
-                                let open = unlock.unlocked || c.id < Catalog.freeCityCount
+                                let open = unlock.unlocked || GameStore.isGodName(name) || c.id < Catalog.freeCityCount
                                 Button {
                                     if open {
                                         city = c.id
@@ -61,7 +55,7 @@ struct NewGameView: View {
                                 } label: {
                                     HStack(spacing: 6) {
                                         if !open { Image(systemName: "lock.fill").font(.system(size: 10)) }
-                                        Text(c.name).font(Noir.type(14)).lineLimit(1).minimumScaleFactor(0.8)
+                                        Text(c.name.uppercased()).font(Noir.ui(12, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.8)
                                     }
                                     .frame(maxWidth: .infinity, minHeight: 42)
                                     .foregroundStyle(city == c.id ? Noir.green : open ? Noir.paper : Noir.amber.opacity(0.8))
@@ -69,10 +63,11 @@ struct NewGameView: View {
                                     .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(city == c.id ? Noir.green : open ? Color.white.opacity(0.12) : Noir.amber.opacity(0.4), style: StrokeStyle(lineWidth: 1, dash: open ? [] : [4, 3])))
                                     .shadow(color: city == c.id ? Noir.green.opacity(0.45) : .clear, radius: 8)
                                 }
+                                .buttonStyle(.plain)
                                 .accessibilityLabel(open ? c.name : "\(c.name), locked")
                             }
                         }
-                        if !unlock.unlocked {
+                        if !unlock.unlocked && !GameStore.isGodName(name) {
                             UnlockCard()
                         }
                     }

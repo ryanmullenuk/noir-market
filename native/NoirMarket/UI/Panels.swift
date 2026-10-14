@@ -49,7 +49,7 @@ private struct SmallButton: View {
                 .padding(.horizontal, 14)
                 .frame(minHeight: 36)
                 .background(Capsule().fill(LinearGradient(colors: [(enabled ? tint : .white).opacity(enabled ? 0.2 : 0.05), (enabled ? tint : .white).opacity(0.04)], startPoint: .top, endPoint: .bottom)))
-                .overlay(Capsule().strokeBorder((enabled ? tint : .white).opacity(enabled ? 0.75 : 0.12)))
+                .overlay { if enabled { Capsule().strokeBorder(tint.opacity(0.75)) } }
                 .shadow(color: enabled ? tint.opacity(0.35) : .clear, radius: 6)
         }
         .disabled(!enabled)
@@ -138,7 +138,7 @@ struct StashView: View {
 
     private func row<Trailing: View>(_ g: Good, qty: Int, @ViewBuilder trailing: () -> Trailing) -> some View {
         HStack {
-            Image(systemName: g.symbol).foregroundStyle(Noir.silver).frame(width: 24)
+            SymbolImage(name: g.symbol, size: 16).foregroundStyle(Noir.silver).frame(width: 24)
             Text(g.name).font(Noir.ui(15, weight: .semibold)).foregroundStyle(Noir.paper)
             Text("×\(qty)").font(Noir.mono(13)).foregroundStyle(Noir.silver)
             Spacer()
@@ -152,6 +152,7 @@ struct StashView: View {
 
 struct MoneyView: View {
     @Environment(GameStore.self) private var store
+    @State private var quip: Quip?
     @State private var amount = ""
     @State private var borrowing: Lender?
     @State private var borrowAmount: Double = 0
@@ -235,6 +236,7 @@ struct MoneyView: View {
             }
             .background(Noir.ink)
             .scrollDismissesKeyboard(.interactively)
+            .overlay(alignment: .top) { QuipBanner(quip: $quip) }
             .sheet(item: $borrowing) { l in
                 let limit = Engine.lenderLimit(s, l)
                 VStack(alignment: .leading, spacing: 16) {
@@ -244,9 +246,12 @@ struct MoneyView: View {
                     Text("Repay \(Money.gbp(Int(borrowAmount * (1 + l.rate)))) by day \(s.day + l.term) at the latest.")
                         .font(Noir.type(13)).foregroundStyle(Noir.silver)
                     Button("Shake on it") {
-                        if store.act({ try Engine.borrow(&$0, lender: l.id, amount: Int(borrowAmount)) }) {
+                        var line = ""
+                        let amount = Int(borrowAmount)
+                        if store.act({ try Engine.borrow(&$0, lender: l.id, amount: amount); line = Engine.lenderQuip(&$0, lender: l.id, amount: amount) }) {
                             Audio.shared.buzz(.success)
                             borrowing = nil
+                            quip = Quip(name: l.name, text: line)
                         }
                     }
                     .buttonStyle(.noirPrimary)
@@ -366,6 +371,8 @@ struct ShopView: View {
 struct StreetView: View {
     @Environment(GameStore.self) private var store
     @State private var result: Outcome?
+    @State private var quip: Quip?
+    @State private var shortfall: Int?
 
     var body: some View {
         if let s = store.state {
@@ -408,6 +415,12 @@ struct StreetView: View {
                     Section(title: "Contacts", note: "Burner phones: \(s.phones). One call a day. Deals settle on the spot.", boxed: false) {
                         if let deal = s.deal {
                             DealCard(deal: deal, s: s, onTake: {
+                                if s.cash < deal.buyCost {
+                                    // Short of cash: offer a loan, then come back to the deal.
+                                    shortfall = deal.buyCost - s.cash
+                                    Audio.shared.buzz(.warning)
+                                    return
+                                }
                                 var out: Outcome?
                                 if store.act({ out = try Engine.takeDeal(&$0) }) {
                                     withAnimation { result = out }
@@ -428,6 +441,58 @@ struct StreetView: View {
                 .padding(20)
             }
             .background(Noir.ink)
+            .overlay(alignment: .top) { QuipBanner(quip: $quip) }
+            .confirmationDialog(shortfall.map { "You’re \(Money.gbp($0)) short" } ?? "", isPresented: Binding(get: { shortfall != nil }, set: { if !$0 { shortfall = nil } }), titleVisibility: .visible) {
+                if let short = shortfall {
+                    let amount = max(500, Int((Double(short) / 500).rounded(.up)) * 500)
+                    ForEach(Catalog.lenders.filter { l in !s.loans.contains { $0.lender == l.id } && Engine.lenderLimit(s, l) >= amount }) { l in
+                        Button("Borrow \(Money.gbp(amount)) from \(l.name) · \(Int(l.rate * 100))% · \(l.term) days") {
+                            var line = ""
+                            if store.act({ try Engine.borrow(&$0, lender: l.id, amount: amount); line = Engine.lenderQuip(&$0, lender: l.id, amount: amount) }) {
+                                quip = Quip(name: l.name, text: line + " Now go and take that deal.")
+                                Audio.shared.buzz(.success)
+                            }
+                            shortfall = nil
+                        }
+                    }
+                }
+                Button("Never mind", role: .cancel) { shortfall = nil }
+            } message: {
+                Text("The voice on the phone won’t wait long. Borrow the difference and the deal stays on the table.")
+            }
+        }
+    }
+}
+
+struct Quip: Identifiable, Equatable {
+    let id = UUID()
+    let name: String
+    let text: String
+}
+
+/// A lender's parting shot, dropped in from the top.
+struct QuipBanner: View {
+    @Binding var quip: Quip?
+
+    var body: some View {
+        if let q = quip {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("\(q.name) says").noirLabel(10, color: Noir.amber)
+                Text(q.text).font(Noir.ui(14)).foregroundStyle(Noir.paper)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .card(padding: 16, tint: Noir.amber)
+            .shadow(color: .black.opacity(0.6), radius: 20, y: 10)
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .transition(.move(edge: .top).combined(with: .opacity))
+            .onTapGesture { withAnimation { quip = nil } }
+            .task(id: q.id) {
+                try? await Task.sleep(for: .seconds(6))
+                withAnimation { if quip?.id == q.id { quip = nil } }
+            }
+            .accessibilityAddTraits(.isStaticText)
         }
     }
 }
@@ -450,7 +515,7 @@ private struct DealCard: View {
                 odds("Scam", deal.odds[3])
             }
             HStack(spacing: 8) {
-                Button("Take it", action: onTake).buttonStyle(.noirPrimary).disabled(s.cash < deal.buyCost)
+                Button(s.cash < deal.buyCost ? "Take it (short)" : "Take it", action: onTake).buttonStyle(s.cash < deal.buyCost ? .noirAmber : .noirPrimary)
                 Button("Hang up", action: onHangUp).buttonStyle(.noirQuiet)
             }
         }

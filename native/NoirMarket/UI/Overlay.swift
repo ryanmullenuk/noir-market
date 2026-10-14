@@ -58,6 +58,10 @@ private struct Newspaper: View {
         let node = Catalog.cities[report.city].name.uppercased()
         add(">", "noirnet relay v2.7 :: handshake ok :: cipher aes-256", Noir.dim)
         add(">", "node \(node) :: day \(String(format: "%02d", report.day))/\(s.maxDay) :: \(report.travelled ? "new location" : "same location")", Noir.dim)
+        for check in report.checks ?? [] {
+            let good = check.hasPrefix("CONFIRMED") || check.hasPrefix("TIP PAID")
+            add(good ? "VERIFIED" : "DEBUNKED", check, good ? Noir.green : Noir.red)
+        }
         add("INTEL", "\(report.story)  [unverified]", Noir.amber)
         for line in s.ticker {
             let parts = line.split(separator: ".", maxSplits: 1).map(String.init)

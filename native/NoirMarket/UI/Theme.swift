@@ -104,15 +104,14 @@ struct GlowIcon: View {
     var lit = true
 
     var body: some View {
-        Image(systemName: symbol)
-            .font(.system(size: size * 0.44, weight: .semibold))
+        SymbolImage(name: symbol, size: size * 0.44)
             .foregroundStyle(lit ? color : Noir.silver)
             .frame(width: size, height: size)
             .background {
                 Circle().fill(RadialGradient(colors: [(lit ? color : .white).opacity(lit ? 0.28 : 0.06), (lit ? color : .white).opacity(0.04)],
                                              center: .center, startRadius: 1, endRadius: size * 0.6))
             }
-            .overlay(Circle().strokeBorder((lit ? color : .white).opacity(lit ? 0.55 : 0.1), lineWidth: 1))
+            .overlay { if lit { Circle().strokeBorder(color.opacity(0.55), lineWidth: 1) } }
             .shadow(color: lit ? color.opacity(0.5) : .clear, radius: 8)
     }
 }
@@ -222,8 +221,8 @@ struct NoirButtonStyle: ButtonStyle {
     private var stroke: Color {
         switch kind {
         case .primary, .danger, .amber: tint.opacity(0.85)
-        case .secondary: .white.opacity(0.14)
-        case .quiet: .white.opacity(0.1)
+        case .secondary: .clear
+        case .quiet: .clear
         }
     }
     private var foreground: Color {
@@ -241,4 +240,50 @@ extension ButtonStyle where Self == NoirButtonStyle {
     static var noirDanger: NoirButtonStyle { NoirButtonStyle(kind: .danger) }
     static var noirQuiet: NoirButtonStyle { NoirButtonStyle(kind: .quiet) }
     static var noirAmber: NoirButtonStyle { NoirButtonStyle(kind: .amber) }
+}
+
+/// SF Symbol, or one of our own drawn icons for things SF Symbols doesn't have.
+struct SymbolImage: View {
+    let name: String
+    var size: CGFloat = 17
+    var weight: Font.Weight = .semibold
+
+    var body: some View {
+        if name == "custom.mushroom" {
+            MushroomShape()
+                .fill(style: FillStyle(eoFill: true))
+                .frame(width: size * 1.15, height: size * 1.15)
+        } else {
+            Image(systemName: name).font(.system(size: size, weight: weight))
+        }
+    }
+}
+
+/// A spotted mushroom: domed cap with cut-out spots over a short stem.
+struct MushroomShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        let w = rect.width / 100, h = rect.height / 100
+        func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: rect.minX + x * w, y: rect.minY + y * h) }
+        var p = Path()
+        // Cap.
+        p.move(to: pt(4, 56))
+        p.addCurve(to: pt(50, 8), control1: pt(4, 26), control2: pt(26, 8))
+        p.addCurve(to: pt(96, 56), control1: pt(74, 8), control2: pt(96, 26))
+        p.addQuadCurve(to: pt(4, 56), control: pt(50, 66))
+        p.closeSubpath()
+        // Spots, cut out of the cap.
+        for (x, y, r) in [(30.0, 34.0, 8.0), (56.0, 22.0, 6.5), (74.0, 42.0, 6.0), (48.0, 46.0, 5.0)] {
+            p.addEllipse(in: CGRect(x: rect.minX + (x - r) * w, y: rect.minY + (y - r) * h, width: r * 2 * w, height: r * 2 * h))
+        }
+        // Stem, slightly flared at the base.
+        var stem = Path()
+        stem.move(to: pt(38, 64))
+        stem.addLine(to: pt(62, 64))
+        stem.addQuadCurve(to: pt(66, 92), control: pt(62, 80))
+        stem.addQuadCurve(to: pt(34, 92), control: pt(50, 97))
+        stem.addQuadCurve(to: pt(38, 64), control: pt(38, 80))
+        stem.closeSubpath()
+        p.addPath(stem)
+        return p
+    }
 }

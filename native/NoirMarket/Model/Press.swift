@@ -88,6 +88,67 @@ enum Press {
         "Gone. The pigeons in the square were the only witnesses, and they’re not talking.",
     ]
 
+    static let lenderQuips: [String: [String]] = [
+        "Spammer": [
+            "“{amount}. Lovely. I’ve written your name in my little book. In pen.”",
+            "“Day {day}, sunshine. I’d hate for your fingers to become a talking point.”",
+            "“Pleasure doing business. I hope it stays a pleasure. For you, mainly.”",
+            "“No rush. Well, a bit of a rush. Day {day}. I’ve got a box for fingers, you know.”",
+        ],
+        "Tommy": [
+            "“Sorted, chief. Day {day}. The dog remembers faces.”",
+            "“{amount}, no paperwork. Paperwork’s for people who pay back late. Don’t be paperwork.”",
+            "“I trust you, chief. The dog doesn’t, but I do.”",
+            "“Day {day}. Not day {day} and a bit. Day {day}.”",
+        ],
+        "Smudger": [
+            "He nods once, writes something down, and underlines it twice.",
+            "“Day {day}.” He doesn’t say anything else. He doesn’t need to.",
+            "“Interest is a kind of weather. You don’t want to be out in it.”",
+            "He shakes your hand slightly too long, then smiles slightly too little.",
+        ],
+        "Bazzer": [
+            "“Easy, mate. Three days. I count Sundays twice, mind.”",
+            "“{amount}! Party! Day {day}, or I bring the party round yours.”",
+            "“Mates rates, mate. Mates who don’t pay become former mates. Former everything.”",
+            "“My nan used to say a debt is a promise. She also broke a man’s jaw over £40.”",
+        ],
+        "Griff": [
+            "“Day {day}. Bring it in a bag. Not a carrier bag. A proper bag.”",
+            "He counts the money out slowly, the way a dentist counts teeth.",
+            "“You’ll pay. Everyone pays. Some of them still have both knees.”",
+            "“If you’re thinking of leaving the country, I’ve got cousins in all of them.”",
+        ],
+    ]
+
+    static let intelTrue = [
+        "The rumour mill grinds slow, but it grinds.",
+        "Even a stopped clock, et cetera.",
+        "Somebody on the street owes the hen party a thank-you card.",
+        "Fact-checked by three blokes in a pub. All agreed.",
+    ]
+
+    static let intelFalse = [
+        "Turns out it was a man in a pub doing an impression of a man in a pub.",
+        "Sources have been demoted to ‘some lad’.",
+        "The crates were full of decorative pebbles. Nobody is sure why.",
+        "Our correspondent has been sacked, rehired and sacked again.",
+    ]
+
+    static let tipRight = [
+        "{who} wants it known they’re ‘basically psychic now’.",
+        "{who} is insufferable about it already.",
+        "{who} has asked for a bonus. In cash. In a sock.",
+        "{who} says the next one costs double. They’re joking. They’re not joking.",
+    ]
+
+    static let tipWrong = [
+        "{who} blames Mercury being in retrograde, or possibly Rotherham.",
+        "{who} says you must have heard it wrong. You didn’t.",
+        "{who} has changed their number. Again.",
+        "{who} insists it was right ‘spiritually’.",
+    ]
+
     static func fill(_ text: String, city: String, good: String) -> String {
         text.replacingOccurrences(of: "{city}", with: city).replacingOccurrences(of: "{drug}", with: good)
     }

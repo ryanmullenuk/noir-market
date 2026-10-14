@@ -164,6 +164,41 @@ struct EngineTests {
         #expect(Double(hits) / Double(total) > 0.75)
     }
 
+    @Test func nextMorningChecksIntelAndTips() throws {
+        var s = fresh(seed: 42)
+        s.cash = 100_000
+        _ = try Engine.payInformant(&s, 2)
+        let hadTip = !(s.pendingTips ?? []).isEmpty
+        try Engine.stay(&s)
+        let checks = s.report?.checks ?? []
+        #expect(checks.contains { $0.contains("yesterday's intel") })
+        if hadTip { #expect(checks.contains { $0.hasPrefix("TIP") }) }
+        #expect((s.pendingTips ?? []).isEmpty)
+    }
+
+    @Test func lenderQuipMentionsTerms() throws {
+        var s = fresh()
+        try Engine.borrow(&s, lender: 1, amount: 5_000)
+        let line = Engine.lenderQuip(&s, lender: 1, amount: 5_000)
+        #expect(!line.isEmpty)
+        #expect(!line.contains("{"))
+    }
+
+    @Test func godModeUnlocksEverythingAndNeverRunsDry() throws {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let store = GameStore(directory: dir)
+        let previous = store.playerName
+        defer { store.playerName = previous }
+        store.playerName = "godmode"
+        store.newGame(city: 0)
+        #expect(store.state?.godMode == true)
+        #expect(store.state?.fullAccess == true)
+        store.act { try Engine.buyBag(&$0, 3) }
+        #expect(store.state?.cash == GameStore.godCash)
+        store.act { try Engine.travel(&$0, to: 10) }
+        #expect(store.state?.city == 10 || !(store.state?.encounters.isEmpty ?? true))
+    }
+
     func cheapest(_ s: GameState) -> Int {
         Catalog.goods.indices.filter { s.markets[s.city].supply[$0] > 0 }.min { s.markets[s.city].price[$0] < s.markets[s.city].price[$1] }!
     }

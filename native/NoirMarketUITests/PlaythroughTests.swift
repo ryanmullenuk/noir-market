@@ -13,6 +13,7 @@ final class PlaythroughTests: XCTestCase {
         let newGame = button(app, "New Game")
         if !newGame.waitForExistence(timeout: 8) { print("TREE\n" + app.debugDescription) }
         XCTAssertTrue(newGame.exists)
+        sleep(4) // let the title and buttons fade in
         newGame.tap()
 
         let begin = button(app, "Begin")

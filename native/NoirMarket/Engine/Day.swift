@@ -45,7 +45,13 @@ extension Engine {
         tick(&s, lines: &lines)
 
         // Yesterday's story either comes good or turns out to be nonsense. Nobody tells you which.
-        if let story = yesterday, story.isTrue { applyStory(&s, story, lines: &lines) }
+        var checks: [String] = []
+        if let story = yesterday {
+            let before = s.markets[story.city].price[story.good]
+            if story.isTrue { applyStory(&s, story, lines: &lines) }
+            checks.append(verdict(&s, story: story, before: before))
+        }
+        checks += checkTips(&s)
 
         // Heat drifts: up while you carry, down while you’re clean.
         if carrying { s.heat = min(100, s.heat + s.rng.int(1, 4)) } else { s.heat = max(0, s.heat - s.rng.int(2, 6)) }
@@ -71,7 +77,7 @@ extension Engine {
         }
 
         s.report = DayReport(day: s.day, city: s.city, travelled: travelled,
-                             headline: s.ticker.first ?? "", story: s.story?.text ?? "", lines: lines)
+                             headline: s.ticker.first ?? "", story: s.story?.text ?? "", lines: lines, checks: checks)
         s.notice = lines.last ?? opening
         checkEnd(&s)
     }
@@ -222,6 +228,41 @@ extension Engine {
         s.carry[good] += qty
         let text = Press.friendGifts[s.rng.int(0, Press.friendGifts.count - 1)]
         lines.append(Press.fill(text, city: "", good: Catalog.goods[good].name).replacingOccurrences(of: "{qty}", with: "\(qty)"))
+    }
+
+    // MARK: Checking yesterday's word
+
+    static func verdict(_ s: inout GameState, story: Story, before: Int) -> String {
+        let place = Catalog.cities[story.city].name, good = Catalog.goods[story.good].name
+        let after = s.markets[story.city].price[story.good]
+        let what: String
+        switch story.kind {
+        case .shortage: what = "\(good) in \(place) now \(Money.gbp(after))"
+        case .collapse: what = "\(good) in \(place) now \(Money.gbp(after))"
+        case .crackdown: what = "police in \(place)"
+        }
+        let pool = story.isTrue ? Press.intelTrue : Press.intelFalse
+        let quip = pool[s.rng.int(0, pool.count - 1)]
+        return (story.isTrue ? "CONFIRMED: " : "BOGUS: ") + "yesterday's intel on \(what). " + quip
+    }
+
+    static func checkTips(_ s: inout GameState) -> [String] {
+        guard let tips = s.pendingTips, !tips.isEmpty else { return [] }
+        var out: [String] = []
+        var keep: [PendingTip] = []
+        for t in tips {
+            if t.due > s.day { keep.append(t); continue }
+            let now = s.markets[t.city].price[t.good]
+            let right = t.up ? now > t.price : now < t.price
+            let who = Catalog.informants[t.informant].name
+            let pct = t.price > 0 ? Int((abs(Double(now - t.price)) / Double(t.price) * 100).rounded()) : 0
+            let move = "\(Catalog.goods[t.good].name) in \(Catalog.cities[t.city].name) \(now >= t.price ? "up" : "down") \(pct)%"
+            let pool = right ? Press.tipRight : Press.tipWrong
+            let quip = pool[s.rng.int(0, pool.count - 1)].replacingOccurrences(of: "{who}", with: who)
+            out.append((right ? "TIP PAID OFF: " : "TIP WAS WRONG: ") + move + ". " + quip)
+        }
+        s.pendingTips = keep
+        return out
     }
 
     // MARK: Rank and the end

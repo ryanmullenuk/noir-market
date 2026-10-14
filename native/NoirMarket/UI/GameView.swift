@@ -16,17 +16,7 @@ struct GameView: View {
         if let s = store.state {
             ZStack {
                 Noir.ink.ignoresSafeArea()
-                Skyline(seed: UInt64(s.city) * 97 + 5, tint: Color(white: 0.045))
-                    .frame(height: 190)
-                    .frame(maxHeight: .infinity, alignment: .top)
-                    .opacity(0.8)
-                    .ignoresSafeArea()
-                LinearGradient(colors: [.clear, Noir.ink], startPoint: .top, endPoint: .init(x: 0.5, y: 0.3))
-                    .ignoresSafeArea()
-                    .allowsHitTesting(false)
-                RadialGradient(colors: [Noir.green.opacity(0.06), .clear], center: .bottom, startRadius: 10, endRadius: 420)
-                    .ignoresSafeArea()
-                    .allowsHitTesting(false)
+                EdgeGlow(colour: condition(s))
 
                 VStack(spacing: 0) {
                     Header(s: s, onMenu: { panel = .settings })
@@ -94,12 +84,42 @@ struct GameView: View {
         return s.report != nil || !s.encounters.isEmpty || s.outcome != nil || s.over != nil
     }
 
+    /// The worse of health and heat, as a signal colour.
+    private func condition(_ s: GameState) -> Color {
+        let h = Noir.rag(s.health, highIsGood: true), t = Noir.rag(s.heat, highIsGood: false)
+        if h == Noir.red || t == Noir.red { return Noir.red }
+        if h == Noir.amber || t == Noir.amber { return Noir.amber }
+        return Noir.green
+    }
+
     private func stay() {
         if store.act({ try Engine.stay(&$0) }) { Audio.shared.buzz(.tap) }
     }
 }
 
 private struct TradeID: Identifiable { let id: Int }
+
+/// A very faint glow around the edge of the screen in the player's condition colour.
+private struct EdgeGlow: View {
+    let colour: Color
+    @State private var breathe = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 54, style: .continuous)
+            .strokeBorder(colour, lineWidth: 26)
+            .blur(radius: 34)
+            .opacity(colour == Noir.red ? (breathe ? 0.26 : 0.14) : 0.1)
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
+            .animation(.easeInOut(duration: 0.8), value: colour)
+            .onAppear {
+                guard !reduceMotion else { return }
+                withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) { breathe = true }
+            }
+            .accessibilityHidden(true)
+    }
+}
 
 // MARK: Header
 
@@ -119,8 +139,8 @@ private struct Header: View {
             .accessibilityLabel("Menu")
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(Catalog.cities[s.city].name)
-                    .font(Noir.display(34))
+                Text(Catalog.cities[s.city].name.uppercased())
+                    .font(Noir.display(30))
                     .foregroundStyle(Noir.green)
                     .shadow(color: Noir.green.opacity(0.35), radius: 10)
                     .lineLimit(1).minimumScaleFactor(0.6)
@@ -309,6 +329,7 @@ private struct MarketList: View {
                             Button {
                                 withAnimation { seenTips = true }
                             } label: { Image(systemName: "xmark.circle.fill").font(.system(size: 17)) }
+                            .buttonStyle(.plain)
                             .foregroundStyle(Noir.dim)
                             .accessibilityLabel("Dismiss tips")
                         }

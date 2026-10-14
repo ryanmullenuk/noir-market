@@ -23,7 +23,7 @@ enum Catalog {
         Good(id: 7, name: "LSD", symbol: "ticket.fill", low: 120, high: 1600),
         Good(id: 8, name: "MDA", symbol: "capsule.fill", low: 200, high: 1800),
         Good(id: 9, name: "Morphine", symbol: "drop.fill", low: 500, high: 2600),
-        Good(id: 10, name: "Mushrooms", symbol: "umbrella.fill", low: 60, high: 900),
+        Good(id: 10, name: "Mushrooms", symbol: "custom.mushroom", low: 60, high: 900),
         Good(id: 11, name: "Peyote", symbol: "camera.macro", low: 80, high: 1200),
         Good(id: 12, name: "Pot", symbol: "leaf.fill", low: 80, high: 900),
         Good(id: 13, name: "Speed", symbol: "bolt.fill", low: 160, high: 1800),

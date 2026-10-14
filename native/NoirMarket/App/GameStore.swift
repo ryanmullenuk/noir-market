@@ -22,10 +22,14 @@ final class GameStore {
     var error: String?
     var fullAccess = false {
         didSet {
-            state?.fullAccess = fullAccess
+            let god = state?.godMode == true
+            state?.fullAccess = fullAccess || god
             persist()
         }
     }
+
+    static let godCash = 99_999_999
+    static func isGodName(_ name: String) -> Bool { name.trimmingCharacters(in: .whitespaces).uppercased() == "GODMODE" }
 
     private let saveURL: URL
     private let recordsURL: URL
@@ -55,7 +59,15 @@ final class GameStore {
 
     func newGame(city: Int) {
         let seed = UInt64.random(in: 1...UInt64.max)
-        state = GameState(seed: seed, city: city, name: playerName, fullAccess: fullAccess)
+        let god = Self.isGodName(playerName)
+        var s = GameState(seed: seed, city: city, name: playerName, fullAccess: fullAccess || god)
+        if god {
+            // Test mode: every city and a bottomless wallet.
+            s.godMode = true
+            s.cash = Self.godCash
+            s.notice = "GODMODE. Every city is open and the money never runs out. Nothing here counts for the records."
+        }
+        state = s
         persist()
     }
 
@@ -70,6 +82,7 @@ final class GameStore {
         guard var s = state else { return false }
         do {
             try action(&s)
+            if s.godMode == true, s.over == nil { s.cash = max(s.cash, Self.godCash) }
             state = s
             finishIfOver()
             persist()
@@ -92,7 +105,7 @@ final class GameStore {
     }
 
     private func finishIfOver() {
-        guard let s = state, let over = s.over else { return }
+        guard let s = state, let over = s.over, s.godMode != true else { return }
         guard !records.contains(where: { $0.seed == s.seed }) else { return }
         let record = Record(name: s.playerName.isEmpty ? "Anonymous" : s.playerName, worth: over.worth, rank: over.rank,
                             died: over.died, date: .now, fullGame: s.fullAccess, seed: s.seed)

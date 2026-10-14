@@ -75,7 +75,7 @@ struct HowToPlayView: View {
     private let pages: [(String, String, String)] = [
         ("chart.line.uptrend.xyaxis", "Buy low. Sell high.", "Prices move every night in every city. Tap anything in the market to trade. Each city has goods it sells cheap and goods it pays dear for. Learn them."),
         ("moon.zzz.fill", "Every move costs a night.", "Travelling or staying put ends the day. You have thirty. Whatever you’re worth on the last night is your score: cash, bank, stock and stash, minus what you owe."),
-        ("newspaper.fill", "Read the paper.", "Each morning brings news. Price shocks on the wire are real. The big story is true half the time, and nobody tells you which half."),
+        ("terminal.fill", "Check NOIRNET.", "Every morning the underground wire comes through. [WIRE] price shocks are real. [INTEL] is true half the time. The next morning NOIRNET tells you whether yesterday’s intel and any informant tips actually paid off."),
         ("light.beacon.max.fill", "Mind the heat.", "Carrying stock and weapons draws attention. Lie low (stay without trading) to cool off. Flights mean customs. When the police stop you, you choose: bribe, run, sacrifice half, or go quietly."),
         ("shippingbox.fill", "Stash it.", "Each city has a lock-up nobody can touch. Ship between lock-ups overnight for a fee, if customs doesn’t get lucky."),
         ("sterlingsign", "Borrow carefully.", "Five lenders, one loan each. Pay early and the interest is lower. Pay late and the debt jumps 20%, and then they visit."),

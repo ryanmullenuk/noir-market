@@ -34,7 +34,7 @@ struct TravelView: View {
                                 HStack {
                                     if !open { Image(systemName: "lock.fill").font(.system(size: 11)).foregroundStyle(Noir.brass) }
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text(c.name).font(Noir.ui(15, weight: .semibold)).foregroundStyle(open ? Noir.paper : Noir.dim)
+                                        Text(c.name.uppercased()).font(Noir.ui(15, weight: .semibold)).foregroundStyle(open ? Noir.paper : Noir.dim)
                                         Text(c.region).font(Noir.ui(10)).foregroundStyle(Noir.dim)
                                     }
                                     Spacer()
@@ -47,7 +47,9 @@ struct TravelView: View {
                                 .padding(.vertical, 10)
                                 .padding(.horizontal, 12)
                                 .background(selected == c.id ? Noir.green.opacity(0.1) : .clear)
+                                .contentShape(Rectangle())
                             }
+                            .buttonStyle(.plain)
                             Rectangle().fill(Noir.rule).frame(height: 1)
                         }
                     }
@@ -85,7 +87,7 @@ private struct DestinationCard: View {
         let flight = Catalog.cities[s.city].needsFlight(to: c)
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
-                Text(c.name).font(Noir.display(30)).foregroundStyle(Noir.paper)
+                Text(c.name.uppercased()).font(Noir.display(28)).foregroundStyle(Noir.green)
                 Spacer()
                 if open { Text(Money.gbp(Engine.fare(s, to: dest))).font(Noir.mono(18)).foregroundStyle(Noir.paper) }
             }
@@ -160,24 +162,16 @@ struct MapView: View {
                     let here = c.id == s.city
                     let open = Engine.accessible(s, c.id)
                     let side = Self.labelSide[c.name] ?? .below
-                    Button {
-                        if !here { selected = c.id; Audio.shared.buzz(.tap) }
-                    } label: {
-                        ZStack {
-                            Circle()
-                                .fill(here ? Noir.green : selected == c.id ? Noir.amber : open ? Noir.paper.opacity(0.8) : Noir.dim)
-                                .frame(width: here || selected == c.id ? 11 : 7)
-                                .shadow(color: here ? Noir.green : selected == c.id ? Noir.amber : .clear, radius: 7)
-                            Text(c.name)
-                                .font(Noir.ui(9, weight: here || selected == c.id ? .bold : .regular))
-                                .foregroundStyle(here ? Noir.green : selected == c.id ? Noir.amber : open ? Noir.paper.opacity(0.85) : Noir.dim)
-                                .fixedSize()
-                                .frame(width: 70, alignment: side == .left ? .trailing : side == .right ? .leading : .center)
-                                .offset(x: side == .left ? -41 : side == .right ? 41 : 0, y: side == .below ? 11 : side == .above ? -11 : 0)
-                        }
-                        .frame(width: 34, height: 34)
-                        .contentShape(Rectangle())
+                    ZStack {
+                        marker(here: here, picked: selected == c.id, open: open)
+                        Text(c.name.uppercased())
+                            .font(Noir.ui(9, weight: here || selected == c.id ? .bold : .regular))
+                            .foregroundStyle(here ? Noir.green : selected == c.id ? Noir.amber : open ? Noir.paper.opacity(0.85) : Noir.amber.opacity(0.55))
+                            .fixedSize()
+                            .frame(width: 70, alignment: side == .left ? .trailing : side == .right ? .leading : .center)
+                            .offset(x: side == .left ? -41 : side == .right ? 41 : 0, y: side == .below ? 11 : side == .above ? -11 : 0)
                     }
+                    .frame(width: 34, height: 34)
                     .position(xy)
                     .allowsHitTesting(false)
                     .accessibilityLabel(here ? "\(c.name), you are here" : c.name)
@@ -199,6 +193,22 @@ struct MapView: View {
     }
 
     private func distance(_ a: CGPoint, _ b: CGPoint) -> CGFloat { hypot(a.x - b.x, a.y - b.y) }
+
+    @ViewBuilder private func marker(here: Bool, picked: Bool, open: Bool) -> some View {
+        if here {
+            ZStack {
+                Circle().stroke(Noir.green.opacity(0.6), lineWidth: 1.5).frame(width: 18, height: 18)
+                Circle().fill(Noir.green).frame(width: 9, height: 9)
+            }
+            .shadow(color: Noir.green, radius: 7)
+        } else if picked {
+            Circle().fill(Noir.amber).frame(width: 10, height: 10).shadow(color: Noir.amber, radius: 7)
+        } else if open {
+            Circle().fill(Noir.green.opacity(0.85)).frame(width: 6, height: 6).shadow(color: Noir.green.opacity(0.8), radius: 4)
+        } else {
+            Image(systemName: "lock.fill").font(.system(size: 7, weight: .bold)).foregroundStyle(Noir.amber.opacity(0.7))
+        }
+    }
 
     enum Side { case left, right, above, below }
     static let labelSide: [String: Side] = [
