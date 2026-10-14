@@ -1,0 +1,26 @@
+{
+  "identifier" : "6E5C3C7A",
+  "nonRenewingSubscriptions" : [],
+  "products" : [
+    {
+      "displayPrice" : "1.99",
+      "familyShareable" : true,
+      "internalID" : "6747000001",
+      "localizations" : [
+        {
+          "description" : "Opens all 14 cities across the UK and Ireland.",
+          "displayName" : "Unlock All Cities",
+          "locale" : "en_GB"
+        }
+      ],
+      "productID" : "games.redhead.noirmarket.unlockallcities",
+      "referenceName" : "Unlock All Cities",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_storefront" : "GBR"
+  },
+  "subscriptionGroups" : [],
+  "version" : { "major" : 4, "minor" : 0 }
+}

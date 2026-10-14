@@ -19,8 +19,8 @@ enum Noir {
         .custom("Didot", size: size).weight(weight)
     }
     /// Typewriter face for case-file text.
-    static func type(_ size: CGFloat) -> Font { .custom("AmericanTypewriter", size: size) }
-    static func typeBold(_ size: CGFloat) -> Font { .custom("AmericanTypewriter-Semibold", size: size) }
+    static func type(_ size: CGFloat) -> Font { .custom("AmericanTypewriter", size: size, relativeTo: .body) }
+    static func typeBold(_ size: CGFloat) -> Font { .custom("AmericanTypewriter-Semibold", size: size, relativeTo: .headline) }
     /// Small tracked caps labels.
     static func label(_ size: CGFloat = 11) -> Font { .system(size: size, weight: .semibold, design: .default) }
     static func mono(_ size: CGFloat, weight: Font.Weight = .semibold) -> Font {
@@ -42,8 +42,9 @@ extension View {
 
 /// Film grain + vignette laid over every screen.
 struct FilmGrain: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 1.0 / 12)) { context in
+        TimelineView(.periodic(from: .now, by: reduceMotion ? 3600 : 1.0 / 12)) { context in
             Canvas { ctx, size in
                 var rng = SplitMix(seed: UInt64(context.date.timeIntervalSinceReferenceDate * 12))
                 for _ in 0..<220 {
@@ -67,10 +68,11 @@ struct FilmGrain: View {
 /// Slanted rain over a scene. Cheap: one Canvas, ~140 streaks.
 struct Rain: View {
     var intensity: Int = 140
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
-        TimelineView(.animation) { context in
+        TimelineView(.animation(paused: reduceMotion)) { context in
             Canvas { ctx, size in
-                let t = context.date.timeIntervalSinceReferenceDate
+                let t = reduceMotion ? 0 : context.date.timeIntervalSinceReferenceDate
                 var rng = SplitMix(seed: 7)
                 for _ in 0..<intensity {
                     let x0 = Double(rng.next() % 10_000) / 10_000 * (size.width + 120)

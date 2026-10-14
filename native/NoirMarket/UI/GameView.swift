@@ -218,6 +218,7 @@ struct Meter: View {
 
 struct Ticker: View {
     let lines: [String]
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var offset: CGFloat = 0
     @State private var width: CGFloat = 0
 
@@ -250,6 +251,7 @@ struct Ticker: View {
     }
 
     private func start(container: CGFloat) {
+        if reduceMotion { offset = 8; return }
         offset = container
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(60))
@@ -266,6 +268,7 @@ struct Ticker: View {
 private struct MarketList: View {
     let s: GameState
     var onTap: (Int) -> Void
+    @AppStorage("seenTips") private var seenTips = false
 
     var body: some View {
         ScrollView {
@@ -277,6 +280,33 @@ private struct MarketList: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 10)
+
+                if s.day <= 2 && !seenTips {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Text("First night in town").noirLabel(10, color: Noir.neon)
+                            Spacer()
+                            Button {
+                                withAnimation { seenTips = true }
+                            } label: { Image(systemName: "xmark").font(.system(size: 11, weight: .bold)) }
+                            .foregroundStyle(Noir.dim)
+                            .accessibilityLabel("Dismiss tips")
+                        }
+                        Text("Tap anything below to buy or sell. Goods tagged CHEAP HERE are a bargain in this city; IN DEMAND means they sell high. Travel to where your stock is wanted, sell, repeat. Every trip or night’s stay moves the clock on.")
+                            .font(Noir.type(13)).foregroundStyle(Noir.paper)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(14)
+                    .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Noir.neon.opacity(0.5)))
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 10)
+                }
+
+                if s.day == s.maxDay {
+                    Text("Last day. No more trips. When you call it a night, everything you own is valued at today’s prices here, and the case closes.")
+                        .font(Noir.type(13)).foregroundStyle(Noir.neon)
+                        .padding(.horizontal, 16).padding(.bottom, 8)
+                }
 
                 if !s.notice.isEmpty {
                     Text(s.notice)
@@ -297,6 +327,7 @@ private struct MarketList: View {
                             onTap(g.id)
                         }
                         .accessibilityAddTraits(.isButton)
+                        .accessibilityIdentifier("good-\(g.name)")
                     Rectangle().fill(Noir.rule.opacity(0.6)).frame(height: 1).padding(.leading, 60)
                 }
 
@@ -404,6 +435,7 @@ private struct Dock: View {
                 }
             }
             .buttonStyle(.noir)
+            .accessibilityIdentifier("stay")
             .padding(.horizontal, 16)
         }
         .padding(.top, 10)
@@ -424,5 +456,6 @@ private struct Dock: View {
             .foregroundStyle(Noir.silver)
             .frame(maxWidth: .infinity, minHeight: 44)
         }
+        .accessibilityIdentifier("dock-\(panel.rawValue)")
     }
 }

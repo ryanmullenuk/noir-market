@@ -5,6 +5,7 @@ extension Engine {
 
     static func travel(_ s: inout GameState, to dest: Int) throws {
         try idle(s)
+        guard s.day < s.maxDay else { throw Failure.invalid("No time left for trips. This is the last night.") }
         guard dest != s.city else { return try stay(&s) }
         guard accessible(s, dest) else { throw Failure.locked }
         let cost = fare(s, to: dest)
@@ -20,6 +21,13 @@ extension Engine {
 
     static func stay(_ s: inout GameState) throws {
         try idle(s)
+        if s.day >= s.maxDay {
+            // The last night: everything is valued at tonight's prices, right here.
+            let worth = netWorth(s)
+            s.over = GameOver(worth: worth, rank: Catalog.rank(for: worth), died: false, epitaph: epitaph(worth))
+            s.stats.bestWorth = max(s.stats.bestWorth, worth)
+            return
+        }
         s.stats.nightsIn += 1
         let lowProfile = !s.tradedToday
         advance(&s, travelled: false, flight: false,

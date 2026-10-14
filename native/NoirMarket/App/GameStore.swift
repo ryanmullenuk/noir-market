@@ -35,6 +35,9 @@ final class GameStore {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         saveURL = dir.appendingPathComponent("noir-save.json")
         recordsURL = dir.appendingPathComponent("noir-records.json")
+        #if DEBUG
+        if ProcessInfo.processInfo.arguments.contains("-resetSave") { try? FileManager.default.removeItem(at: saveURL) }
+        #endif
         if let data = try? Data(contentsOf: saveURL), let saved = try? JSONDecoder().decode(GameState.self, from: data), saved.over == nil {
             state = saved
         }

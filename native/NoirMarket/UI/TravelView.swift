@@ -176,11 +176,26 @@ struct MapView: View {
                         .contentShape(Rectangle())
                     }
                     .position(xy)
+                    .allowsHitTesting(false)
                     .accessibilityLabel(here ? "\(c.name), you are here" : c.name)
+                    .accessibilityAction { if !here { selected = c.id } }
                 }
             }
+            .contentShape(Rectangle())
+            // Cities in the north of England sit close together, so a tap picks the nearest one.
+            .gesture(SpatialTapGesture().onEnded { tap in
+                let nearest = Catalog.cities.min { a, b in
+                    distance(project(a.lon, a.lat), tap.location) < distance(project(b.lon, b.lat), tap.location)
+                }
+                if let c = nearest, c.id != s.city, distance(project(c.lon, c.lat), tap.location) < 44 {
+                    selected = c.id
+                    Audio.shared.buzz(.tap)
+                }
+            })
         }
     }
+
+    private func distance(_ a: CGPoint, _ b: CGPoint) -> CGFloat { hypot(a.x - b.x, a.y - b.y) }
 
     enum Side { case left, right, above, below }
     static let labelSide: [String: Side] = [

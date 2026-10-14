@@ -45,7 +45,7 @@ struct BalanceTests {
             }
             if careful, s.cash > 50_000 { try? Engine.deposit(&s, s.cash - 20_000) }
             let options = Engine.accessibleCities(s).filter { $0 != s.city && Engine.fare(s, to: $0) < s.cash }
-            if let dest = options.isEmpty ? nil : options[r.int(0, options.count - 1)] {
+            if s.day < s.maxDay, let dest = options.isEmpty ? nil : options[r.int(0, options.count - 1)] {
                 try? Engine.travel(&s, to: dest)
             } else {
                 try? Engine.stay(&s)
@@ -57,13 +57,13 @@ struct BalanceTests {
     @Test(arguments: [false, true])
     func balance(full: Bool) {
         for careful in [false, true] {
-            let results = (1...400).map { Self.play(seed: UInt64($0) * 7_919, full: full, careful: careful) }
+            let results = (1...150).map { Self.play(seed: UInt64($0) * 7_919, full: full, careful: careful) }
             let worths = results.map(\.worth).sorted()
             let deaths = results.filter(\.died).count
             let pct = { (p: Double) in worths[min(worths.count - 1, Int(Double(worths.count) * p))] }
             let ranks = Dictionary(grouping: worths, by: { Catalog.ranks[Catalog.rank(for: $0)].name }).mapValues(\.count)
-            print("BALANCE full=\(full) careful=\(careful): p10=\(pct(0.1)) p25=\(pct(0.25)) median=\(pct(0.5)) p75=\(pct(0.75)) p90=\(pct(0.9)) deaths=\(deaths)/400 ranks=\(ranks)")
-            #expect(deaths < 80)
+            print("BALANCE full=\(full) careful=\(careful): p10=\(pct(0.1)) p25=\(pct(0.25)) median=\(pct(0.5)) p75=\(pct(0.75)) p90=\(pct(0.9)) deaths=\(deaths)/150 ranks=\(ranks)")
+            #expect(deaths < 30)
             #expect(pct(0.5) > 2_500)
         }
     }

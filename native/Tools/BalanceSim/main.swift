@@ -1,14 +1,6 @@
 import Foundation
 // Balance harness: swiftc -O NoirMarket/Model/*.swift NoirMarket/Engine/*.swift Tools/BalanceSim/main.swift
-func choose(_ e: Encounter, _ s: GameState) -> Choice {
-    switch e {
-    case .police(let p):
-        if s.cash >= p.bribe && p.bribeChance > 0.4 { return .bribe }
-        return Engine.carriedValue(s) > 3_000 ? .handOver : .comply
-    case .trouble(let t): return t.runChance >= 0.6 ? .run : .handOver
-    case .collector: return s.cash > 0 ? .pay : .beating
-    }
-}
+func choose(_ e: Encounter, _ s: GameState) -> Choice { e.defaultChoice(s) }
 func play(seed: UInt64, full: Bool, careful: Bool, borrow: Bool) -> (Int, Bool, Int) {
     var s = GameState(seed: seed, city: 0, name: "Bot", fullAccess: full)
     var r = SplitMix(seed: seed &* 31)
@@ -41,7 +33,7 @@ func play(seed: UInt64, full: Bool, careful: Bool, borrow: Bool) -> (Int, Bool, 
         }
         if careful, s.cash > 50_000 { try? Engine.deposit(&s, s.cash - 20_000) }
         let opts = Engine.accessibleCities(s).filter { $0 != s.city && Engine.fare(s, to: $0) < s.cash }
-        if !opts.isEmpty { try? Engine.travel(&s, to: opts[r.int(0, opts.count - 1)]) } else { try? Engine.stay(&s) }
+        if s.day < s.maxDay, !opts.isEmpty { try? Engine.travel(&s, to: opts[r.int(0, opts.count - 1)]) } else { try? Engine.stay(&s) }
     }
     return (s.over?.worth ?? Engine.netWorth(s), s.over?.died ?? false, encounters)
 }

@@ -9,11 +9,32 @@ final class Audio {
     private var fadeTask: Task<Void, Never>?
 
     var musicOn: Bool {
-        get { UserDefaults.standard.object(forKey: "musicOn") as? Bool ?? true }
+        get { !ProcessInfo.processInfo.arguments.contains("-musicOff") && (UserDefaults.standard.object(forKey: "musicOn") as? Bool ?? true) }
         set {
             UserDefaults.standard.set(newValue, forKey: "musicOn")
             newValue ? play() : stop()
         }
+    }
+
+    var soundsOn: Bool {
+        get { !ProcessInfo.processInfo.arguments.contains("-musicOff") && (UserDefaults.standard.object(forKey: "soundsOn") as? Bool ?? true) }
+        set { UserDefaults.standard.set(newValue, forKey: "soundsOn") }
+    }
+
+    private var effects: [String: AVAudioPlayer] = [:]
+
+    enum Effect: String { case cash, siren, page, thud }
+
+    func play(_ effect: Effect, volume: Float = 0.6) {
+        guard soundsOn else { return }
+        if effects[effect.rawValue] == nil, let url = Bundle.main.url(forResource: effect.rawValue, withExtension: "wav") {
+            try? AVAudioSession.sharedInstance().setCategory(.ambient)
+            effects[effect.rawValue] = try? AVAudioPlayer(contentsOf: url)
+        }
+        guard let p = effects[effect.rawValue] else { return }
+        p.volume = volume
+        p.currentTime = 0
+        p.play()
     }
 
     var hapticsOn: Bool {

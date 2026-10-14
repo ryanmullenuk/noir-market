@@ -8,6 +8,7 @@ struct SettingsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var music = Audio.shared.musicOn
     @State private var haptics = Audio.shared.hapticsOn
+    @State private var sounds = Audio.shared.soundsOn
     @State private var name = ""
     @State private var confirmAbandon = false
     @State private var showHowTo = false
@@ -22,6 +23,7 @@ struct SettingsView: View {
                 }
                 Section("Sound") {
                     Toggle("Music", isOn: $music).onChange(of: music) { Audio.shared.musicOn = music }
+                    Toggle("Sound effects", isOn: $sounds).onChange(of: sounds) { Audio.shared.soundsOn = sounds }
                     Toggle("Haptics", isOn: $haptics).onChange(of: haptics) { Audio.shared.hapticsOn = haptics }
                 }
                 Section {

@@ -57,12 +57,14 @@ struct Skyline: View {
 /// Occasional lightning: a quick white flash over the sky.
 struct Lightning: View {
     @State private var flash = 0.0
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Color.white.opacity(flash)
             .ignoresSafeArea()
             .allowsHitTesting(false)
             .task {
+                guard !reduceMotion else { return }
                 while !Task.isCancelled {
                     try? await Task.sleep(for: .seconds(Double.random(in: 5...11)))
                     withAnimation(.easeOut(duration: 0.06)) { flash = 0.22 }
@@ -82,6 +84,7 @@ struct NeonText: View {
     let text: String
     var size: CGFloat = 16
     @State private var on = true
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Text(text)
@@ -91,6 +94,7 @@ struct NeonText: View {
             .shadow(color: Noir.neon.opacity(on ? 0.9 : 0), radius: 8)
             .shadow(color: Noir.neon.opacity(on ? 0.6 : 0), radius: 18)
             .task {
+                guard !reduceMotion else { return }
                 while !Task.isCancelled {
                     try? await Task.sleep(for: .seconds(Double.random(in: 1.5...5)))
                     for _ in 0..<Int.random(in: 1...3) {

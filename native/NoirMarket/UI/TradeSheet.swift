@@ -62,6 +62,7 @@ struct TradeSheet: View {
                             chip("None") { qty = 0 }
                             chip("Half") { qty = Double(maxQty / 2) }
                             chip("Max \(maxQty)") { qty = Double(maxQty) }
+                                .accessibilityIdentifier("tradeMax")
                         }
                     }
 
@@ -89,10 +90,12 @@ struct TradeSheet: View {
                         }
                         if ok {
                             Audio.shared.buzz(.success)
+                            if selling { Audio.shared.play(.cash) }
                             dismiss()
                         }
                     }
                     .buttonStyle(selling ? NoirButtonStyle(kind: .secondary) : NoirButtonStyle(kind: .primary))
+                    .accessibilityIdentifier("tradeAction")
                     .disabled(q == 0)
                     .opacity(q == 0 ? 0.4 : 1)
                 }

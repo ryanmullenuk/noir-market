@@ -170,10 +170,4 @@ struct EngineTests {
 }
 
 /// A sensible default choice for any encounter, used by tests and the balance bot.
-func choice(for encounter: Encounter, _ s: GameState) -> Choice {
-    switch encounter {
-    case .police(let p): return s.cash >= p.bribe && p.bribeChance > 0.4 ? .bribe : .comply
-    case .trouble(let t): return t.runChance >= 0.6 ? .run : .handOver
-    case .collector: return s.cash > 0 ? .pay : .beating
-    }
-}
+func choice(for encounter: Encounter, _ s: GameState) -> Choice { encounter.defaultChoice(s) }

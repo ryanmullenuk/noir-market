@@ -109,6 +109,7 @@ private struct Newspaper: View {
                 .padding(.top, 12)
 
                 Button(s.encounters.isEmpty ? "Turn the page" : "Uh oh") {
+                    Audio.shared.play(.page, volume: 0.4)
                     Audio.shared.buzz(s.encounters.isEmpty ? .tap : .warning)
                     onDone()
                 }
@@ -171,7 +172,10 @@ private struct EncounterView: View {
             .padding(24)
             FilmGrain()
         }
-        .onAppear { Audio.shared.buzz(.danger) }
+        .onAppear {
+            Audio.shared.buzz(.danger)
+            if case .police = encounter { Audio.shared.play(.siren, volume: 0.35) } else { Audio.shared.play(.thud) }
+        }
     }
 
     @ViewBuilder private var backdrop: some View {
@@ -265,15 +269,18 @@ private struct EncounterView: View {
     }
 
     private func choose(_ c: Choice) {
+        let health = s.health
         store.act { try Engine.resolve(&$0, c) }
         if let o = store.state?.outcome { Audio.shared.buzz(o.good ? .success : .danger) }
+        if (store.state?.health ?? health) < health { Audio.shared.play(.thud, volume: 0.8) }
     }
 }
 
 private struct PoliceLights: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
-        TimelineView(.animation) { ctx in
-            let t = ctx.date.timeIntervalSinceReferenceDate
+        TimelineView(.animation(minimumInterval: reduceMotion ? 1.2 : nil)) { ctx in
+            let t = reduceMotion ? floor(ctx.date.timeIntervalSinceReferenceDate / 1.2) * 0.45 : ctx.date.timeIntervalSinceReferenceDate
             let red = (sin(t * 7) + 1) / 2
             ZStack {
                 RadialGradient(colors: [Color(red: 0.9, green: 0.1, blue: 0.15).opacity(0.55 * red), .clear],
