@@ -84,12 +84,13 @@ struct NeonText: View {
     let text: String
     var size: CGFloat = 16
     var tracking: CGFloat? = nil
+    var font: Font? = nil
     @State private var on = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Text(text)
-            .font(Noir.title(size))
+            .font(font ?? Noir.title(size))
             .tracking(tracking ?? size * 0.55)
             .foregroundStyle(Noir.neon.opacity(on ? 1 : 0.25))
             .shadow(color: Noir.neon.opacity(on ? 0.9 : 0), radius: 8)

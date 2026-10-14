@@ -1,260 +1,227 @@
 import SwiftUI
 
-/// Fine powder drifting down a night sky, settling on anything marked `.powderCollider(id)`
-/// and on the ground. Each surface keeps a height map; grains slump to an angle of repose and
-/// spill over the edges, so piles grow into soft drifts along the tops of the buttons.
+/// A depth-layered powder fall for the title screen.
+/// Far dust is fine and sharp, mid specks are soft, near flakes are large out-of-focus bokeh
+/// drifting past the lens. Far and mid grains settle into a glittering drift along the bottom.
 final class PowderSim: @unchecked Sendable {
-    struct Grain { var x, y, vx, vy, size, alpha, phase: Double }
-
-    struct Surface {
-        var rect: CGRect
-        var heights: [Double]
-        static let cell = 2.0
-        var maxHeight: Double
-        var catchRate = 1.0
-        init(rect: CGRect, maxHeight: Double, catchRate: Double = 1) {
-            self.rect = rect
-            self.maxHeight = maxHeight
-            self.catchRate = catchRate
-            heights = Array(repeating: 0, count: max(1, Int(rect.width / Self.cell) + 1))
-        }
-        func top(at x: Double) -> Double? {
-            guard x >= rect.minX, x <= rect.maxX else { return nil }
-            let i = min(heights.count - 1, max(0, Int((x - rect.minX) / Self.cell)))
-            return rect.minY - heights[i]
-        }
-    }
+    struct Grain { var x, y, vy, size, alpha, phase: Double; var layer: Int }
 
     var grains: [Grain] = []
-    var surfaces: [String: Surface] = [:]
-    var ground: Surface?
     var size: CGSize = .zero
+    var ground: [Double] = []
+    private var glints: [(x: Double, dy: Double, size: Double, freq: Double, phase: Double)] = []
+    private var specks: [(x: Double, dy: Double, size: Double, a: Double)] = []
     private var rng = SplitMix(seed: 1947)
-    private var spawnDebt = 0.0
     private var last: Date?
+    private var debt = [0.0, 0.0, 0.0]
     var time = 0.0
-    private var seeded = false
-
-    let maxGrains = 2400
-    let spawnRate = 360.0   // grains per second
-
-    func setColliders(_ frames: [String: CGRect]) {
-        for (id, rect) in frames {
-            // Only the top edge matters; keep the existing pile if the frame barely moved.
-            if let old = surfaces[id], abs(old.rect.minY - rect.minY) < 1, abs(old.rect.width - (rect.width - 8)) < 1 { continue }
-            // Title letters only catch some of the powder so the buttons below still get their share.
-            surfaces[id] = Surface(rect: rect.insetBy(dx: 4, dy: 0), maxHeight: 11)
-        }
-        for id in surfaces.keys where frames[id] == nil { surfaces[id] = nil }
-    }
-
-    func resize(_ s: CGSize) {
-        guard s != size else { return }
-        size = s
-        ground = Surface(rect: CGRect(x: 0, y: s.height, width: s.width, height: 1), maxHeight: 70)
-    }
+    static let cell = 3.0
 
     private func r(_ lo: Double, _ hi: Double) -> Double { rng.uniform(lo, hi) }
 
+    // Spawn rates and caps per layer: far, mid, near.
+    private let rate = [420.0, 80.0, 5.0]
+    private let cap = [2400, 460, 26]
+
+    func resize(_ s: CGSize) {
+        guard s != size, s.width > 0 else { return }
+        size = s
+        let n = Int(s.width / Self.cell) + 2
+        // Start with a settled drift so the screen opens mid-snowfall.
+        ground = (0..<n).map { i in
+            let x = Double(i) / Double(n)
+            // Low in the middle, banked up towards the corners, with soft rolling bumps.
+            let edge = pow(abs(x - 0.5) * 2, 3) * 40
+            return 30 + edge + sin(x * 7.3) * 5 + sin(x * 17 + 1.3) * 2.5 + sin(x * 3.1 + 0.4) * 6
+        }
+        glints = (0..<600).map { _ in (r(0, s.width), r(0, 1), r(0.8, 2.8), r(0.6, 3.2), r(0, 6.28)) }
+        specks = (0..<2600).map { _ in (r(0, s.width), pow(r(0, 1), 0.7), r(0.5, 1.6), r(0.15, 0.95)) }
+        grains = []
+        for layer in 0..<3 {
+            let count = [1700, 300, 16][layer]
+            for _ in 0..<count { grains.append(make(layer, y: r(-20, s.height))) }
+        }
+    }
+
+    private func make(_ layer: Int, y: Double? = nil) -> Grain {
+        switch layer {
+        case 0: Grain(x: r(-10, size.width + 10), y: y ?? r(-20, -2), vy: r(9, 20), size: r(0.4, 1.2), alpha: r(0.25, 0.85), phase: r(0, 6.28), layer: 0)
+        case 1: Grain(x: r(-10, size.width + 10), y: y ?? r(-30, -4), vy: r(22, 40), size: r(1.3, 3.0), alpha: r(0.35, 0.9), phase: r(0, 6.28), layer: 1)
+        default: Grain(x: r(-30, size.width + 30), y: y ?? r(-80, -30), vy: r(45, 95), size: r(12, 38), alpha: r(0.18, 0.45), phase: r(0, 6.28), layer: 2)
+        }
+    }
+
+    /// Advances the simulation once per frame (safe to call from several draws).
     func step(now: Date) {
+        if let last, now.timeIntervalSince(last) < 0.001 { return }
         let dt = min(1.0 / 20, last.map { now.timeIntervalSince($0) } ?? 1.0 / 60)
         last = now
         time += dt
         guard size.width > 0 else { return }
-        if !seeded {
-            // Start mid-snowfall: the sky is already full of drifting powder.
-            seeded = true
-            for _ in 0..<1600 {
-                let sz = r(0, 1) < 0.9 ? r(0.35, 1.1) : r(1.1, 1.9)
-                grains.append(Grain(x: r(-20, size.width + 20), y: r(-10, size.height), vx: 0, vy: r(7, 16) + sz * 7,
-                                    size: sz, alpha: r(0.25, 0.9), phase: r(0, 6.28)))
-            }
+        var counts = [0, 0, 0]
+        for g in grains { counts[g.layer] += 1 }
+        for layer in 0..<3 {
+            debt[layer] += rate[layer] * dt
+            while debt[layer] >= 1 && counts[layer] < cap[layer] { debt[layer] -= 1; grains.append(make(layer)); counts[layer] += 1 }
+            debt[layer] = min(debt[layer], 3)
         }
-
-        spawnDebt += spawnRate * dt
-        while spawnDebt >= 1, grains.count < maxGrains {
-            spawnDebt -= 1
-            // Mostly dust-fine specks with the odd heavier clump.
-            let s = r(0, 1) < 0.9 ? r(0.35, 1.1) : r(1.1, 1.9)
-            grains.append(Grain(x: r(-20, size.width + 20), y: r(-30, -4), vx: 0, vy: r(7, 16) + s * 7,
-                                size: s, alpha: r(0.25, 0.9), phase: r(0, 6.28)))
-        }
-        spawnDebt = min(spawnDebt, 4)
-
-        let wind = sin(time * 0.35) * 9 + sin(time * 1.3) * 3
+        let wind = sin(time * 0.3) * 8 + sin(time * 1.1) * 3
         var i = 0
         while i < grains.count {
             var g = grains[i]
-            // Fine powder hangs in the air and swirls.
-            g.vx = wind + sin(time * (1.1 + g.phase * 0.2) + g.phase) * (6 + g.phase * 2) + cos(time * 2.9 + g.phase * 3) * 3
+            let depth = [0.5, 1.0, 1.8][g.layer]
             g.y += g.vy * dt
-            g.x += g.vx * dt
-            if landed(&g) || g.y > size.height + 10 {
-                grains.swapAt(i, grains.count - 1)
-                grains.removeLast()
-                continue
+            g.x += (wind + sin(time * (0.9 + g.phase * 0.15) + g.phase) * (4 + g.phase)) * depth * dt
+            var gone = g.y > size.height + 40
+            if g.layer < 2, let top = groundTop(at: g.x), g.y >= top {
+                deposit(at: g.x, amount: g.size * (g.layer == 0 ? 0.05 : 0.12))
+                gone = true
             }
+            if gone { grains.swapAt(i, grains.count - 1); grains.removeLast(); continue }
             grains[i] = g
             i += 1
         }
     }
 
-    /// Settles a grain on whatever it hits. Returns true when the grain is absorbed.
-    private func landed(_ g: inout Grain) -> Bool {
-        for id in surfaces.keys {
-            guard let top = surfaces[id]!.top(at: g.x), g.y >= top, g.y <= top + 6 else { continue }
-            // Grains that miss a partial catcher fall past it (decided once, by their phase).
-            if surfaces[id]!.catchRate < 1, g.phase / 6.28 > surfaces[id]!.catchRate { continue }
-            deposit(on: &surfaces[id]!, x: g.x, amount: g.size * 0.45)
-            return true
-        }
-        if var floor = ground, let top = floor.top(at: g.x), g.y >= top {
-            deposit(on: &floor, x: g.x, amount: g.size * 0.22)
-            ground = floor
-            return true
-        }
-        return false
+    private func groundTop(at x: Double) -> Double? {
+        guard !ground.isEmpty else { return nil }
+        let i = Int(x / Self.cell)
+        guard i >= 0, i < ground.count else { return nil }
+        return size.height - ground[i]
     }
 
-    private func deposit(on s: inout Surface, x: Double, amount: Double) {
-        var i = min(s.heights.count - 1, max(0, Int((x - s.rect.minX) / Surface.cell)))
-        s.heights[i] += amount
-        // Slump downhill until the slope is stable.
-        for _ in 0..<12 {
-            let left = i > 0 ? s.heights[i - 1] : -Double.infinity
-            let right = i < s.heights.count - 1 ? s.heights[i + 1] : -Double.infinity
-            let lower = left < right ? i - 1 : i + 1
-            let edge = lower < 0 || lower >= s.heights.count
-            let neighbour = edge ? 0.0 : s.heights[lower]
-            let excess = s.heights[i] - neighbour - (edge ? 1.0 : 0.7)
-            guard excess > 0 else { break }
-            let move = excess / 2
-            s.heights[i] -= move
-            if edge {
-                // Spill over the side as a falling grain.
-                let side = lower < 0 ? s.rect.minX - 1 : s.rect.maxX + 1
-                grains.append(Grain(x: side, y: s.rect.minY - s.heights[i], vx: 0, vy: 12, size: max(0.8, move * 1.6),
-                                    alpha: 0.8, phase: r(0, 6.28)))
-                break
+    private func deposit(at x: Double, amount: Double) {
+        var i = Int(x / Self.cell)
+        guard i >= 0, i < ground.count else { return }
+        ground[i] = min(ground[i] + amount, 120)
+        for _ in 0..<6 {
+            let l = i > 0 ? ground[i - 1] : .infinity, rr = i < ground.count - 1 ? ground[i + 1] : .infinity
+            let j = l < rr ? i - 1 : i + 1
+            guard j >= 0, j < ground.count, ground[i] - ground[j] > 1.2 else { break }
+            let m = (ground[i] - ground[j]) / 3
+            ground[i] -= m; ground[j] += m; i = j
+        }
+    }
+
+    // MARK: Drawing
+
+    func drawLayer(_ ctx: inout GraphicsContext, _ layer: Int) {
+        switch layer {
+        case 0:
+            var bands = [Path(), Path(), Path()]
+            for g in grains where g.layer == 0 {
+                let b = g.alpha < 0.45 ? 0 : g.alpha < 0.7 ? 1 : 2
+                bands[b].addRect(CGRect(x: g.x, y: g.y, width: g.size, height: g.size))
             }
-            s.heights[lower] += move
-            i = lower
-        }
-        s.heights[i] = min(s.heights[i], s.maxHeight)
-    }
-
-    /// Knocks a pile loose, e.g. when its button is pressed.
-    func disturb(_ id: String) {
-        guard var s = surfaces[id] else { return }
-        for (i, h) in s.heights.enumerated() where h > 0.4 {
-            let x = s.rect.minX + Double(i) * Surface.cell
-            for _ in 0..<Int(min(4, h)) {
-                grains.append(Grain(x: x + r(-2, 2), y: s.rect.minY - r(0, h), vx: 0, vy: r(-60, -10),
-                                    size: r(0.8, 2.2), alpha: r(0.5, 0.9), phase: r(0, 6.28)))
+            ctx.fill(bands[0], with: .color(.white.opacity(0.35)))
+            ctx.fill(bands[1], with: .color(.white.opacity(0.6)))
+            ctx.fill(bands[2], with: .color(.white.opacity(0.92)))
+        case 1:
+            for g in grains where g.layer == 1 {
+                let flicker = 0.8 + 0.2 * sin(time * 3 + g.phase * 4)
+                ctx.fill(Path(ellipseIn: CGRect(x: g.x, y: g.y, width: g.size, height: g.size)), with: .color(.white.opacity(g.alpha * flicker)))
             }
-            s.heights[i] = 0
-        }
-        surfaces[id] = s
-        // Thrown grains fall back under gravity.
-        for k in grains.indices where grains[k].vy < 0 { grains[k].vy = abs(grains[k].vy) * 0.3 + 10 }
-    }
-
-    /// Pre-settles piles for a still frame (reduce motion).
-    func settleInstantly() {
-        for id in surfaces.keys {
-            for i in surfaces[id]!.heights.indices {
-                let n = Double(i) / Double(max(1, surfaces[id]!.heights.count - 1))
-                surfaces[id]!.heights[i] = 5 + sin(n * .pi) * 5
+        default:
+            for g in grains where g.layer == 2 {
+                let rect = CGRect(x: g.x - g.size / 2, y: g.y - g.size / 2, width: g.size, height: g.size)
+                ctx.fill(Path(ellipseIn: rect), with: .radialGradient(Gradient(colors: [.white.opacity(g.alpha), .white.opacity(g.alpha * 0.5), .clear]),
+                                                                       center: CGPoint(x: rect.midX, y: rect.midY), startRadius: 0, endRadius: g.size / 2))
             }
         }
-        if var g = ground {
-            for i in g.heights.indices { g.heights[i] = 26 + sin(Double(i) * 0.08) * 6 }
-            ground = g
-        }
     }
 
-    func draw(_ ctx: GraphicsContext) {
-        // Batch grains into a few brightness bands: thousands of specks, a handful of fills.
-        var bands = [Path(), Path(), Path()]
-        for g in grains {
-            let band = g.alpha < 0.45 ? 0 : g.alpha < 0.7 ? 1 : 2
-            bands[band].addRect(CGRect(x: g.x - g.size / 2, y: g.y - g.size / 2, width: g.size, height: g.size))
-        }
-        ctx.fill(bands[0], with: .color(.white.opacity(0.35)))
-        ctx.fill(bands[1], with: .color(.white.opacity(0.6)))
-        ctx.fill(bands[2], with: .color(.white.opacity(0.9)))
-        for s in surfaces.values { drawPile(ctx, s) }
-        if let ground { drawPile(ctx, ground) }
-    }
-
-    private func drawPile(_ ctx: GraphicsContext, _ s: Surface) {
-        guard s.heights.contains(where: { $0 > 0.2 }) else { return }
+    func drawGround(_ ctx: inout GraphicsContext) {
+        guard !ground.isEmpty else { return }
         var p = Path()
-        p.move(to: CGPoint(x: s.rect.minX, y: s.rect.minY))
-        for (i, h) in s.heights.enumerated() {
-            p.addLine(to: CGPoint(x: s.rect.minX + Double(i) * Surface.cell, y: s.rect.minY - h))
-        }
-        p.addLine(to: CGPoint(x: s.rect.maxX, y: s.rect.minY))
+        p.move(to: CGPoint(x: 0, y: size.height))
+        for (i, h) in ground.enumerated() { p.addLine(to: CGPoint(x: Double(i) * Self.cell, y: size.height - h)) }
+        p.addLine(to: CGPoint(x: size.width, y: size.height))
         p.closeSubpath()
-        let top = s.rect.minY - (s.heights.max() ?? 0)
-        // Soft, slightly blurred body so it reads as powder, not a solid ledge.
-        ctx.drawLayer { layer in
-            layer.addFilter(.blur(radius: 0.9))
-            layer.fill(p, with: .linearGradient(Gradient(colors: [.white.opacity(0.92), Color(white: 0.78).opacity(0.95)]),
-                                                startPoint: CGPoint(x: 0, y: top), endPoint: CGPoint(x: 0, y: s.rect.minY)))
+        let top = size.height - (ground.max() ?? 0)
+        ctx.drawLayer { l in
+            l.addFilter(.blur(radius: 2.5))
+            l.fill(p, with: .linearGradient(Gradient(colors: [Color(white: 0.92), Color(white: 0.55), Color(white: 0.25)]),
+                                            startPoint: CGPoint(x: 0, y: top), endPoint: CGPoint(x: 0, y: size.height)))
         }
-        // Loose grains along the surface for texture.
-        var speck = SplitMix(seed: UInt64(abs(s.rect.minX * 7 + s.rect.minY)))
-        var dust = Path()
-        for (i, h) in s.heights.enumerated() where h > 0.3 {
-            let x = s.rect.minX + Double(i) * Surface.cell
-            for _ in 0..<2 {
-                let dx = Double(speck.next() % 100) / 100 * Surface.cell
-                let dy = Double(speck.next() % 100) / 100 * 1.6
-                dust.addRect(CGRect(x: x + dx, y: s.rect.minY - h - dy, width: 0.8, height: 0.8))
+        ctx.fill(p, with: .linearGradient(Gradient(colors: [Color(white: 0.6).opacity(0.0), Color(white: 0.3).opacity(0.5)]),
+                                          startPoint: CGPoint(x: 0, y: top), endPoint: CGPoint(x: 0, y: size.height)))
+        // Granular texture: thousands of grains across the surface of the drift.
+        var bands = [Path(), Path(), Path()]
+        for sp in specks {
+            let i = min(ground.count - 1, max(0, Int(sp.x / Self.cell)))
+            let y = size.height - ground[i] * (1 - sp.dy * 0.9)
+            let b = sp.a < 0.4 ? 0 : sp.a < 0.7 ? 1 : 2
+            bands[b].addRect(CGRect(x: sp.x, y: y, width: sp.size, height: sp.size))
+        }
+        ctx.fill(bands[0], with: .color(.white.opacity(0.3)))
+        ctx.fill(bands[1], with: .color(.white.opacity(0.6)))
+        ctx.fill(bands[2], with: .color(.white.opacity(0.95)))
+        // A bright crust along the very top edge.
+        var crest = Path()
+        for (i, h) in ground.enumerated() {
+            let pt = CGPoint(x: Double(i) * Self.cell, y: size.height - h)
+            i == 0 ? crest.move(to: pt) : crest.addLine(to: pt)
+        }
+        ctx.drawLayer { l in
+            l.addFilter(.blur(radius: 3))
+            l.stroke(crest, with: .color(.white.opacity(0.6)), lineWidth: 4)
+        }
+        // Crystalline glints that catch the light.
+        for gl in glints {
+            let i = min(ground.count - 1, max(0, Int(gl.x / Self.cell)))
+            let y = size.height - ground[i] * (1 - gl.dy * 0.8)
+            let tw = 0.5 + 0.5 * sin(time * gl.freq + gl.phase)
+            let a = 0.25 + 0.75 * tw * tw
+            ctx.fill(Path(ellipseIn: CGRect(x: gl.x, y: y, width: gl.size, height: gl.size)), with: .color(.white.opacity(a)))
+        }
+    }
+}
+
+/// One rendered pass of the powder field: far dust, mid specks, the drift, then near bokeh.
+private struct PowderCanvas: View {
+    let sim: PowderSim
+    let paused: Bool
+
+    var body: some View {
+        TimelineView(.animation(paused: paused)) { tl in
+            Canvas { ctx, size in
+                sim.resize(size)
+                if !paused { sim.step(now: tl.date) }
+                sim.drawLayer(&ctx, 0)
+                ctx.drawLayer { l in
+                    l.addFilter(.blur(radius: 0.7))
+                    var c = l
+                    sim.drawLayer(&c, 1)
+                }
+                sim.drawGround(&ctx)
+                ctx.drawLayer { l in
+                    l.addFilter(.blur(radius: 4))
+                    var c = l
+                    sim.drawLayer(&c, 2)
+                }
             }
         }
-        ctx.fill(dust, with: .color(.white.opacity(0.75)))
     }
 }
 
-struct PowderColliderKey: PreferenceKey {
-    static let defaultValue: [String: CGRect] = [:]
-    static func reduce(value: inout [String: CGRect], nextValue: () -> [String: CGRect]) {
-        value.merge(nextValue()) { $1 }
-    }
-}
-
-extension View {
-    /// Lets falling powder settle on this view's top edge.
-    func powderCollider(_ id: String, topInset: CGFloat = 0, sideInset: CGFloat = 0) -> some View {
-        background(GeometryReader { g in
-            let f = g.frame(in: .named("powder"))
-            Color.clear.preference(key: PowderColliderKey.self,
-                                   value: [id: CGRect(x: f.minX + sideInset, y: f.minY + topInset, width: f.width - sideInset * 2, height: f.height - topInset)])
-        })
-    }
-}
-
-/// The falling-powder layer. Put it in a ZStack above the content, with the content using
-/// `.coordinateSpace(name: "powder")` and `.powderCollider(_:)` on things to land on.
-struct PowderFall: View {
-    let colliders: [String: CGRect]
-    var sim: PowderSim
+/// The full title-screen powder: a sharp middle band and blurred top and bottom bands (tilt-shift).
+struct PowderField: View {
+    @State private var sim = PowderSim()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        GeometryReader { geo in
-            TimelineView(.animation(paused: reduceMotion)) { context in
-                Canvas { ctx, size in
-                    sim.resize(size)
-                    sim.setColliders(colliders)
-                    if reduceMotion { sim.settleInstantly() } else { sim.step(now: context.date) }
-                    sim.draw(ctx)
-                }
-            }
-            .frame(width: geo.size.width, height: geo.size.height)
+        ZStack {
+            PowderCanvas(sim: sim, paused: reduceMotion)
+                .mask(LinearGradient(stops: [.init(color: .clear, location: 0.08), .init(color: .black, location: 0.3),
+                                             .init(color: .black, location: 0.93), .init(color: .clear, location: 1.0)],
+                                     startPoint: .top, endPoint: .bottom))
+            PowderCanvas(sim: sim, paused: reduceMotion)
+                .blur(radius: 4)
+                .mask(LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .clear, location: 0.3),
+                                             .init(color: .clear, location: 0.93), .init(color: .black, location: 1.0)],
+                                     startPoint: .top, endPoint: .bottom))
         }
+        .ignoresSafeArea()
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }

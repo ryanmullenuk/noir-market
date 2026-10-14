@@ -41,17 +41,21 @@ private struct SmallButton: View {
     let title: String
     var enabled = true
     var tint: Color = Noir.green
+    var wide = false
     var action: () -> Void
     var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
         Button(action: action) {
             Text(title)
                 .font(Noir.label(11)).tracking(1.2).textCase(.uppercase)
                 .foregroundStyle(enabled ? tint : Noir.dim)
+                .lineLimit(1).minimumScaleFactor(0.8)
                 .padding(.horizontal, 14)
-                .frame(minHeight: 36)
-                .background(Capsule().fill(LinearGradient(colors: [(enabled ? tint : .white).opacity(enabled ? 0.2 : 0.05), (enabled ? tint : .white).opacity(0.04)], startPoint: .top, endPoint: .bottom)))
-                .overlay { if enabled { Capsule().strokeBorder(tint.opacity(0.75)) } }
-                .shadow(color: enabled ? tint.opacity(0.35) : .clear, radius: 6)
+                .frame(minWidth: wide ? nil : 92, maxWidth: wide ? .infinity : nil, minHeight: wide ? 44 : 38)
+                .background(shape.fill(LinearGradient(colors: [(enabled ? tint : .white).opacity(enabled ? 0.16 : 0.04), (enabled ? tint : .white).opacity(0.03)], startPoint: .top, endPoint: .bottom)))
+                .overlay(shape.strokeBorder((enabled ? tint : .white).opacity(enabled ? 0.8 : 0.15), lineWidth: 1.1))
+                .shadow(color: enabled ? tint.opacity(0.3) : .clear, radius: 6)
+                .contentShape(shape)
         }
         .buttonStyle(.plain)
         .disabled(!enabled)
@@ -205,11 +209,12 @@ struct MoneyView: View {
                                     Text(loan.due > s.day ? "Due day \(loan.due). Paying early saves interest." : loan.due == s.day ? "Due today." : "Overdue.")
                                         .font(Noir.type(12)).foregroundStyle(loan.due <= s.day ? Noir.neon : Noir.dim)
                                     HStack(spacing: 8) {
-                                        SmallButton(title: "Pay in full", enabled: s.cash >= owed) { store.act { try Engine.repay(&$0, loan: loan.id, amount: owed) } }
+                                        SmallButton(title: "Pay \(Money.gbp(owed))", enabled: s.cash >= owed, wide: true) { store.act { try Engine.repay(&$0, loan: loan.id, amount: owed) } }
                                         if let a = Int(amount), a > 0, a < owed {
-                                            SmallButton(title: "Pay \(Money.gbp(a))", enabled: s.cash >= a) { store.act { try Engine.repay(&$0, loan: loan.id, amount: a) } }
+                                            SmallButton(title: "Pay \(Money.gbp(a))", enabled: s.cash >= a, tint: Noir.amber, wide: true) { store.act { try Engine.repay(&$0, loan: loan.id, amount: a) } }
                                         }
                                     }
+                                    .padding(.top, 2)
                                 }
                                 .card()
                             }
@@ -267,14 +272,14 @@ struct MoneyView: View {
                                 HStack {
                                     Text(l.name).font(Noir.ui(16, weight: .semibold)).foregroundStyle(Noir.paper)
                                     Spacer()
-                                    Text("up to \(Money.short(Engine.lenderLimit(s, l)))").font(Noir.mono(12)).foregroundStyle(Noir.silver)
+                                    Text("\(Int(l.rate * 100))% · \(l.term) days").font(Noir.mono(12)).foregroundStyle(Noir.amber)
                                 }
-                                Text("\(Int(l.rate * 100))% over \(l.term) days").font(Noir.mono(11, weight: .regular)).foregroundStyle(Noir.brass)
                                 Text(l.bio).font(Noir.type(12)).foregroundStyle(Noir.dim).fixedSize(horizontal: false, vertical: true)
-                                SmallButton(title: has ? "Already in debt to him" : "Borrow", enabled: !has) {
+                                SmallButton(title: has ? "Already in debt to him" : "Borrow up to \(Money.short(Engine.lenderLimit(s, l)))", enabled: !has, tint: Noir.amber, wide: true) {
                                     borrowing = l
                                     borrowAmount = Double(Engine.lenderLimit(s, l) / 2)
                                 }
+                                .padding(.top, 4)
                             }
                             .card()
                         }

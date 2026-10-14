@@ -1,72 +1,179 @@
 import SwiftUI
 
+/// Header for full-height sheets: kicker, big title and a close tile.
+struct MenuHeader: View {
+    let kicker: String
+    let title: String
+    var close: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top) {
+            SheetTitle(kicker: kicker, title: title)
+            Spacer()
+            Button(action: close) { Image(systemName: "xmark").font(.system(size: 16, weight: .bold)) }
+                .buttonStyle(AmberTile(size: 42))
+                .accessibilityLabel("Close")
+                .padding(.top, 8)
+        }
+    }
+}
+
+/// Glowing green switch.
+struct NoirToggleStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button {
+            withAnimation(.spring(duration: 0.25)) { configuration.isOn.toggle() }
+            Audio.shared.buzz(.tap)
+        } label: {
+            HStack {
+                configuration.label.font(Noir.ui(15)).foregroundStyle(Noir.paper)
+                Spacer()
+                ZStack(alignment: configuration.isOn ? .trailing : .leading) {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(configuration.isOn ? Noir.green.opacity(0.22) : Color.white.opacity(0.06))
+                        .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .strokeBorder(configuration.isOn ? Noir.green : Color.white.opacity(0.3), lineWidth: 1.2))
+                        .frame(width: 54, height: 30)
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .fill(configuration.isOn ? Noir.green : Noir.silver)
+                        .frame(width: 22, height: 22)
+                        .padding(4)
+                        .shadow(color: configuration.isOn ? Noir.green.opacity(0.8) : .clear, radius: 6)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityValue(configuration.isOn ? "On" : "Off")
+    }
+}
+
+/// A full-width menu row button with an icon and chevron.
+struct MenuRow: View {
+    let title: String
+    let symbol: String
+    var tint: Color = Noir.paper
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                Image(systemName: symbol).font(.system(size: 16, weight: .semibold)).foregroundStyle(tint).frame(width: 22)
+                Text(title).font(Noir.ui(15)).foregroundStyle(tint)
+                Spacer()
+                Image(systemName: "chevron.right").font(.system(size: 12, weight: .bold)).foregroundStyle(Noir.dim)
+            }
+            .padding(.horizontal, 16)
+            .frame(minHeight: 52)
+            .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(0.04)))
+            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.white.opacity(0.22), lineWidth: 1))
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 struct SettingsView: View {
     var inGame: Bool
     var onAbandon: () -> Void
     @Environment(GameStore.self) private var store
     @Environment(Unlock.self) private var unlock
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.openURL) private var openURL
     @State private var music = Audio.shared.musicOn
     @State private var haptics = Audio.shared.hapticsOn
     @State private var sounds = Audio.shared.soundsOn
     @State private var name = ""
     @State private var confirmAbandon = false
     @State private var showHowTo = false
+    @FocusState private var nameFocused: Bool
 
     var body: some View {
-        NavigationStack {
-            List {
-                Section("Player") {
-                    TextField("Name", text: $name)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 22) {
+                MenuHeader(kicker: "Settings", title: "Menu") { store.playerName = name; dismiss() }
+
+                group("Player") {
+                    TextField("", text: $name, prompt: Text("Anonymous").foregroundStyle(Noir.dim))
+                        .font(Noir.ui(17, weight: .semibold))
+                        .foregroundStyle(GameStore.isGodName(name) ? Noir.amber : Noir.paper)
+                        .textInputAutocapitalization(.words)
+                        .autocorrectionDisabled()
+                        .focused($nameFocused)
+                        .submitLabel(.done)
                         .onSubmit { store.playerName = name }
-                        .onDisappear { store.playerName = name }
+                        .padding(.horizontal, 14)
+                        .frame(minHeight: 50)
+                        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(0.04)))
+                        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(Color.white.opacity(nameFocused ? 0.8 : 0.3), lineWidth: 1.1))
+                    Text("Used in your records. Takes effect from your next game.").font(Noir.ui(11)).foregroundStyle(Noir.dim)
                 }
-                Section("Sound") {
-                    Toggle("Music", isOn: $music).onChange(of: music) { Audio.shared.musicOn = music }
-                    Toggle("Sound effects", isOn: $sounds).onChange(of: sounds) { Audio.shared.soundsOn = sounds }
-                    Toggle("Haptics", isOn: $haptics).onChange(of: haptics) { Audio.shared.hapticsOn = haptics }
+
+                group("Sound") {
+                    VStack(spacing: 14) {
+                        Toggle("Music", isOn: $music).onChange(of: music) { Audio.shared.musicOn = music }
+                        Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1)
+                        Toggle("Sound effects", isOn: $sounds).onChange(of: sounds) { Audio.shared.soundsOn = sounds }
+                        Rectangle().fill(Color.white.opacity(0.06)).frame(height: 1)
+                        Toggle("Haptics", isOn: $haptics).onChange(of: haptics) { Audio.shared.hapticsOn = haptics }
+                    }
+                    .toggleStyle(NoirToggleStyle())
+                    .padding(16)
+                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.white.opacity(0.04)))
+                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.white.opacity(0.22), lineWidth: 1))
                 }
-                Section {
+
+                group("Full game") {
                     if unlock.unlocked {
-                        Label("All 14 cities unlocked", systemImage: "checkmark.seal.fill").foregroundStyle(Noir.brass)
+                        Label("All 14 cities unlocked", systemImage: "checkmark.seal.fill")
+                            .font(Noir.ui(15, weight: .semibold)).foregroundStyle(Noir.amber)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .card(padding: 16, tint: Noir.amber)
                     } else {
                         Button(unlock.product.map { "Unlock all cities · \($0.displayPrice)" } ?? "Unlock all cities") {
                             Task { await unlock.purchase() }
                         }
+                        .buttonStyle(.noirAmber)
                     }
-                    Button("Restore purchases") { Task { await unlock.restore() } }
-                    if let m = unlock.message { Text(m).font(.footnote).foregroundStyle(.secondary) }
-                } header: { Text("Full game") }
-                Section("Help") {
-                    Button("How to play") { showHowTo = true }
-                    Link("Support", destination: URL(string: "https://redhead.games/noir-market/support.html")!)
-                    Link("Privacy policy", destination: URL(string: "https://redhead.games/noir-market/privacy.html")!)
+                    MenuRow(title: "Restore purchases", symbol: "arrow.clockwise") { Task { await unlock.restore() } }
+                    if let m = unlock.message { Text(m).font(Noir.ui(12)).foregroundStyle(Noir.silver) }
                 }
+
+                group("Help") {
+                    MenuRow(title: "How to play", symbol: "questionmark.circle.fill") { showHowTo = true }
+                    MenuRow(title: "Support", symbol: "envelope.fill") { openURL(URL(string: "https://redhead.games/noir-market/support.html")!) }
+                    MenuRow(title: "Privacy policy", symbol: "hand.raised.fill") { openURL(URL(string: "https://redhead.games/noir-market/privacy.html")!) }
+                }
+
                 if inGame {
-                    Section {
-                        Button("Walk away from this game", role: .destructive) { confirmAbandon = true }
-                    } footer: {
-                        Text("Noir Market is fiction, made for entertainment. It doesn’t endorse anything it depicts. Saves stay on this device. No ads, no tracking, no accounts.")
-                    }
-                } else {
-                    Section {} footer: {
-                        Text("Noir Market is fiction, made for entertainment. It doesn’t endorse anything it depicts. Saves stay on this device. No ads, no tracking, no accounts.")
-                    }
+                    Button("Walk away from this game") { confirmAbandon = true }
+                        .buttonStyle(.noirDanger)
                 }
+
+                Text("Noir Market is fiction, made for entertainment. It doesn’t endorse anything it depicts. Saves stay on this device. No ads, no tracking, no accounts.")
+                    .font(Noir.ui(11)).foregroundStyle(Noir.dim)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.bottom, 30)
             }
-            .scrollContentBackground(.hidden)
-            .background(Noir.ink)
-            .navigationTitle("Menu")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-            .noirDialog(isPresented: $confirmAbandon, title: "Walk away?", message: "This game will be lost and won’t count towards your records.",
-                        icon: "figure.walk", tint: Noir.red,
-                        actions: [DialogAction(title: "Abandon this game", kind: .danger) { onAbandon() },
-                                  DialogAction(title: "Keep playing", kind: .quiet)])
-            .sheet(isPresented: $showHowTo) { HowToPlayView() }
+            .padding(20)
         }
-        .tint(Noir.neon)
+        .scrollDismissesKeyboard(.interactively)
+        .background(Noir.ink.ignoresSafeArea())
+        .buttonStyle(.plain)
+        .noirDialog(isPresented: $confirmAbandon, title: "Walk away?", message: "This game will be lost and won’t count towards your records.",
+                    icon: "figure.walk", tint: Noir.red,
+                    actions: [DialogAction(title: "Abandon this game", kind: .danger) { onAbandon() },
+                              DialogAction(title: "Keep playing", kind: .quiet)])
+        .sheet(isPresented: $showHowTo) { HowToPlayView().presentationBackground(Noir.ink) }
         .onAppear { name = store.playerName }
+        .onDisappear { store.playerName = name }
+    }
+
+    private func group<Content: View>(_ title: String, @ViewBuilder _ content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title).noirLabel(11, color: Noir.silver).padding(.leading, 4)
+            content()
+        }
     }
 }
 
@@ -84,9 +191,9 @@ struct HowToPlayView: View {
     ]
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
+        ScrollView {
                 VStack(alignment: .leading, spacing: 26) {
+                    MenuHeader(kicker: "The basics", title: "How to Play") { dismiss() }
                     ForEach(pages, id: \.1) { icon, title, text in
                         HStack(alignment: .top, spacing: 16) {
                             Image(systemName: icon)
@@ -105,12 +212,8 @@ struct HowToPlayView: View {
                 }
                 .padding(22)
             }
-            .background(Noir.ink)
-            .navigationTitle("How to Play")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Got it") { dismiss() } } }
-        }
-        .tint(Noir.neon)
+            .background(Noir.ink.ignoresSafeArea())
+            .buttonStyle(.plain)
     }
 }
 
@@ -120,9 +223,9 @@ struct RecordsView: View {
     @State private var tab = 0
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
+        ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
+                    MenuHeader(kicker: "Closed cases", title: "Records") { dismiss() }
                     HStack(spacing: 6) {
                         tabButton("Records", 0)
                         tabButton("Achievements", 1)
@@ -177,13 +280,8 @@ struct RecordsView: View {
                 }
                 .padding(22)
             }
-            .background(Noir.ink)
-            .navigationTitle("Records")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-        }
-        .tint(Noir.green)
-        .buttonStyle(.plain)
+            .background(Noir.ink.ignoresSafeArea())
+            .buttonStyle(.plain)
     }
 
     private func tabButton(_ title: String, _ i: Int) -> some View {

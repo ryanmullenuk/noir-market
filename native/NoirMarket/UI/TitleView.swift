@@ -12,8 +12,6 @@ struct TitleView: View {
     @State private var phase = 0 // 0 logo, 1 title
     @State private var titleIn = false
     @State private var buttonsIn = false
-    @State private var colliders: [String: CGRect] = [:]
-    @State private var sim = PowderSim()
 
     var body: some View {
         ZStack {
@@ -50,7 +48,6 @@ struct TitleView: View {
 
     private func press(_ id: String, _ action: @escaping () -> Void) -> () -> Void {
         {
-            sim.disturb(id)
             Audio.shared.buzz(.tap)
             action()
         }
@@ -61,22 +58,26 @@ struct TitleView: View {
         let insets = outer.safeAreaInsets
         GeometryReader { geo in
             ZStack {
-                // Black, with a faint cold glow behind the title.
-                RadialGradient(colors: [Color.white.opacity(0.07), .clear], center: .init(x: 0.5, y: 0.36), startRadius: 10, endRadius: 300)
-                    .ignoresSafeArea()
+                // Behind the powder: black with a faint cold glow and a vignette.
+                RadialGradient(colors: [Color.white.opacity(0.06), .clear], center: .init(x: 0.5, y: 0.38), startRadius: 10, endRadius: 320)
                     .opacity(titleIn ? 1 : 0)
+                PowderField()
+                    .opacity(titleIn ? 1 : 0)
+                RadialGradient(colors: [.clear, .black.opacity(0.6)], center: .center, startRadius: 220, endRadius: 640)
+                    .allowsHitTesting(false)
 
                 VStack(spacing: 0) {
-                    Spacer().frame(height: insets.top + geo.size.height * 0.18)
-                    VStack(spacing: -6) {
+                    Spacer().frame(height: insets.top + geo.size.height * 0.15)
+                    VStack(spacing: -10) {
                         Text("NOIR")
                             .font(Noir.title(112))
                             .foregroundStyle(Noir.paper)
-                            .shadow(color: .white.opacity(0.18), radius: 20)
-                        NeonText(text: "MARKET", size: 60, tracking: 1)
+                            .shadow(color: .black.opacity(0.8), radius: 10)
+                        NeonText(text: "MARKET", size: 82, tracking: 0, font: Noir.title(82))
                     }
                     .minimumScaleFactor(0.5)
                     .lineLimit(1)
+                    .padding(.horizontal, 30)
                     .opacity(titleIn ? 1 : 0)
                     .offset(y: titleIn ? 0 : 14)
                     .accessibilityElement(children: .ignore)
@@ -84,57 +85,89 @@ struct TitleView: View {
                     .accessibilityAddTraits(.isHeader)
 
                     Text("thirty days. nobody’s clean.")
-                        .font(Noir.ui(14))
+                        .font(Noir.ui(15))
                         .foregroundStyle(Noir.silver)
-                        .padding(.top, 18)
+                        .padding(.top, 16)
                         .opacity(titleIn ? 1 : 0)
 
-                    Spacer()
+                    Spacer(minLength: 40)
 
-                    VStack(spacing: 12) {
+                    VStack(spacing: 14) {
+                        Button(action: press("main", hasSave ? onContinue : onNewGame)) {
+                            HStack {
+                                Spacer()
+                                Text(hasSave ? "Continue" : "New Game")
+                                Spacer()
+                                Image(systemName: "arrow.right").font(.system(size: 18, weight: .semibold))
+                            }
+                            .padding(.horizontal, 22)
+                        }
+                        .buttonStyle(NeonRedButton())
                         if hasSave {
-                            Button("Continue", action: press("continue", onContinue)).buttonStyle(.noirPrimary)
-                                .powderCollider("continue")
-                            Button("New Game", action: press("new", onNewGame)).buttonStyle(.noir)
-                                .powderCollider("new")
-                        } else {
-                            Button("New Game", action: press("new", onNewGame)).buttonStyle(.noirPrimary)
-                                .powderCollider("new")
+                            Button("New Game", action: press("new", onNewGame)).buttonStyle(TitleOutlineButton())
                         }
-                        HStack(spacing: 10) {
-                            Button("How to Play", action: press("how", onHowTo)).buttonStyle(.noir)
-                                .powderCollider("how")
-                            Button("Records", action: press("records", onRecords)).buttonStyle(.noir)
-                                .powderCollider("records")
-                            Button(action: press("settings", onSettings)) { Image(systemName: "gearshape.fill") }
-                                .buttonStyle(.noir)
-                                .frame(width: 58)
-                                .powderCollider("settings")
-                                .accessibilityLabel("Settings")
+                        HStack(spacing: 12) {
+                            Button("How to Play", action: press("how", onHowTo)).buttonStyle(TitleOutlineButton())
+                            Button("Records", action: press("records", onRecords)).buttonStyle(TitleOutlineButton())
                         }
+                        Button(action: press("settings", onSettings)) {
+                            HStack(spacing: 12) {
+                                Image(systemName: "gearshape.fill").font(.system(size: 17))
+                                Text("Settings").font(Noir.label(13)).tracking(2.2).textCase(.uppercase)
+                            }
+                            .foregroundStyle(Noir.silver)
+                            .padding(.vertical, 10)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 16)
+                    .padding(.horizontal, 30)
                     .opacity(buttonsIn ? 1 : 0)
                     .offset(y: buttonsIn ? 0 : 10)
                     .allowsHitTesting(buttonsIn)
 
-                    Text("a redhead games production · 17+ · fiction")
-                        .font(Noir.ui(9))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                    Text("a redhead games production")
+                        .font(Noir.ui(11))
+                        .foregroundStyle(Noir.silver.opacity(0.7))
                         .opacity(buttonsIn ? 1 : 0)
-                        .foregroundStyle(Noir.dim)
-                        .padding(.bottom, 8)
+                        .padding(.top, 36)
+                        .padding(.bottom, insets.bottom + 62)
                 }
-
-                PowderFall(colliders: buttonsIn ? colliders : [:], sim: sim)
-                    .opacity(titleIn ? 1 : 0)
             }
-            .coordinateSpace(name: "powder")
-            .onPreferenceChange(PowderColliderKey.self) { colliders = $0 }
         }
         .ignoresSafeArea()
         }
+    }
+}
+
+/// Red neon-outlined call to action, like a motel sign tube.
+struct NeonRedButton: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+        configuration.label
+            .font(Noir.label(17)).tracking(3).textCase(.uppercase)
+            .foregroundStyle(Noir.neon)
+            .frame(maxWidth: .infinity, minHeight: 58)
+            .background(shape.fill(Color.black.opacity(0.55)))
+            .background(shape.fill(Noir.neon.opacity(configuration.isPressed ? 0.2 : 0.06)))
+            .overlay(shape.strokeBorder(Noir.neon, lineWidth: 2))
+            .shadow(color: Noir.neon.opacity(0.8), radius: configuration.isPressed ? 14 : 9)
+            .shadow(color: Noir.neon.opacity(0.4), radius: 22)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.spring(duration: 0.18), value: configuration.isPressed)
+    }
+}
+
+/// Quiet outlined title button.
+struct TitleOutlineButton: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+        configuration.label
+            .font(Noir.label(13)).tracking(2.2).textCase(.uppercase)
+            .foregroundStyle(Noir.paper)
+            .frame(maxWidth: .infinity, minHeight: 52)
+            .background(shape.fill(Color.black.opacity(configuration.isPressed ? 0.3 : 0.55)))
+            .overlay(shape.strokeBorder(Color.white.opacity(configuration.isPressed ? 0.7 : 0.35), lineWidth: 1.2))
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .animation(.spring(duration: 0.18), value: configuration.isPressed)
     }
 }

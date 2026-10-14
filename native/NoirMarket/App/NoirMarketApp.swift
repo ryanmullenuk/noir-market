@@ -58,9 +58,9 @@ struct RootView: View {
         }
         .sheet(item: $sheet) { which in
             switch which {
-            case .howTo: HowToPlayView()
-            case .settings: SettingsView(inGame: false, onAbandon: {})
-            case .records: RecordsView()
+            case .howTo: HowToPlayView().presentationBackground(Noir.ink)
+            case .settings: SettingsView(inGame: false, onAbandon: {}).presentationBackground(Noir.ink)
+            case .records: RecordsView().presentationBackground(Noir.ink)
             }
         }
         .onAppear(perform: debugLaunch)
