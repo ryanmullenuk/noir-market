@@ -1,0 +1,136 @@
+import SwiftUI
+
+struct NewGameView: View {
+    var onStart: (Int) -> Void
+    var onBack: () -> Void
+
+    @Environment(GameStore.self) private var store
+    @Environment(Unlock.self) private var unlock
+    @State private var name = ""
+    @State private var city = 0
+    @FocusState private var nameFocused: Bool
+
+    var body: some View {
+        ZStack {
+            Noir.ink.ignoresSafeArea()
+            Skyline(seed: 77, tint: Noir.ink)
+                .frame(height: 220)
+                .frame(maxHeight: .infinity, alignment: .bottom)
+                .opacity(0.9)
+                .ignoresSafeArea()
+            Rain(intensity: 70)
+
+            ScrollView {
+                VStack(alignment: .leading, spacing: 22) {
+                    HStack {
+                        Button { onBack() } label: { Image(systemName: "chevron.left").font(.title3) }
+                            .foregroundStyle(Noir.silver)
+                            .accessibilityLabel("Back")
+                        Spacer()
+                    }
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("Case File").noirLabel(12, color: Noir.neon)
+                        Text("Who are you?").font(Noir.display(40)).foregroundStyle(Noir.paper)
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Name").noirLabel()
+                        TextField("", text: $name, prompt: Text("Anonymous").foregroundStyle(Noir.dim))
+                            .font(Noir.type(20))
+                            .foregroundStyle(Noir.paper)
+                            .textInputAutocapitalization(.words)
+                            .autocorrectionDisabled()
+                            .focused($nameFocused)
+                            .submitLabel(.done)
+                            .padding(.vertical, 10)
+                            .overlay(alignment: .bottom) { Rectangle().fill(Noir.rule).frame(height: 1) }
+                    }
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Where it starts").noirLabel()
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 8)], spacing: 8) {
+                            ForEach(Catalog.cities) { c in
+                                let open = unlock.unlocked || c.id < Catalog.freeCityCount
+                                Button {
+                                    if open {
+                                        city = c.id
+                                        Audio.shared.buzz(.tap)
+                                    } else {
+                                        Task { await unlock.purchase() }
+                                    }
+                                } label: {
+                                    HStack(spacing: 6) {
+                                        if !open { Image(systemName: "lock.fill").font(.system(size: 10)) }
+                                        Text(c.name).font(Noir.type(14)).lineLimit(1).minimumScaleFactor(0.8)
+                                    }
+                                    .frame(maxWidth: .infinity, minHeight: 42)
+                                    .foregroundStyle(city == c.id ? Noir.ink : open ? Noir.paper : Noir.dim)
+                                    .background(city == c.id ? Noir.paper : Noir.coal, in: RoundedRectangle(cornerRadius: 3))
+                                    .overlay(RoundedRectangle(cornerRadius: 3).strokeBorder(Noir.rule))
+                                }
+                                .accessibilityLabel(open ? c.name : "\(c.name), locked")
+                            }
+                        }
+                        if !unlock.unlocked {
+                            UnlockCard()
+                        }
+                    }
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("The job").noirLabel()
+                        Text("Thirty days. Buy low, sell high, keep your head down. Everything you own on the last night is your score. Half the news is true. Nobody will tell you which half.")
+                            .font(Noir.type(15))
+                            .foregroundStyle(Noir.silver)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    Button("Begin") {
+                        store.playerName = name.trimmingCharacters(in: .whitespaces)
+                        Audio.shared.buzz(.success)
+                        onStart(city)
+                    }
+                    .buttonStyle(.noirPrimary)
+                    .padding(.top, 4)
+                }
+                .padding(24)
+            }
+            .scrollDismissesKeyboard(.interactively)
+            FilmGrain()
+        }
+        .onAppear { name = store.playerName }
+    }
+}
+
+/// Upsell card for the one purchase. Kept quiet and honest.
+struct UnlockCard: View {
+    @Environment(Unlock.self) private var unlock
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("Full Game").noirLabel(11, color: Noir.brass)
+                Spacer()
+                if let price = unlock.product?.displayPrice {
+                    Text(price).font(Noir.mono(13)).foregroundStyle(Noir.brass)
+                }
+            }
+            Text("Free play covers London, Manchester and Birmingham. One purchase opens all 14 cities across the UK and Ireland, each with its own cheap and dear goods.")
+                .font(Noir.type(13)).foregroundStyle(Noir.silver)
+                .fixedSize(horizontal: false, vertical: true)
+            HStack(spacing: 8) {
+                Button(unlock.busy ? "…" : "Unlock all cities") { Task { await unlock.purchase() } }
+                    .buttonStyle(NoirButtonStyle(kind: .secondary))
+                    .disabled(unlock.busy)
+                Button("Restore") { Task { await unlock.restore() } }
+                    .buttonStyle(.noirQuiet)
+                    .frame(width: 110)
+                    .disabled(unlock.busy)
+            }
+            if let message = unlock.message {
+                Text(message).font(Noir.type(12)).foregroundStyle(Noir.silver)
+            }
+        }
+        .card()
+        .overlay(RoundedRectangle(cornerRadius: 4).strokeBorder(Noir.brass.opacity(0.35), style: StrokeStyle(lineWidth: 1, dash: [4, 3])))
+    }
+}

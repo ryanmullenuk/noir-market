@@ -15,3 +15,6 @@ ios/build/
 ios-xcode-project.zip
 ios-simulator-build.log
 ios-release-build.log
+native/build/
+*.xcuserstate
+xcuserdata/
