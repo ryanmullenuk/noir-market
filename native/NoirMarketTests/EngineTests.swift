@@ -199,6 +199,73 @@ struct EngineTests {
         #expect(store.state?.city == 10 || !(store.state?.encounters.isEmpty ?? true))
     }
 
+    @Test func shipmentsWaitAtTheDepotUntilCollected() throws {
+        var fates: [String: Int] = [:]
+        for seed in 1...200 {
+            var s = fresh(seed: UInt64(seed))
+            s.cash = 100_000
+            let good = cheapest(s)
+            let q = min(10, Engine.maxBuy(s, good: good))
+            guard q > 0 else { continue }
+            try Engine.buy(&s, good: good, qty: q)
+            var goods = Array(repeating: 0, count: Catalog.goods.count)
+            goods[good] = q
+            try Engine.ship(&s, goods: goods, to: 1)
+            #expect(s.carry[good] == 0)
+            let fate = s.shipments[0].fate ?? "?"
+            fates[fate, default: 0] += 1
+            s.encounters = []
+            try Engine.stay(&s)
+            s.encounters = []
+            if fate == "stolen" { #expect(s.shipments.isEmpty); continue }
+            #expect(s.shipments.first?.landed == true)
+            // Can't collect from the wrong city.
+            #expect(throws: (any Error).self) { try Engine.collect(&s, shipment: s.shipments[0].id) }
+            s.city = 1
+            try Engine.collect(&s, shipment: s.shipments[0].id)
+            #expect(s.carry[good] > 0)
+            #expect(s.carry[good] <= q)
+            if fate == "tipped" { #expect(s.encounters.contains { if case .police(let p) = $0 { p.depot == true } else { false } }) }
+        }
+        #expect((fates["clean"] ?? 0) > 100)
+        #expect((fates["stolen"] ?? 0) + (fates["tipped"] ?? 0) + (fates["skimmed"] ?? 0) > 5)
+    }
+
+    @Test func missedShotsLetYouGoAgain() throws {
+        var kept = 0
+        for seed in 1...200 {
+            var s = fresh(seed: UInt64(seed))
+            s.weapons[4] = 1
+            s.encounters = [.trouble(Trouble(attacker: 2, round: 1, runChance: 0.5, fightChance: 0.0, handOver: 100))]
+            let o = try Engine.resolve(&s, .fight)
+            if s.health > 0 {
+                #expect(s.encounters.count == 1)
+                if case .trouble(let t) = s.encounters[0] { #expect(t.round == 2) }
+                #expect(o.title == "Missed")
+                kept += 1
+            }
+        }
+        #expect(kept > 150)
+        var p = fresh()
+        p.weapons[4] = 1
+        p.encounters = [.police(PoliceStop(airport: false, bribe: 1000, bribeChance: 0.5, runChance: 0.5, fightChance: 0.0, jail: 0, fine: 500))]
+        try Engine.resolve(&p, .fight)
+        if case .police(let stop) = p.encounters.first { #expect(stop.round == 2) } else { Issue.record("expected a second round") }
+        try Engine.resolve(&p, .comply)
+        #expect(p.encounters.isEmpty)
+        #expect(p.stats.jailDays >= 2)
+    }
+
+    @Test func dumpAndStashBeforeAFlight() {
+        var s = fresh()
+        s.carry[2] = 10; s.carryCost[2] = 1000; s.weapons[0] = 1
+        Engine.stashAll(&s)
+        #expect(s.carry[2] == 0 && s.vault[0][2] == 10)
+        s.carry[3] = 5
+        Engine.dumpAll(&s)
+        #expect(Engine.carried(s) == 0 && !Engine.hasWeapons(s))
+    }
+
     func cheapest(_ s: GameState) -> Int {
         Catalog.goods.indices.filter { s.markets[s.city].supply[$0] > 0 }.min { s.markets[s.city].price[$0] < s.markets[s.city].price[$1] }!
     }

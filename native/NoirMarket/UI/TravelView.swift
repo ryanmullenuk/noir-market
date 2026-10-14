@@ -5,12 +5,22 @@ struct TravelView: View {
     @Environment(GameStore.self) private var store
     @Environment(Unlock.self) private var unlock
     @State private var selected: Int?
+    @State private var shipMode = false
+    @State private var shipQty: [Int] = Array(repeating: 0, count: Catalog.goods.count)
+    @State private var preflight: Int?
 
     var body: some View {
         if let s = store.state {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    SheetTitle(kicker: "Every trip takes a night", title: "Travel")
+                    SheetTitle(kicker: shipMode ? "Overnight, to the depot" : "Every trip takes a night", title: shipMode ? "Ship Ahead" : "Travel")
+
+                    HStack(spacing: 6) {
+                        modeButton("Travel", active: !shipMode) { shipMode = false }
+                        modeButton("Ship ahead", active: shipMode) { shipMode = true }
+                    }
+                    .padding(4)
+                    .background(Capsule().fill(Color.white.opacity(0.05)))
 
                     MapView(s: s, selected: $selected)
                         .frame(height: 330)
@@ -18,7 +28,12 @@ struct TravelView: View {
                         .card(padding: 0)
                         .clipShape(RoundedRectangle(cornerRadius: Noir.radius, style: .continuous))
 
-                    if let dest = selected {
+                    if shipMode {
+                        ShipForm(s: s, dest: selected, qty: $shipQty, onSent: {
+                            shipQty = Array(repeating: 0, count: Catalog.goods.count)
+                            Audio.shared.play(.click)
+                        })
+                    } else if let dest = selected {
                         DestinationCard(s: s, dest: dest, onGo: { go(dest) })
                     } else {
                         Text("Tap a city on the map or pick one below.").font(Noir.type(13)).foregroundStyle(Noir.dim)
@@ -61,17 +76,134 @@ struct TravelView: View {
                 .padding(20)
             }
             .background(Noir.ink)
+            .onAppear {
+                #if DEBUG
+                if ProcessInfo.processInfo.arguments.contains("-ship") { shipMode = true; selected = 1 }
+                #endif
+            }
             .alert("Not so fast", isPresented: Binding(get: { store.error != nil }, set: { if !$0 { store.error = nil } })) {
                 Button("OK", role: .cancel) { store.error = nil }
             } message: { Text(store.error ?? "") }
+            .confirmationDialog("Airport security", isPresented: Binding(get: { preflight != nil }, set: { if !$0 { preflight = nil } }), titleVisibility: .visible) {
+                if let dest = preflight {
+                    if Engine.carried(s) > 0 {
+                        Button("Stash the stock here, then fly") {
+                            store.act { Engine.stashAll(&$0) }
+                            depart(dest)
+                        }
+                    }
+                    Button("Dump everything, then fly", role: .destructive) {
+                        store.act { Engine.dumpAll(&$0) }
+                        depart(dest)
+                    }
+                    Button("Risk it") { depart(dest) }
+                    Button("Stay on the ground", role: .cancel) { preflight = nil }
+                }
+            } message: {
+                Text(preflightMessage(s))
+            }
         }
     }
 
+    private func preflightMessage(_ s: GameState) -> String {
+        var parts: [String] = []
+        if Engine.carried(s) > 0 { parts.append("\(Engine.carried(s)) units of stock") }
+        if Engine.hasWeapons(s) { parts.append("weapons") }
+        let room = Engine.vaultCapacity(s, s.city) - Engine.vaultUsed(s, s.city)
+        return "You’re carrying \(parts.joined(separator: " and ")) through an airport. Customs will be looking. Lock-up space here: \(room) units. Weapons can’t be stashed; dump them or take your chances."
+    }
+
+    private func modeButton(_ title: String, active: Bool, action: @escaping () -> Void) -> some View {
+        Button {
+            withAnimation(.spring(duration: 0.25)) { action() }
+            Audio.shared.buzz(.tap)
+        } label: {
+            Text(title)
+                .font(Noir.label(12)).tracking(1.2).textCase(.uppercase)
+                .foregroundStyle(active ? Noir.amber : Noir.silver)
+                .frame(maxWidth: .infinity, minHeight: 38)
+                .background(Capsule().fill(active ? Noir.amber.opacity(0.15) : .clear))
+                .overlay { if active { Capsule().strokeBorder(Color.white.opacity(0.8)) } }
+        }
+        .buttonStyle(.plain)
+    }
+
     private func go(_ dest: Int) {
+        guard let s = store.state else { return }
+        let flight = Catalog.cities[s.city].needsFlight(to: Catalog.cities[dest])
+        if flight && (Engine.carried(s) > 0 || Engine.hasWeapons(s)) {
+            preflight = dest
+            Audio.shared.buzz(.warning)
+            return
+        }
+        depart(dest)
+    }
+
+    private func depart(_ dest: Int) {
+        preflight = nil
+        guard let s = store.state else { return }
+        let flight = Catalog.cities[s.city].needsFlight(to: Catalog.cities[dest])
         if store.act({ try Engine.travel(&$0, to: dest) }) {
+            Audio.shared.play(flight ? .bingbong : .train, volume: 0.5)
             Audio.shared.buzz(.success)
             onDone()
         }
+    }
+}
+
+/// Pick a destination on the map, choose what to send, pay, and it waits at that city's depot.
+private struct ShipForm: View {
+    let s: GameState
+    let dest: Int?
+    @Binding var qty: [Int]
+    var onSent: () -> Void
+    @Environment(GameStore.self) private var store
+
+    var body: some View {
+        let available = Catalog.goods.filter { s.carry[$0.id] + s.vault[s.city][$0.id] > 0 }
+        VStack(alignment: .leading, spacing: 12) {
+            if let dest, Engine.accessible(s, dest) {
+                Text("To \(Catalog.cities[dest].name.uppercased())").font(Noir.display(24)).foregroundStyle(Noir.green)
+            } else {
+                Text("Pick a destination on the map.").font(Noir.ui(13)).foregroundStyle(Noir.dim)
+            }
+            if available.isEmpty {
+                Text("Nothing to send. Stock in your bag or this city’s lock-up can be shipped.").font(Noir.ui(13)).foregroundStyle(Noir.silver)
+            }
+            ForEach(available) { g in
+                let have = s.carry[g.id] + s.vault[s.city][g.id]
+                HStack(spacing: 10) {
+                    SymbolImage(name: g.symbol, size: 15).foregroundStyle(Noir.silver).frame(width: 22)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(g.name).font(Noir.ui(14, weight: .semibold)).foregroundStyle(Noir.paper)
+                        Text("\(have) available").font(Noir.ui(10)).foregroundStyle(Noir.dim)
+                    }
+                    Spacer()
+                    let step = max(1, have / 10)
+                    HStack(spacing: 8) {
+                        Button { qty[g.id] = max(0, qty[g.id] - step) } label: { Image(systemName: "minus").font(.system(size: 12, weight: .bold)) }
+                            .buttonStyle(.plain).foregroundStyle(Noir.amber).frame(width: 28, height: 28)
+                        Text("\(qty[g.id])").font(Noir.mono(15)).foregroundStyle(qty[g.id] > 0 ? Noir.amber : Noir.dim).frame(minWidth: 34)
+                        Button { qty[g.id] = min(have, qty[g.id] + step) } label: { Image(systemName: "plus").font(.system(size: 12, weight: .bold)) }
+                            .buttonStyle(.plain).foregroundStyle(Noir.amber).frame(width: 28, height: 28)
+                    }
+                    Button("All") { qty[g.id] = have }
+                        .font(Noir.label(10)).foregroundStyle(Noir.amber)
+                        .buttonStyle(.plain)
+                }
+            }
+            if let dest, Engine.accessible(s, dest), qty.reduce(0, +) > 0 {
+                let cost = Engine.shippingCost(s, goods: qty, to: dest)
+                let risk = Int((Engine.interceptionRisk(s, to: dest) * 100).rounded())
+                Text("Cost \(Money.gbp(cost)) · about \(risk)% chance something goes wrong: skimmed, stolen by a rival crew, or police waiting at the depot.")
+                    .font(Noir.ui(12)).foregroundStyle(risk > 25 ? Noir.red : risk > 12 ? Noir.amber : Noir.silver)
+                Button("Send \(qty.reduce(0, +)) units") {
+                    if store.act({ try Engine.ship(&$0, goods: qty, to: dest) }) { onSent() }
+                }
+                .buttonStyle(.noirAmber)
+            }
+        }
+        .card(tint: Noir.amber)
     }
 }
 

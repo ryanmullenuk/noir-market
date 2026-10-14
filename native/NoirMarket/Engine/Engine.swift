@@ -209,23 +209,88 @@ enum Engine {
         s.vaultLevel[s.city] = next
     }
 
+    /// Sends stock ahead to another city's depot, taking it from your bag first, then your lock-up.
+    /// It arrives overnight and waits there until you come and collect it.
     static func ship(_ s: inout GameState, goods: [Int], to dest: Int) throws {
         try idle(s)
         guard dest != s.city else { throw Failure.invalid("Pick somewhere else.") }
         guard accessible(s, dest) else { throw Failure.locked }
         let units = goods.reduce(0, +)
         guard units > 0 else { throw Failure.invalid("Nothing to ship.") }
-        for g in goods.indices where goods[g] > s.vault[s.city][g] { throw Failure.nothingToSell }
+        for g in goods.indices where goods[g] > s.carry[g] + s.vault[s.city][g] { throw Failure.nothingToSell }
         let cost = shippingCost(s, goods: goods, to: dest)
         guard s.cash >= cost else { throw Failure.notEnoughCash }
         s.cash -= cost
-        for g in goods.indices { s.vault[s.city][g] -= goods[g] }
+        for g in goods.indices where goods[g] > 0 {
+            let fromBag = min(goods[g], s.carry[g])
+            if fromBag > 0 {
+                s.carryCost[g] -= s.carryCost[g] * fromBag / s.carry[g]
+                s.carry[g] -= fromBag
+            }
+            s.vault[s.city][g] -= goods[g] - fromBag
+        }
+        // Decide the crate's luck now; it is revealed on arrival or at collection.
         let risk = interceptionRisk(s, to: dest)
-        let lost = s.rng.chance(risk)
-        s.shipments.append(Shipment(id: s.nextID, from: s.city, to: dest, goods: goods, arrives: s.day + 1, intercepted: lost))
+        let u = s.rng.unit()
+        let fate = u < risk * 0.35 ? "stolen" : u < risk * 0.65 ? "tipped" : u < risk ? "skimmed" : "clean"
+        s.shipments.append(Shipment(id: s.nextID, from: s.city, to: dest, goods: goods, arrives: s.day + 1,
+                                    intercepted: fate == "stolen", fate: fate, landed: false))
         s.nextID += 1
         s.stats.shipmentsSent += 1
-        s.notice = "Shipment of \(units) units leaves for \(Catalog.cities[dest].name). Arrives tomorrow, all being well."
+        s.notice = "\(units) units on the overnight run to \(Catalog.cities[dest].name). They’ll wait at the depot till you get there."
+    }
+
+    /// Picks up a landed shipment at the current city's depot. Some depots have company.
+    static func collect(_ s: inout GameState, shipment id: Int) throws {
+        try idle(s)
+        guard let i = s.shipments.firstIndex(where: { $0.id == id }) else { throw Failure.invalid("No such shipment.") }
+        let ship = s.shipments[i]
+        guard ship.to == s.city, ship.landed == true else { throw Failure.invalid("That shipment isn’t here.") }
+        var goods = ship.goods
+        var taken = 0
+        for g in goods.indices where goods[g] > 0 {
+            let toBag = min(goods[g], space(s))
+            s.carry[g] += toBag
+            s.carryCost[g] += toBag * s.markets[ship.from].price[g]
+            goods[g] -= toBag
+            let toVault = min(goods[g], vaultCapacity(s, s.city) - vaultUsed(s, s.city))
+            s.vault[s.city][g] += toVault
+            goods[g] -= toVault
+            taken += toBag + toVault
+        }
+        if goods.reduce(0, +) > 0 {
+            s.shipments[i].goods = goods
+            s.notice = "Collected \(taken) units. The rest waits at the depot until you have room."
+        } else {
+            s.shipments.remove(at: i)
+            s.notice = "Collected \(taken) units from the \(Catalog.cities[s.city].name) depot."
+        }
+        if ship.fate == "tipped" {
+            var stop = policeStop(&s, airport: false)
+            stop.depot = true
+            s.encounters.append(.police(stop))
+            s.notice = "Somebody tipped them off. They were waiting at the depot."
+        }
+    }
+
+    /// Everything you carry goes into this city's lock-up, as far as it fits.
+    static func stashAll(_ s: inout GameState) {
+        for g in s.carry.indices where s.carry[g] > 0 {
+            let room = vaultCapacity(s, s.city) - vaultUsed(s, s.city)
+            let q = min(room, s.carry[g])
+            guard q > 0 else { break }
+            s.carryCost[g] -= s.carryCost[g] * q / s.carry[g]
+            s.carry[g] -= q
+            s.vault[s.city][g] += q
+        }
+    }
+
+    /// Bins the lot: stock and hardware.
+    static func dumpAll(_ s: inout GameState) {
+        s.carry = s.carry.map { _ in 0 }
+        s.carryCost = s.carryCost.map { _ in 0 }
+        s.weapons = s.weapons.map { _ in 0 }
+        s.notice = "Everything goes in a skip behind the station. You fly clean, and poorer."
     }
 
     static func shippingCost(_ s: GameState, goods: [Int], to dest: Int) -> Int {
@@ -237,7 +302,7 @@ enum Engine {
 
     static func interceptionRisk(_ s: GameState, to dest: Int) -> Double {
         let flight = Catalog.cities[s.city].needsFlight(to: Catalog.cities[dest])
-        return min(0.35, 0.04 + Double(s.heat) / 400 + (flight ? 0.05 : 0))
+        return min(0.45, 0.10 + Double(s.heat) / 350 + (flight ? 0.06 : 0))
     }
 
     // MARK: Finance

@@ -60,7 +60,6 @@ private struct SmallButton: View {
 
 struct StashView: View {
     @Environment(GameStore.self) private var store
-    @State private var shipping: Int?
 
     var body: some View {
         if let s = store.state {
@@ -68,9 +67,29 @@ struct StashView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     SheetTitle(kicker: "\(Catalog.cities[s.city].name) lock-up · \(used)/\(cap)", title: "Stash")
-                    Text("Anything in a lock-up is safe from police and muggers, but it stays in this city. Ship it on to sell somewhere better.")
+                    Text("Anything in a lock-up is safe from police and muggers, but it stays in this city. To move stock ahead of you, use Ship ahead on the Travel screen.")
                         .font(Noir.type(13)).foregroundStyle(Noir.silver)
                     ErrorLine()
+
+                    let here = s.shipments.filter { $0.to == s.city && $0.landed == true }
+                    if !here.isEmpty {
+                        Section(title: "At the depot", note: "Shipments wait here until you collect them. They go into your bag first, then the lock-up.") {
+                            ForEach(here) { sh in
+                                HStack(spacing: 12) {
+                                    GlowIcon(symbol: "shippingbox.fill", color: Noir.amber, size: 34)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("From \(Catalog.cities[sh.from].name.uppercased())").font(Noir.ui(14, weight: .semibold)).foregroundStyle(Noir.paper)
+                                        Text(Catalog.goods.indices.filter { sh.goods[$0] > 0 }.map { "\(sh.goods[$0]) \(Catalog.goods[$0].name)" }.joined(separator: ", "))
+                                            .font(Noir.ui(11)).foregroundStyle(Noir.silver)
+                                    }
+                                    Spacer()
+                                    SmallButton(title: "Collect", tint: Noir.amber) {
+                                        if store.act({ try Engine.collect(&$0, shipment: sh.id) }) { Audio.shared.buzz(.success) }
+                                    }
+                                }
+                            }
+                        }
+                    }
 
                     Section(title: "On you") {
                         let held = Catalog.goods.filter { s.carry[$0.id] > 0 }
@@ -87,10 +106,7 @@ struct StashView: View {
                         if held.isEmpty { Text("Just a mattress and a smell.").font(Noir.type(13)).foregroundStyle(Noir.dim) }
                         ForEach(held) { g in
                             row(g, qty: s.vault[s.city][g.id]) {
-                                HStack(spacing: 6) {
-                                    SmallButton(title: "Take", tint: Noir.paper) { store.act { try Engine.retrieve(&$0, good: g.id, qty: min($0.vault[$0.city][g.id], Engine.space($0))) } }
-                                    SmallButton(title: "Ship", tint: Noir.amber) { shipping = g.id }
-                                }
+                                SmallButton(title: "Take", tint: Noir.paper) { store.act { try Engine.retrieve(&$0, good: g.id, qty: min($0.vault[$0.city][g.id], Engine.space($0))) } }
                             }
                         }
                     }
@@ -104,14 +120,14 @@ struct StashView: View {
                     }
 
                     let elsewhere = Catalog.cities.filter { $0.id != s.city && Engine.vaultUsed(s, $0.id) > 0 }
-                    let inbound = s.shipments
+                    let inbound = s.shipments.filter { $0.to != s.city || $0.landed != true }
                     if !elsewhere.isEmpty || !inbound.isEmpty {
                         Section(title: "Elsewhere") {
                             ForEach(elsewhere) { c in
                                 Text("\(c.name): \(Engine.vaultUsed(s, c.id)) units").font(Noir.type(13)).foregroundStyle(Noir.silver)
                             }
                             ForEach(inbound) { sh in
-                                Text("In transit to \(Catalog.cities[sh.to].name): \(sh.goods.reduce(0, +)) units").font(Noir.type(13)).foregroundStyle(Noir.brass)
+                                Text("\(sh.landed == true ? "Waiting at the depot in" : "On the road to") \(Catalog.cities[sh.to].name): \(sh.goods.reduce(0, +)) units").font(Noir.type(13)).foregroundStyle(Noir.brass)
                             }
                         }
                     }
@@ -119,20 +135,6 @@ struct StashView: View {
                 .padding(20)
             }
             .background(Noir.ink)
-            .confirmationDialog("Ship where?", isPresented: Binding(get: { shipping != nil }, set: { if !$0 { shipping = nil } }), titleVisibility: .visible) {
-                if let g = shipping {
-                    let goods = Catalog.goods.indices.map { $0 == g ? s.vault[s.city][g] : 0 }
-                    ForEach(Engine.accessibleCities(s).filter { $0 != s.city }, id: \.self) { c in
-                        Button("\(Catalog.cities[c].name) · \(Money.gbp(Engine.shippingCost(s, goods: goods, to: c))) · \(Int(Engine.interceptionRisk(s, to: c) * 100))% risk") {
-                            store.act { try Engine.ship(&$0, goods: goods, to: c) }
-                        }
-                    }
-                }
-            } message: {
-                if let g = shipping {
-                    Text("Ship all \(s.vault[s.city][g]) \(Catalog.goods[g].name) to another lock-up. Arrives tomorrow, unless customs gets lucky.")
-                }
-            }
         }
     }
 
@@ -177,7 +179,6 @@ struct MoneyView: View {
                             .foregroundStyle(Noir.paper)
                             .padding(12)
                             .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.white.opacity(0.12)))
                         HStack(spacing: 8) {
                             Button("Deposit") { bank(true, s) }.buttonStyle(.noir)
                             Button("Withdraw") { bank(false, s) }.buttonStyle(.noir)

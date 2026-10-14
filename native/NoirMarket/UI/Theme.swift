@@ -83,9 +83,11 @@ extension View {
                     }
             }
             .overlay {
-                RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .strokeBorder(LinearGradient(colors: [(tint ?? .white).opacity(tint == nil ? 0.13 : 0.45), (tint ?? .white).opacity(0.04)],
-                                                 startPoint: .top, endPoint: .bottom), lineWidth: 1)
+                // Only tinted cards get an outline; plain cards sit on the black without a ring.
+                if let tint {
+                    RoundedRectangle(cornerRadius: radius, style: .continuous)
+                        .strokeBorder(LinearGradient(colors: [tint.opacity(0.45), tint.opacity(0.06)], startPoint: .top, endPoint: .bottom), lineWidth: 1)
+                }
             }
     }
 
@@ -108,8 +110,10 @@ struct GlowIcon: View {
             .foregroundStyle(lit ? color : Noir.silver)
             .frame(width: size, height: size)
             .background {
-                Circle().fill(RadialGradient(colors: [(lit ? color : .white).opacity(lit ? 0.28 : 0.06), (lit ? color : .white).opacity(0.04)],
-                                             center: .center, startRadius: 1, endRadius: size * 0.6))
+                if lit {
+                    Circle().fill(RadialGradient(colors: [color.opacity(0.28), color.opacity(0.04)],
+                                                 center: .center, startRadius: 1, endRadius: size * 0.6))
+                }
             }
             .overlay { if lit { Circle().strokeBorder(color.opacity(0.55), lineWidth: 1) } }
             .shadow(color: lit ? color.opacity(0.5) : .clear, radius: 8)

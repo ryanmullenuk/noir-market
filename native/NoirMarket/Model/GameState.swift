@@ -24,6 +24,10 @@ struct Shipment: Codable, Sendable, Identifiable, Equatable {
     var goods: [Int]
     var arrives: Int
     var intercepted: Bool
+    /// What the road had in store: "clean", "skimmed", "stolen" or "tipped". Optional for older saves.
+    var fate: String?
+    /// True once it has landed at the destination depot and is waiting to be collected.
+    var landed: Bool?
 }
 
 struct ActiveEvent: Codable, Sendable, Equatable {
@@ -66,6 +70,10 @@ struct PoliceStop: Codable, Sendable, Equatable {
     var fightChance: Double
     var jail: Int
     var fine: Int
+    /// 2+ once shots have been exchanged. Optional so older saves load.
+    var round: Int?
+    /// Set when the police were tipped off and waiting at a depot.
+    var depot: Bool?
 }
 
 struct Trouble: Codable, Sendable, Equatable {

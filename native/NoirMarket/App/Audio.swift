@@ -23,7 +23,7 @@ final class Audio {
 
     private var effects: [String: AVAudioPlayer] = [:]
 
-    enum Effect: String { case cash, siren, page, thud, click, key }
+    enum Effect: String { case cash, siren, page, thud, click, key, gunshot, swipe, boom, knuckles, train, bingbong }
 
     func play(_ effect: Effect, volume: Float = 0.6) {
         guard soundsOn else { return }
@@ -77,6 +77,14 @@ final class Audio {
                 player.volume = start + (target - start) * Float(i) / Float(steps)
             }
         }
+    }
+
+    private let typing = UIImpactFeedbackGenerator(style: .soft)
+
+    /// A faint tick while NOIRNET types.
+    func typeTick() {
+        guard hapticsOn else { return }
+        typing.impactOccurred(intensity: 0.45)
     }
 
     enum Buzz { case tap, success, warning, danger }

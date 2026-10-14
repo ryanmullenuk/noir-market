@@ -69,3 +69,63 @@ for i in range(n):
     t = i / R
     s.append((random.uniform(-1, 1) * 0.6 + math.sin(2 * math.pi * 1800 * t) * 0.4) * math.exp(-700 * t))
 write("key", s)
+
+# Gunshot: sharp crack, then a low boom and a short room tail.
+n = int(R * 0.7); s = []; lp = 0
+for i in range(n):
+    t = i / R
+    crack = random.uniform(-1, 1) * math.exp(-90 * t)
+    lp = lp * 0.92 + random.uniform(-1, 1) * 0.08
+    boom = math.sin(2 * math.pi * (70 + 60 * math.exp(-30 * t)) * t) * math.exp(-9 * t)
+    tail = lp * math.exp(-5 * t) * 3
+    s.append(crack * 0.9 + boom * 0.8 + tail)
+write("gunshot", s)
+
+# Blade swipe: a fast filtered-noise whoosh.
+n = int(R * 0.32); s = []; lp = 0
+for i in range(n):
+    t = i / R
+    k = 0.15 + 0.8 * math.sin(math.pi * t / 0.32)
+    lp = lp * (1 - k) + random.uniform(-1, 1) * k
+    s.append(lp * math.sin(math.pi * t / 0.32) ** 2)
+write("swipe", s)
+
+# Explosion: long rumbling low noise.
+n = int(R * 1.6); s = []; lp = 0
+for i in range(n):
+    t = i / R
+    lp = lp * 0.97 + random.uniform(-1, 1) * 0.03
+    s.append((lp * 6 + random.uniform(-1, 1) * math.exp(-20 * t)) * math.exp(-2.2 * t))
+write("boom", s)
+
+# Knuckles: a ripple of small cracks.
+n = int(R * 0.7); s = [0.0] * n
+for k in range(6):
+    start = int(R * (0.05 + k * 0.09 + random.uniform(-0.02, 0.02)))
+    for i in range(int(R * 0.03)):
+        if start + i < n:
+            t = i / R
+            s[start + i] += random.uniform(-1, 1) * math.exp(-260 * t) * random.uniform(0.6, 1.0)
+write("knuckles", s)
+
+# Train: clickety-clack over the rails with a distant two-note horn.
+n = int(R * 1.8); s = []
+for i in range(n):
+    t = i / R
+    beat = t % 0.42
+    clack = (random.uniform(-1, 1) * math.exp(-120 * beat)) + (random.uniform(-1, 1) * math.exp(-120 * max(0, beat - 0.12)) if beat > 0.12 else 0)
+    horn = 0
+    if 1.0 < t < 1.7:
+        f = 311 if t < 1.35 else 262
+        horn = (math.sin(2 * math.pi * f * t) + 0.5 * math.sin(2 * math.pi * f * 1.5 * t)) * 0.25 * min(1, (t - 1.0) / 0.05) * min(1, (1.7 - t) / 0.1)
+    s.append(clack * 0.5 * min(1, (1.8 - t) / 0.4) + horn)
+write("train", s)
+
+# Bing-bong: the cabin chime.
+n = int(R * 1.5); s = []
+for i in range(n):
+    t = i / R
+    a = math.sin(2 * math.pi * 784 * t) * math.exp(-3 * t) if t < 1.5 else 0
+    b = math.sin(2 * math.pi * 622 * (t - 0.45)) * math.exp(-3 * (t - 0.45)) if t > 0.45 else 0
+    s.append((a + 0.6 * math.sin(2 * math.pi * 1568 * t) * math.exp(-6 * t)) * 0.5 + b * 0.6)
+write("bingbong", s)

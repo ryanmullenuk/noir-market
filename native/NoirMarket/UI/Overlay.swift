@@ -138,6 +138,7 @@ private struct Newspaper: View {
                 try? await Task.sleep(for: .milliseconds(12))
                 typed = min(total, typed + 5)
                 if typed % 40 < 5 { Audio.shared.play(.key, volume: 0.12) }
+                if typed % 15 < 5 { Audio.shared.typeTick() }
             }
         }
         .task {
@@ -238,20 +239,25 @@ private struct EncounterView: View {
         }
         .onAppear {
             Audio.shared.buzz(.danger)
-            if case .police = encounter { Audio.shared.play(.siren, volume: 0.35) } else { Audio.shared.play(.thud) }
+            switch encounter {
+            case .police: Audio.shared.play(.siren, volume: 0.35)
+            case .collector: Audio.shared.play(.knuckles, volume: 0.8)
+            case .trouble: Audio.shared.play(.thud)
+            }
         }
     }
 
     @ViewBuilder private var backdrop: some View {
         switch encounter {
         case .police: PoliceLights()
-        default: StreetLamp()
+        case .collector: TorchGlare()
+        case .trouble: StreetLamp()
         }
     }
 
     private var kicker: String {
         switch encounter {
-        case .police(let p): p.airport ? "Arrivals hall" : "Blue lights"
+        case .police(let p): (p.round ?? 1) > 1 ? "Shots fired" : p.depot == true ? "At the depot" : p.airport ? "Arrivals hall" : "Blue lights"
         case .trouble(let t): t.round > 1 ? "Round \(t.round)" : "A dark street"
         case .collector: "A knock at the door"
         }
@@ -270,7 +276,8 @@ private struct EncounterView: View {
         switch encounter {
         case .police(let p):
             let what = units > 0 ? "\(units) units in your bag" : "nothing in your pockets but nerves"
-            return (p.airport ? "A customs officer with tired eyes points at your bag. " : "A patrol car pulls up and two officers get out slowly. ")
+            return (p.depot == true ? "Two plain-clothes officers step out from behind the shipping crates. They were expecting you. "
+                    : p.airport ? "A customs officer with tired eyes points at your bag. " : "A patrol car pulls up and two officers get out slowly. ")
                 + "You’ve got \(what)." + (Engine.hasWeapons(s) ? " And something heavier under your coat." : "")
         case .trouble(let t):
             let a = Catalog.attackers[t.attacker]
@@ -298,6 +305,15 @@ private struct EncounterView: View {
         let weapon = Engine.bestWeapon(s)
         switch encounter {
         case .police(let p):
+            if (p.round ?? 1) > 1 {
+                // Shots have been fired: no more bribes.
+                return [
+                    Option(choice: .fight, label: weapon.map { WeaponKind($0) == .gun ? "Fire again" : "Go again with the \($0.name.lowercased())" } ?? "Swing again",
+                           odds: p.fightChance, note: "Miss again and it’s over.", danger: true),
+                    Option(choice: .run, label: "Run", odds: p.runChance, note: "They’re angry now.", primary: true),
+                    Option(choice: .comply, label: "Give up", note: "Lose what you carry, a fine, and extra nights in a cell for the trouble."),
+                ]
+            }
             var list = [
                 Option(choice: .bribe, label: "Offer \(Money.gbp(p.bribe))", odds: p.bribeChance,
                        note: s.cash < p.bribe ? "You haven’t got that on you." : "If he says no, you’re nicked anyway.",
@@ -310,17 +326,19 @@ private struct EncounterView: View {
             list.append(Option(choice: .comply, label: "Go quietly",
                                note: Engine.carried(s) == 0 && !Engine.hasWeapons(s) ? "You’re clean. Probably fine."
                                    : "Lose everything you carry and pay a fine" + (p.jail > 0 ? ", plus a few nights in a cell." : ".")))
-            if weapon != nil {
-                list.append(Option(choice: .fight, label: "Pull the \(weapon!.name.lowercased())", odds: p.fightChance, note: "Huge heat if it works. Worse if it doesn’t.", danger: true))
+            if let weapon {
+                list.append(Option(choice: .fight, label: "Pull the \(weapon.name.lowercased())", odds: p.fightChance, note: "Huge heat if it works. If you miss, they fire back.", danger: true))
             }
             return list
         case .trouble(let t):
+            let again = t.round > 1
             return [
                 Option(choice: .run, label: "Run", odds: t.runChance, primary: true),
-                Option(choice: .fight, label: weapon.map { "Fight with the \($0.name.lowercased())" } ?? "Fight with your fists", odds: t.fightChance,
-                       note: "Lose and you’ll get hurt.", danger: true),
-                Option(choice: .handOver, label: "Hand over \(Money.gbp(min(s.cash, t.handOver)))",
-                       note: t.attacker >= 2 ? "They’ll take some stock too." : "Nobody gets hurt."),
+                Option(choice: .fight, label: again ? (weapon.map { WeaponKind($0) == .gun ? "Fire again" : "Fight on" } ?? "Swing again")
+                                                    : (weapon.map { "Fight with the \($0.name.lowercased())" } ?? "Fight with your fists"),
+                       odds: t.fightChance, note: "Miss and they hit back.", danger: true),
+                Option(choice: .handOver, label: (again ? "Give up · " : "Hand over ") + Money.gbp(min(s.cash, t.handOver)),
+                       note: again ? "They take extra for the trouble." : t.attacker >= 2 ? "They’ll take some stock too." : "Nobody gets hurt."),
             ]
         case .collector(let c):
             let owed = s.loans.first { $0.id == c.loan }.map { Engine.payoff($0, day: s.day) } ?? c.owed
@@ -334,9 +352,48 @@ private struct EncounterView: View {
 
     private func choose(_ c: Choice) {
         let health = s.health
+        if c == .fight {
+            switch WeaponKind(Engine.bestWeapon(s)) {
+            case .gun: Audio.shared.play(.gunshot, volume: 0.8)
+            case .blade: Audio.shared.play(.swipe, volume: 0.8)
+            case .explosive: Audio.shared.play(.boom, volume: 0.8)
+            case .fists: Audio.shared.play(.thud, volume: 0.8)
+            }
+        }
+        if c == .beating { Audio.shared.play(.knuckles, volume: 0.8) }
         store.act { try Engine.resolve(&$0, c) }
         if let o = store.state?.outcome { Audio.shared.buzz(o.good ? .success : .danger) }
         if (store.state?.health ?? health) < health { Audio.shared.play(.thud, volume: 0.8) }
+    }
+}
+
+/// A torch shone straight in your eyes: a hot white bloom that drifts and flares.
+private struct TorchGlare: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    var body: some View {
+        TimelineView(.animation(paused: reduceMotion)) { ctx in
+            let t = reduceMotion ? 0 : ctx.date.timeIntervalSinceReferenceDate
+            let x = 0.5 + sin(t * 0.7) * 0.12 + sin(t * 1.9) * 0.03
+            let y = 0.28 + cos(t * 0.9) * 0.05
+            let flare = 0.85 + sin(t * 9) * 0.04 + (sin(t * 0.5) > 0.97 ? 0.15 : 0)
+            GeometryReader { geo in
+                ZStack {
+                    RadialGradient(colors: [Color.white.opacity(0.55 * flare), Color(red: 1, green: 0.95, blue: 0.85).opacity(0.18), .clear],
+                                   center: UnitPoint(x: x, y: y), startRadius: 4, endRadius: geo.size.width * 0.75)
+                    // Horizontal lens streak through the hot spot.
+                    Capsule()
+                        .fill(LinearGradient(colors: [.clear, .white.opacity(0.22 * flare), .clear], startPoint: .leading, endPoint: .trailing))
+                        .frame(width: geo.size.width * 1.4, height: 6)
+                        .blur(radius: 3)
+                        .position(x: geo.size.width * x, y: geo.size.height * y)
+                    Circle().fill(.white.opacity(0.9 * flare)).frame(width: 26, height: 26).blur(radius: 6)
+                        .position(x: geo.size.width * x, y: geo.size.height * y)
+                }
+            }
+            .ignoresSafeArea()
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 

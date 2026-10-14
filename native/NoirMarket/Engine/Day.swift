@@ -63,7 +63,7 @@ extension Engine {
             let weapons = hasWeapons(s)
             let value = Double(carriedValue(s))
             var police = 0.015 + Double(s.heat) / 260 + (carrying ? 0.035 + min(0.04, value / 500_000) : 0) + (weapons ? 0.03 : 0)
-            if flight && (carrying || weapons) { police += 0.08 + (weapons ? 0.08 : 0) }
+            if flight && (carrying || weapons) { police = max(police, 0.22 + Double(s.heat) / 300 + (weapons ? 0.15 : 0)) }
             let worthRobbing = s.cash > 200 || carrying
             let mugging = worthRobbing ? 0.06 + (s.cash > 20_000 ? 0.04 : 0) + (s.rep < 20 ? 0.03 : 0) : 0
             let r = s.rng.unit()
@@ -114,21 +114,26 @@ extension Engine {
         s.story = newStory(&s)
         rollInformants(&s)
 
-        // Shipments land.
-        for i in s.shipments.indices.reversed() where s.shipments[i].arrives <= s.day {
+        // Shipments land at their depots overnight, for better or worse.
+        for i in s.shipments.indices.reversed() where s.shipments[i].arrives <= s.day && s.shipments[i].landed != true {
             let ship = s.shipments[i]
             let units = ship.goods.reduce(0, +)
-            if ship.intercepted {
-                lines.append("Customs opened your crate bound for \(Catalog.cities[ship.to].name). \(units) units gone. Nobody signed for it, luckily.")
+            let place = Catalog.cities[ship.to].name
+            switch ship.fate ?? (ship.intercepted ? "stolen" : "clean") {
+            case "stolen":
+                let who = ["A rival crew", "The Moss Side lot", "Somebody’s cousin with a van", "A gang in matching tracksuits"][s.rng.int(0, 3)]
+                lines.append("SHIPMENT LOST: \(who) hit your crate on the way to \(place). \(units) units gone.")
                 s.stats.shipmentsLost += 1
                 s.shipments.remove(at: i)
-            } else if vaultUsed(s, ship.to) + units <= vaultCapacity(s, ship.to) {
-                for g in ship.goods.indices { s.vault[ship.to][g] += ship.goods[g] }
-                lines.append("Your shipment of \(units) units is safe in the \(Catalog.cities[ship.to].name) lock-up.")
-                s.shipments.remove(at: i)
-            } else if s.shipments[i].arrives == s.day {
-                lines.append("Your shipment is waiting at the \(Catalog.cities[ship.to].name) depot. The lock-up is full.")
+                continue
+            case "skimmed":
+                let pct = s.rng.int(10, 40)
+                for g in s.shipments[i].goods.indices { s.shipments[i].goods[g] -= s.shipments[i].goods[g] * pct / 100 }
+                lines.append("SHIPMENT LIGHT: your crate reached the \(place) depot about \(pct)% short. The driver says it was like that when he got it.")
+            default:
+                lines.append("SHIPMENT IN: \(units) units waiting at the \(place) depot.")
             }
+            s.shipments[i].landed = true
         }
 
         // Debts.

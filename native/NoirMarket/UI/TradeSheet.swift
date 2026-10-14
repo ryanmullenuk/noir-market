@@ -34,7 +34,6 @@ struct TradeSheet: View {
                 }
                 .padding(4)
                 .background(Capsule().fill(Color.white.opacity(0.05)))
-                .overlay(Capsule().strokeBorder(Color.white.opacity(0.1)))
                 .onChange(of: selling) { qty = selling ? Double(owned) : 0 }
 
                 if maxQty == 0 {
@@ -138,6 +137,5 @@ struct TradeSheet: View {
             .foregroundStyle(Noir.silver)
             .frame(maxWidth: .infinity, minHeight: 34)
             .background(Capsule().fill(Color.white.opacity(0.07)))
-            .overlay(Capsule().strokeBorder(Color.white.opacity(0.12)))
     }
 }

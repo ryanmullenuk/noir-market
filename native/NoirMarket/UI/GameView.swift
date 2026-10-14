@@ -166,7 +166,7 @@ private struct Header: View {
 
             // The month as a glowing ring.
             ZStack {
-                Circle().stroke(Color.white.opacity(0.08), lineWidth: 5)
+                Circle().stroke(Color.white.opacity(0.04), lineWidth: 5)
                 Circle()
                     .trim(from: 0, to: Double(s.day) / Double(s.maxDay))
                     .stroke(dayColour, style: StrokeStyle(lineWidth: 5, lineCap: .round))
@@ -219,7 +219,6 @@ private struct StatStrip: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
         .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(LinearGradient(colors: [Color(white: 0.11), Color(white: 0.065)], startPoint: .top, endPoint: .bottom)))
-        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Color.white.opacity(0.1)))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(label) \(value)")
     }
@@ -250,7 +249,6 @@ struct Meter: View {
         .padding(.horizontal, 12)
         .frame(height: 34)
         .background(Capsule().fill(Color.white.opacity(0.05)))
-        .overlay(Capsule().strokeBorder(Color.white.opacity(0.08)))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(label) \(value) percent")
     }
@@ -527,7 +525,7 @@ private struct Dock: View {
     }
 }
 
-/// Amber glowing tile button, used for the dock and the menu button.
+/// Dock and menu tile: crisp white ring, amber icon, barely any fill.
 struct AmberTile: ButtonStyle {
     var size: CGFloat? = nil
     var height: CGFloat = 46
@@ -538,9 +536,9 @@ struct AmberTile: ButtonStyle {
             .foregroundStyle(Noir.amber)
             .frame(width: size, height: size ?? height)
             .frame(maxWidth: size == nil ? .infinity : nil)
-            .background(shape.fill(LinearGradient(colors: [Noir.amber.opacity(0.2), Noir.amber.opacity(0.05)], startPoint: .top, endPoint: .bottom)))
-            .overlay(shape.strokeBorder(Noir.amber.opacity(0.8), lineWidth: 1.1))
-            .shadow(color: Noir.amber.opacity(configuration.isPressed ? 0.7 : 0.32), radius: configuration.isPressed ? 12 : 7)
+            .background(shape.fill(Noir.amber.opacity(configuration.isPressed ? 0.14 : 0.03)))
+            .overlay(shape.strokeBorder(Color.white.opacity(configuration.isPressed ? 1 : 0.8), lineWidth: 1.2))
+            .shadow(color: Noir.amber.opacity(configuration.isPressed ? 0.5 : 0), radius: 8)
             .scaleEffect(configuration.isPressed ? 0.95 : 1)
             .animation(.spring(duration: 0.18), value: configuration.isPressed)
     }

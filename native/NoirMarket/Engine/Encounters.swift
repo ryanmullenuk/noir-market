@@ -40,7 +40,7 @@ extension Engine {
         var keep = false
         let outcome: Outcome
         switch encounter {
-        case .police(let stop): outcome = try police(&s, stop, choice)
+        case .police(let stop): (outcome, keep) = try police(&s, stop, choice)
         case .trouble(let t): (outcome, keep) = try trouble(&s, t, choice)
         case .collector(let c): outcome = try collector(&s, c, choice)
         }
@@ -52,7 +52,47 @@ extension Engine {
 
     // MARK: Police
 
-    private static func police(_ s: inout GameState, _ stop: PoliceStop, _ choice: Choice) throws -> Outcome {
+    private static func police(_ s: inout GameState, _ stop: PoliceStop, _ choice: Choice) throws -> (Outcome, Bool) {
+        let fought = (stop.round ?? 1) > 1
+        var stop = stop
+        if fought, choice == .comply || choice == .handOver { stop.jail += 2 }
+        if choice == .fight { return try policeFight(&s, stop) }
+        return (try policeOther(&s, stop, choice, fought: fought), false)
+    }
+
+    private static func policeFight(_ s: inout GameState, _ stop: PoliceStop) throws -> (Outcome, Bool) {
+        let weapon = bestWeapon(s)
+        let kind = WeaponKind(weapon)
+        consume(&s, weapon)
+        if s.rng.chance(stop.fightChance) {
+            s.heat = min(100, s.heat + 25 + (weapon?.heat ?? 0))
+            s.rep = min(100, s.rep + 5)
+            s.stats.fightsWon += 1
+            return (Outcome(title: "Fought Off", text: "It’s ugly and it’s loud and you’re the one still standing. Every copper in the city will know your face by morning.", good: true), false)
+        }
+        s.stats.fightsLost += 1
+        if (stop.round ?? 1) < 2 {
+            // A miss, not a defeat: they fire back and you get one more decision.
+            let hurt = s.rng.int(8, 18)
+            s.health -= hurt
+            s.heat = min(100, s.heat + 10)
+            if s.health <= 0 { return (Outcome(title: "Lights Out", text: "The return fire finds you first.", good: false), false) }
+            if case .police(var next) = s.encounters[0] {
+                next.round = 2
+                next.fightChance = max(0.05, next.fightChance * 0.85)
+                next.runChance = max(0.1, next.runChance - 0.1)
+                s.encounters[0] = .police(next)
+            }
+            return (Outcome(title: kind.missTitle, text: "\(kind.missLine) They return fire: \(hurt)% health gone. Go again, run for it, or give yourself up (and pay for the trouble).", good: false), true)
+        }
+        let hurt = s.rng.int(15, 30)
+        s.health -= hurt
+        var harder = stop
+        harder.jail += 2
+        return (nicked(&s, harder, intro: "Second time unlucky. You lose \(hurt)% health and any sympathy. "), false)
+    }
+
+    private static func policeOther(_ s: inout GameState, _ stop: PoliceStop, _ choice: Choice, fought: Bool) throws -> Outcome {
         s.stats.arrests += choice == .comply ? 1 : 0
         switch choice {
         case .comply:
@@ -89,22 +129,6 @@ extension Engine {
             let hurt = s.rng.int(5, 15)
             s.health -= hurt
             return nicked(&s, stop, intro: "You make it about twenty yards. The tackle costs you \(hurt)% health. ")
-        case .fight:
-            let weapon = bestWeapon(s)
-            if s.rng.chance(stop.fightChance) {
-                s.heat = min(100, s.heat + 25 + (weapon?.heat ?? 0))
-                s.rep = min(100, s.rep + 5)
-                consume(&s, weapon)
-                s.stats.fightsWon += 1
-                return Outcome(title: "Fought Off", text: "It’s ugly and it’s loud and you’re the one still standing. Every copper in the city will know your face by morning.", good: true)
-            }
-            consume(&s, weapon)
-            let hurt = s.rng.int(15, 35)
-            s.health -= hurt
-            s.stats.fightsLost += 1
-            var harder = stop
-            harder.jail += 2
-            return nicked(&s, harder, intro: "Bad idea. You lose \(hurt)% health and any sympathy. ")
         default:
             throw Failure.invalid("Not an option.")
         }
@@ -168,6 +192,7 @@ extension Engine {
             return (Outcome(title: "Caught", text: "They catch you by the bins. \(hurt)% health and \(Money.gbp(take)) later, they’re gone.", good: false), false)
         case .fight:
             let weapon = bestWeapon(s)
+            let kind = WeaponKind(weapon)
             consume(&s, weapon)
             if s.rng.chance(t.fightChance) {
                 s.heat = min(100, s.heat + s.rng.int(3, 10) + (weapon?.heat ?? 0) / 2)
@@ -176,6 +201,7 @@ extension Engine {
                 s.stats.fightsWon += 1
                 return (Outcome(title: "Sent Packing", text: "\(a.name.prefix(1).uppercased() + a.name.dropFirst()) thought better of it. One of them dropped a wallet: \(Money.gbp(dropped)).", good: true), false)
             }
+            // A miss: they hit back, then you decide again.
             let reduction = min(0.85, weapon?.escape ?? 0)
             let base = Double(a.damage) * (1 - reduction)
             let hurt = s.rng.int(max(2, Int(base / 2)), max(3, Int(base.rounded())))
@@ -184,13 +210,13 @@ extension Engine {
             if s.health <= 0 {
                 return (Outcome(title: "Lights Out", text: "You took one swing too many.", good: false), false)
             }
-            if t.round < a.rounds, s.rng.chance(0.65) {
+            if t.round < a.rounds + 2 {
                 if case .trouble(var next) = s.encounters[0] {
                     next.round += 1
-                    next.handOver = a.take(from: s.cash, fraction: a.loot)
+                    next.handOver = a.take(from: s.cash, fraction: min(0.9, a.loot * 1.3))
                     s.encounters[0] = .trouble(next)
                 }
-                return (Outcome(title: "Still Coming", text: "You take \(hurt)% damage and they’re not done. Round \(t.round + 1).", good: false), true)
+                return (Outcome(title: kind.missTitle, text: "\(kind.missLine) They hit back: \(hurt)% health gone. Keep fighting, run, or give up — and giving up now will cost you more.", good: false), true)
             }
             let take = a.take(from: s.cash, fraction: s.rng.uniform(0.05, a.loot))
             s.cash -= take
@@ -252,6 +278,38 @@ extension Encounter {
             return Engine.carriedValue(s) > 3_000 ? .handOver : .comply
         case .trouble(let t): return t.runChance >= 0.6 ? .run : .handOver
         case .collector: return s.cash > 0 ? .pay : .beating
+        }
+    }
+}
+
+/// What you're swinging, for sounds and miss text.
+enum WeaponKind {
+    case gun, blade, explosive, fists
+
+    init(_ w: Weapon?) {
+        guard let w else { self = .fists; return }
+        switch w.name {
+        case "Knife", "Baseball Bat", "Machete": self = .blade
+        case "Molotov Cocktail", "Grenade", "Rocket Launcher": self = .explosive
+        default: self = .gun
+        }
+    }
+
+    var missTitle: String {
+        switch self {
+        case .gun: "Missed"
+        case .blade: "Blocked"
+        case .explosive: "Wide"
+        case .fists: "Wild Swing"
+        }
+    }
+
+    var missLine: String {
+        switch self {
+        case .gun: "You fire. The shot goes high and takes out a streetlight."
+        case .blade: "You swing. They see it coming and step inside it."
+        case .explosive: "It goes off, loud and wide. Mostly you hit a wheelie bin."
+        case .fists: "You throw everything into one punch and hit fresh air."
         }
     }
 }
