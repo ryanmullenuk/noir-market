@@ -138,7 +138,56 @@ enum Catalog {
         Attacker(name: "a small group of lads", weight: 0.31, damage: 12, loot: 0.35, rounds: 2, cap: 5_000),
         Attacker(name: "a small gang", weight: 0.22, damage: 20, loot: 0.50, rounds: 3, cap: 25_000),
         Attacker(name: "a large gang", weight: 0.11, damage: 34, loot: 0.70, rounds: 3, cap: 250_000),
+        // Never rolled at random: the local crew defending its turf.
+        Attacker(name: "the local crew", weight: 0, damage: 40, loot: 0.6, rounds: 3, cap: 400_000),
     ]
+}
+
+struct Business: Identifiable, Sendable {
+    let id: Int
+    let name: String
+    let price: Int
+    let income: Int
+    let launders: Int
+    let symbol: String
+    let blurb: String
+}
+
+struct CrewRole: Identifiable, Sendable {
+    let id: Int
+    let name: String
+    let wage: Int
+    let symbol: String
+    let blurb: String
+}
+
+extension Catalog {
+    /// Cities with a crew that cares who sells on its streets.
+    static let rivals: [Int: String] = [
+        1: "Moss Side Crew", 2: "Small Heath Boys", 3: "Dock Road Lot", 5: "Byker Firm",
+        8: "Gorbals Mob", 11: "Shankill Lads", 12: "Northside Crew",
+    ]
+
+    static let businesses: [Business] = [
+        Business(id: 0, name: "Kebab Shop", price: 15_000, income: 250, launders: 4_000, symbol: "flame.fill",
+                 blurb: "Open till 4am, cash only, nobody asks why the till is always full."),
+        Business(id: 1, name: "Laundrette", price: 45_000, income: 650, launders: 12_000, symbol: "washer.fill",
+                 blurb: "The clue is in the name. Service washes for the public, the other kind for you."),
+        Business(id: 2, name: "Taxi Firm", price: 140_000, income: 1_900, launders: 40_000, symbol: "car.fill",
+                 blurb: "Twelve cabs, eight drivers, and books nobody could audit if they tried."),
+    ]
+
+    static let crewRoles: [CrewRole] = [
+        CrewRole(id: 0, name: "Driver", wage: 300, symbol: "steeringwheel",
+                 blurb: "Knows every back road. Shipping 25% cheaper and much safer."),
+        CrewRole(id: 1, name: "Lookout", wage: 400, symbol: "binoculars.fill",
+                 blurb: "Eyes on every corner. Police stops 40% less likely."),
+        CrewRole(id: 2, name: "Muscle", wage: 550, symbol: "figure.boxing",
+                 blurb: "Big lad, small vocabulary. Better odds when it gets physical."),
+    ]
+
+    /// Dirty cash beyond this, with no front to wash it, draws police attention.
+    static let dirtyLimit = 100_000
 }
 
 struct City: Identifiable, Hashable, Sendable {

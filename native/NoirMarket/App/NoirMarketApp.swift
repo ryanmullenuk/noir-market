@@ -110,6 +110,27 @@ struct RootView: View {
             }
         }
         if args.contains("-newgame") { screen = .newGame; return }
+        if args.contains("-empire") {
+            store.act { s in
+                s.city = 1
+                s.cash = 1_400_000
+                s.dirty = 180_000
+                s.turf = Array(repeating: 0, count: Catalog.cities.count); s.turf![1] = 52
+                try? Engine.buyBusiness(&s, 0)
+                try? Engine.hire(&s, 1)
+                Engine.makeOffers(&s)
+                if let o = s.offers?.first { try? Engine.acceptContract(&s, o.id) }
+                s.notice = ""
+            }
+        }
+        if args.contains("-ending") { store.act { s in s.day = s.maxDay; s.cash = 1_400_000; s.heat = 72; s.pendingEnding = true } }
+        if args.contains("-rival") {
+            store.act { s in
+                s.city = 1
+                var t = Engine.trouble(&s, attacker: 4); t.crew = Catalog.rivals[1]
+                s.encounters = [.trouble(t)]
+            }
+        }
         if args.contains("-toast") { store.toast = Achievement.all[2] }
         if args.contains("-bigwin") { store.celebration = 48_250 }
         screen = .game

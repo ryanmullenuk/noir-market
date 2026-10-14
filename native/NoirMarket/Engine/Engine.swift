@@ -88,6 +88,7 @@ enum Engine {
             for g in ship.goods.indices { worth += ship.goods[g] * s.markets[ship.to].price[g] }
         }
         for w in Catalog.weapons { worth += s.weapons[w.id] * w.price / 2 }
+        for b in s.businesses ?? [] { worth += Catalog.businesses[b].price * 6 / 10 }
         return worth - debt(s)
     }
 
@@ -96,7 +97,7 @@ enum Engine {
         var r = SplitMix(seed: s.seed ^ UInt64(s.day * 10_007 + s.city * 131 + dest))
         let base = 40 + from.distanceKm(to: to) * 0.34 + (from.needsFlight(to: to) ? 60 : 0)
         let jitter = 0.9 + Double(r.next() % 1000) / 1000 * 0.3
-        let perkFactor = perk(s) == .student ? 0.6 : 1
+        let perkFactor = perk(s) == .student ? 0.6 : 1.0
         return max(20, Int((base * jitter * perkFactor / 10).rounded()) * 10)
     }
 
@@ -165,6 +166,8 @@ enum Engine {
         s.stats.biggestSale = max(s.stats.biggestSale, value)
         traded(&s, value: value)
         if qty >= 40 { s.heat = min(100, s.heat + qty / 40) }
+        addDirty(&s, value)
+        raiseTurf(&s, by: max(1, qty / 6 + value / 15_000))
         let profit = value - basis
         award(&s, "first_sale")
         if value >= 50_000 { award(&s, "big_sale") }
@@ -305,13 +308,15 @@ enum Engine {
         for g in goods.indices { value += goods[g] * s.markets[s.city].price[g] }
         let km = Catalog.cities[s.city].distanceKm(to: Catalog.cities[dest])
         let cost = Int((Double(value) * 0.05).rounded(.up)) + 150 + Int(km / 2)
-        return perk(s) == .docker ? cost * 7 / 10 : cost
+        var c = perk(s) == .docker ? cost * 7 / 10 : cost
+        if hasCrew(s, 0) { c = c * 3 / 4 }
+        return c
     }
 
     static func interceptionRisk(_ s: GameState, to dest: Int) -> Double {
         let flight = Catalog.cities[s.city].needsFlight(to: Catalog.cities[dest])
         let risk = min(0.45, 0.10 + Double(s.heat) / 350 + (flight ? 0.06 : 0))
-        return perk(s) == .docker ? risk * 0.4 : risk
+        return (perk(s) == .docker ? risk * 0.4 : risk) * (hasCrew(s, 0) ? 0.6 : 1)
     }
 
     // MARK: Finance
@@ -534,7 +539,7 @@ enum Engine {
         let name = Catalog.goods[deal.good].name
         switch s.rng.pick(weights: deal.odds) {
         case 0:
-            s.cash += deal.payout; s.rep = min(100, s.rep + 2)
+            s.cash += deal.payout; s.rep = min(100, s.rep + 2); addDirty(&s, deal.payout)
             return Outcome(title: "Done Deal", text: "The \(name) moves without a hitch. \(Money.gbp(deal.payout)) lands in your hand.", good: true)
         case 1:
             let back = Int(Double(deal.buyCost) * s.rng.uniform(0.6, 1.0))
@@ -558,7 +563,7 @@ enum Engine {
     // MARK: Helpers
 
     static func idle(_ s: GameState) throws {
-        if s.over != nil || !s.encounters.isEmpty { throw Failure.busy }
+        if s.over != nil || !s.encounters.isEmpty || s.pendingEnding == true { throw Failure.busy }
     }
 
     static func headline(_ s: inout GameState, city: Int) -> String {

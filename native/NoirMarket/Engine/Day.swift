@@ -21,14 +21,11 @@ extension Engine {
     }
 
     static func stay(_ s: inout GameState) throws {
+        if s.pendingEnding == true { chooseEnding(&s, .walk); return }
         try idle(s)
         if s.day >= s.maxDay {
-            // The last night: everything is valued at tonight's prices, right here.
-            let worth = netWorth(s)
-            s.over = GameOver(worth: worth, rank: Catalog.rank(for: worth), died: false,
-                              epitaph: mode(s) == .tutorial ? "Training’s over. The real thing won’t be this kind." : epitaph(worth))
-            s.stats.bestWorth = max(s.stats.bestWorth, worth)
-            awardEnd(&s)
+            // The last night: choose how it ends.
+            if mode(s) == .tutorial { chooseEnding(&s, .walk) } else { s.pendingEnding = true }
             return
         }
         s.stats.nightsIn += 1
@@ -77,12 +74,15 @@ extension Engine {
             var police = 0.015 + Double(s.heat) / 260 + (carrying ? 0.035 + min(0.04, value / 500_000) : 0) + (weapons ? 0.03 : 0)
             if flight && (carrying || weapons) { police = max(police, 0.22 + Double(s.heat) / 300 + (weapons ? 0.15 : 0)) }
             if s.weather == "rain" { police *= 0.6 }
+            if hasCrew(s, 1) { police *= 0.6 }
             if eventHere(s, "match") { police *= 1.4 }
             let worthRobbing = s.cash > 200 || carrying
             var mugging = worthRobbing ? 0.06 + (s.cash > 20_000 ? 0.04 : 0) + (s.rep < 20 ? 0.03 : 0) : 0
             if s.weather == "fog" { mugging *= 1.3 }
             let r = s.rng.unit()
-            if r < police, carrying || weapons || s.heat > 60 {
+            if rivalVisit(&s) {
+                // The local crew got to you first.
+            } else if r < police, carrying || weapons || s.heat > 60 {
                 s.encounters.append(.police(policeStop(&s, airport: flight)))
             } else if r < police + mugging {
                 s.encounters.append(.trouble(Engine.trouble(&s)))
@@ -126,6 +126,12 @@ extension Engine {
             ticker.append("\(Catalog.cities[city].name.uppercased()): \(template.title.uppercased()). \(template.text)")
         }
         ticker.append(contentsOf: rollWeatherAndEvents(&s))
+        runFronts(&s, lines: &lines)
+        payCrew(&s, lines: &lines)
+        expireContracts(&s, lines: &lines)
+        if (s.offers ?? []).isEmpty || s.day % 3 == 0 { makeOffers(&s) }
+        if var t = s.turf { for i in t.indices { t[i] = max(0, t[i] - 7) }; s.turf = t }
+        s.dirty = dirty(s)
         ticker.append(headline(&s, city: s.city))
         s.ticker = ticker
         s.story = newStory(&s)

@@ -117,5 +117,11 @@ struct Achievement: Identifiable, Sendable {
         .init(id: "survive_long", title: "The Long Game", detail: "Finish a Long Game alive.", symbol: "calendar.badge.plus"),
         .init(id: "daily_done", title: "Daily Grind", detail: "Finish a Daily Challenge.", symbol: "sun.max.fill"),
         .init(id: "tutorial", title: "Graduate", detail: "Complete the tutorial.", symbol: "graduationcap.fill"),
+        .init(id: "turf_war", title: "Turf War", detail: "Fight off a rival crew on its own streets.", symbol: "flag.fill"),
+        .init(id: "front", title: "Legitimate Businessman", detail: "Buy a front business.", symbol: "storefront.fill"),
+        .init(id: "contract", title: "Reliable Supplier", detail: "Complete a contract.", symbol: "doc.text.fill"),
+        .init(id: "spain", title: "Costa del Crime", detail: "Retire to Spain.", symbol: "sun.horizon.fill"),
+        .init(id: "last_score", title: "One Last Job", detail: "Pull off the final big score.", symbol: "suitcase.fill"),
+        .init(id: "raided", title: "Dawn Raid", detail: "Get raided on your last night.", symbol: "light.beacon.max.fill"),
     ]
 }

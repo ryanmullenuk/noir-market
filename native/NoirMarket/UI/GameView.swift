@@ -96,7 +96,7 @@ struct GameView: View {
 
     private var overlayNeeded: Bool {
         guard let s = store.state else { return false }
-        return s.report != nil || !s.encounters.isEmpty || s.outcome != nil || s.over != nil
+        return s.report != nil || !s.encounters.isEmpty || s.outcome != nil || s.over != nil || s.pendingEnding == true
     }
 
     /// The worse of health and heat, as a signal colour.
@@ -242,6 +242,10 @@ private func headerTags(_ s: GameState) -> [(String, Color)] {
     if let p = Engine.perk(s) { tags.append((p.title, Noir.silver)) }
     if Engine.eventHere(s, "festival") { tags.append(("Festival", Noir.amber)) }
     if Engine.eventHere(s, "match") { tags.append(("Match day", Noir.red)) }
+    if Catalog.rivals[s.city] != nil {
+        let t = Engine.turf(s, s.city)
+        tags.append(("Turf \(t)%", t >= 45 ? Noir.red : t >= 20 ? Noir.amber : Noir.silver))
+    }
     return tags
 }
 
@@ -420,6 +424,17 @@ private struct MarketList: View {
                         .card(padding: 14, tint: Noir.red)
                 }
 
+                ForEach(s.contracts ?? []) { c in
+                    ContractCard(c: c, s: s, active: true)
+                }
+
+                if let crew = Catalog.rivals[s.city], Engine.turf(s, s.city) >= 30 {
+                    Label("The \(crew) have noticed you selling on their streets. Move on before they come to collect.", systemImage: "flag.fill")
+                        .font(Noir.ui(13, weight: .medium)).foregroundStyle(Noir.paper)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .card(padding: 12, tint: Engine.turf(s, s.city) >= 45 ? Noir.red : Noir.amber)
+                }
+
                 if !s.notice.isEmpty {
                     HStack(alignment: .top, spacing: 10) {
                         Image(systemName: "info.circle.fill").foregroundStyle(Noir.silver)
@@ -566,7 +581,7 @@ private struct Dock: View {
             Button(action: onStay) {
                 HStack(spacing: 8) {
                     Image(systemName: "moon.stars.fill")
-                    Text(s.day == s.maxDay ? "End it here" : s.tradedToday ? "Stay the night" : "Lie low tonight")
+                    Text(s.day == s.maxDay ? "Last night" : s.tradedToday ? "Stay the night" : "Lie low tonight")
                 }
             }
             .buttonStyle(s.day == s.maxDay ? NoirButtonStyle(kind: .danger) : NoirButtonStyle(kind: .primary))

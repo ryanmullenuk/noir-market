@@ -82,6 +82,8 @@ struct Trouble: Codable, Sendable, Equatable {
     var runChance: Double
     var fightChance: Double
     var handOver: Int
+    /// Set when this is a rival crew defending its turf.
+    var crew: String?
 }
 
 struct Collector: Codable, Sendable, Equatable {
@@ -136,6 +138,17 @@ struct GameOver: Codable, Sendable, Equatable {
     var rank: Int
     var died: Bool
     var epitaph: String
+    /// "walk", "spain", "score", "scorefail", "raid", "died", "jail". Optional for old saves.
+    var ending: String?
+}
+
+struct Contract: Codable, Sendable, Equatable, Identifiable {
+    var id: Int
+    var good: Int
+    var qty: Int
+    var city: Int
+    var due: Int
+    var reward: Int
 }
 
 struct GameState: Codable, Sendable, Equatable {
@@ -190,6 +203,16 @@ struct GameState: Codable, Sendable, Equatable {
     var unlocked: [String]?
     var shippedTo: [Int]?
     var lastBigWin: Int?
+
+    // Turf, fronts, crew, contracts and endings. Optional so older saves still load.
+    var turf: [Int]?
+    var dirty: Int?
+    var businesses: [Int]?
+    var crew: [Int]?
+    var crewUnpaid: [Int]?
+    var contracts: [Contract]?
+    var offers: [Contract]?
+    var pendingEnding: Bool?
     /// Test mode: unlimited cash and every city, enabled by the name GODMODE. Never counts for records.
     var godMode: Bool?
     var calledToday = false

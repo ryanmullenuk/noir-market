@@ -358,6 +358,102 @@ struct EngineTests {
         #expect(Engine.remembered(s, city: 1, good: 3).count >= 3)
     }
 
+    @Test func sellingOnTurfBringsTheCrew() throws {
+        var visits = 0
+        for seed in 1...60 {
+            var s = fresh(seed: UInt64(seed))
+            Engine.configure(&s, mode: .standard, perk: nil)
+            s.city = 1 // Manchester: Moss Side Crew
+            s.cash = 500_000
+            for _ in 0..<6 {
+                let g = cheapest(s)
+                let q = min(25, Engine.maxBuy(s, good: g))
+                if q > 0 { try Engine.buy(&s, good: g, qty: q); try Engine.sell(&s, good: g, qty: q) }
+            }
+            #expect(Engine.turf(s, 1) > 0)
+            s.turf![1] = 90
+            try Engine.stay(&s)
+            if s.encounters.contains(where: { if case .trouble(let t) = $0 { t.crew != nil } else { false } }) { visits += 1 }
+        }
+        #expect(visits > 20)
+        // No rivals in London.
+        var l = fresh(); l.cash = 100_000
+        let g = cheapest(l); let q = min(20, Engine.maxBuy(l, good: g))
+        try Engine.buy(&l, good: g, qty: q); try Engine.sell(&l, good: g, qty: q)
+        #expect(Engine.turf(l, 0) == 0)
+    }
+
+    @Test func frontsWashDirtyCashAndUnwashedCashDrawsHeat() throws {
+        var s = fresh(), clean = fresh()
+        s.cash = 400_000; s.dirty = 400_000; s.heat = 30
+        clean.cash = 400_000; clean.dirty = 0; clean.heat = 30
+        try Engine.stay(&s); s.encounters = []
+        try Engine.stay(&clean)
+        #expect(s.heat > clean.heat)
+        try Engine.buyBusiness(&s, 2)
+        let before = Engine.dirty(s)
+        try Engine.stay(&s); s.encounters = []
+        #expect(Engine.dirty(s) <= before - 40_000 + 1)
+        #expect(Engine.netWorth(s) > s.cash + s.bank - Engine.debt(s))
+    }
+
+    @Test func unpaidCrewWalks() throws {
+        var s = fresh()
+        try Engine.hire(&s, 1)
+        #expect(Engine.hasCrew(s, 1))
+        s.cash = 0; s.bank = 0
+        try Engine.stay(&s); s.encounters = []
+        #expect(Engine.hasCrew(s, 1))
+        try Engine.stay(&s); s.encounters = []
+        #expect(!Engine.hasCrew(s, 1))
+    }
+
+    @Test func contractsPayAndExpire() throws {
+        var s = fresh()
+        Engine.configure(&s, mode: .standard, perk: nil)
+        Engine.makeOffers(&s)
+        let offer = try #require(s.offers?.first)
+        try Engine.acceptContract(&s, offer.id)
+        #expect(s.contracts?.count == 1)
+        s.city = offer.city
+        s.carry[offer.good] = offer.qty
+        let cash = s.cash
+        try Engine.deliver(&s, offer.id)
+        #expect(s.cash == cash + offer.reward)
+        #expect(s.contracts?.isEmpty == true)
+        // A missed one costs reputation.
+        var m = fresh(); Engine.makeOffers(&m)
+        let o2 = try #require(m.offers?.first)
+        try Engine.acceptContract(&m, o2.id)
+        m.day = o2.due + 1
+        let rep = m.rep
+        var lines: [String] = []
+        Engine.expireContracts(&m, lines: &lines)
+        #expect(m.rep < rep && !lines.isEmpty)
+    }
+
+    @Test func lastNightOffersEndings() {
+        var s = fresh()
+        s.day = s.maxDay; s.heat = 0
+        try? Engine.stay(&s)
+        #expect(s.pendingEnding == true && s.over == nil)
+        let spain = Engine.endingOptions(s).first { $0.id == .spain }!
+        #expect(!spain.available)
+        s.cash = 2_000_000
+        #expect(Engine.endingOptions(s).first { $0.id == .spain }!.available)
+        Engine.chooseEnding(&s, .spain)
+        #expect(s.over?.ending == "spain")
+        // Red-hot heat risks a raid.
+        var raids = 0
+        for seed in 1...100 {
+            var r = fresh(seed: UInt64(seed)); r.day = r.maxDay; r.heat = 100
+            try? Engine.stay(&r)
+            Engine.chooseEnding(&r, .walk)
+            if r.over?.ending == "raid" { raids += 1 }
+        }
+        #expect(raids > 40 && raids < 85)
+    }
+
     func cheapest(_ s: GameState) -> Int {
         Catalog.goods.indices.filter { s.markets[s.city].supply[$0] > 0 }.min { s.markets[s.city].price[$0] < s.markets[s.city].price[$1] }!
     }

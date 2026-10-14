@@ -14,6 +14,7 @@ func play(seed: UInt64, full: Bool, careful: Bool, borrow: Bool) -> (Int, Bool, 
             let cost = s.carryCost[g] / max(1, s.carry[g])
             if unit > cost || s.day == s.maxDay { try? Engine.sell(&s, good: g, qty: s.carry[g]) }
         }
+        if s.pendingEnding == true { Engine.chooseEnding(&s, .walk); continue }
         if s.cash < 300, Engine.carried(s) == 0, s.loans.isEmpty, s.day < 25 { try? Engine.borrow(&s, lender: 0, amount: 5_000) }
         for l in s.loans where s.cash > Engine.payoff(l, day: s.day) + 1000 { try? Engine.repay(&s, loan: l.id, amount: Engine.payoff(l, day: s.day)) }
         if careful, s.health < 50 { try? Engine.heal(&s, points: 30) }

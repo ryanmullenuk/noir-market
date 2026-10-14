@@ -216,6 +216,50 @@ struct MoneyView: View {
                         }
                     }
 
+                    let dirty = Engine.dirty(s), wash = Engine.launderCapacity(s)
+                    Section(title: "Fronts", note: "Legit businesses earn a little each night and wash dirty cash. Over \(Money.short(Catalog.dirtyLimit)) of unwashed money draws police heat every night.", boxed: false) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack {
+                                Text("Dirty cash").noirLabel(10)
+                                Spacer()
+                                Text(Money.gbp(dirty)).font(Noir.mono(15)).foregroundStyle(dirty > Catalog.dirtyLimit ? Noir.red : dirty > Catalog.dirtyLimit / 2 ? Noir.amber : Noir.green)
+                            }
+                            GeometryReader { geo in
+                                ZStack(alignment: .leading) {
+                                    Capsule().fill(Color.white.opacity(0.07))
+                                    let c = dirty > Catalog.dirtyLimit ? Noir.red : dirty > Catalog.dirtyLimit / 2 ? Noir.amber : Noir.green
+                                    Capsule().fill(c).frame(width: max(6, geo.size.width * min(1, Double(dirty) / Double(Catalog.dirtyLimit * 2))))
+                                        .shadow(color: c.opacity(0.7), radius: 5)
+                                    Rectangle().fill(Color.white.opacity(0.6)).frame(width: 1.5).offset(x: geo.size.width / 2)
+                                }
+                            }
+                            .frame(height: 6)
+                            Text(wash > 0 ? "Your fronts wash \(Money.gbp(wash)) a night." : "Nothing washing it. Every sale adds to the pile.")
+                                .font(Noir.ui(11)).foregroundStyle(Noir.silver)
+                        }
+                        .card(padding: 14, ring: .white.opacity(0.75))
+                        ForEach(Catalog.businesses) { b in
+                            let owned = (s.businesses ?? []).contains(b.id)
+                            HStack(alignment: .top, spacing: 12) {
+                                GlowIcon(symbol: b.symbol, color: Noir.amber, size: 38, lit: owned)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(b.name).font(Noir.ui(16, weight: .semibold)).foregroundStyle(Noir.paper)
+                                    Text("+\(Money.gbp(b.income)) a night · washes \(Money.short(b.launders))").font(Noir.mono(11, weight: .regular)).foregroundStyle(Noir.amber)
+                                    Text(b.blurb).font(Noir.ui(12)).foregroundStyle(Noir.dim).fixedSize(horizontal: false, vertical: true)
+                                }
+                                Spacer(minLength: 0)
+                                if owned {
+                                    Text("Owned").noirLabel(10, color: Noir.amber)
+                                } else {
+                                    SmallButton(title: Money.short(b.price), enabled: s.cash >= b.price, tint: Noir.amber) {
+                                        if store.act({ try Engine.buyBusiness(&$0, b.id) }) { Audio.shared.play(.cash, volume: 0.5) }
+                                    }
+                                }
+                            }
+                            .card(padding: 14, tint: owned ? Noir.amber : nil)
+                        }
+                    }
+
                     Section(title: "Lenders", note: "One loan per lender. Miss a payment and the debt jumps 20%, then they come looking.", boxed: false) {
                         ForEach(Catalog.lenders) { l in
                             let has = s.loans.contains { $0.lender == l.id }
@@ -395,6 +439,43 @@ struct StreetView: View {
                         .transition(.opacity)
                     }
 
+                    Section(title: "Contracts", note: "Buyers who want a set amount delivered by a set day. Pays well over street price. Miss the date and your name suffers.", boxed: false) {
+                        ForEach(s.contracts ?? []) { c in
+                            ContractCard(c: c, s: s, active: true)
+                        }
+                        ForEach(s.offers ?? []) { c in
+                            ContractCard(c: c, s: s, active: false)
+                        }
+                        if (s.contracts ?? []).isEmpty && (s.offers ?? []).isEmpty {
+                            Text("No work going today. Ask again tomorrow.").font(Noir.ui(13)).foregroundStyle(Noir.dim)
+                        }
+                    }
+
+                    Section(title: "Crew", note: "Paid nightly from your cash, then the bank. Miss two nights’ wages and they walk, and some of them talk.", boxed: false) {
+                        ForEach(Catalog.crewRoles) { r in
+                            let hired = Engine.hasCrew(s, r.id)
+                            let owed = (s.crewUnpaid ?? [])[safe: r.id] ?? 0
+                            HStack(alignment: .top, spacing: 12) {
+                                GlowIcon(symbol: r.symbol, color: owed > 0 ? Noir.red : Noir.green, size: 38, lit: hired)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(r.name).font(Noir.ui(16, weight: .semibold)).foregroundStyle(Noir.paper)
+                                    Text("\(Money.gbp(r.wage)) a night" + (hired && owed > 0 ? " · \(owed) unpaid" : "")).font(Noir.mono(11, weight: .regular))
+                                        .foregroundStyle(owed > 0 ? Noir.red : Noir.amber)
+                                    Text(r.blurb).font(Noir.ui(12)).foregroundStyle(Noir.dim).fixedSize(horizontal: false, vertical: true)
+                                }
+                                Spacer(minLength: 0)
+                                if hired {
+                                    SmallButton(title: "Let go", tint: Noir.red) { store.act { Engine.fire(&$0, r.id) } }
+                                } else {
+                                    SmallButton(title: "Hire", enabled: s.cash >= r.wage) {
+                                        if store.act({ try Engine.hire(&$0, r.id) }) { Audio.shared.buzz(.success) }
+                                    }
+                                }
+                            }
+                            .card(padding: 14, tint: hired ? Noir.green : nil)
+                        }
+                    }
+
                     Section(title: "Informants", note: "Each will talk once a day. Tips are about tomorrow, and only as good as the person selling them.", boxed: false) {
                         ForEach(Catalog.informants) { info in
                             let price = s.informantPrice[info.id]
@@ -538,5 +619,53 @@ private struct DealCard: View {
             Text(label).noirLabel(8)
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+extension Array {
+    subscript(safe i: Int) -> Element? { indices.contains(i) ? self[i] : nil }
+}
+
+/// A delivery job: offered, or in progress with a Deliver button when you're there with the goods.
+struct ContractCard: View {
+    let c: Contract
+    let s: GameState
+    let active: Bool
+    @Environment(GameStore.self) private var store
+
+    var body: some View {
+        let left = c.due - s.day
+        let urgency = left <= 1 ? Noir.red : left <= 3 ? Noir.amber : Noir.green
+        let ready = Engine.canDeliver(s, c)
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(active ? "ACTIVE JOB" : "JOB OFFER").font(Noir.label(10)).tracking(1.4).foregroundStyle(active ? Noir.green : Noir.amber)
+                Spacer()
+                Text(left <= 0 ? "Due today" : "Due day \(c.due) · \(left)d").font(Noir.label(10)).foregroundStyle(urgency)
+            }
+            HStack(spacing: 10) {
+                SymbolImage(name: Catalog.goods[c.good].symbol, size: 16).foregroundStyle(Noir.paper)
+                Text("\(c.qty) \(Catalog.goods[c.good].name) → \(Catalog.cities[c.city].name.uppercased())")
+                    .font(Noir.ui(15, weight: .semibold)).foregroundStyle(Noir.paper)
+            }
+            HStack {
+                Text("Pays \(Money.gbp(c.reward))").font(Noir.mono(14)).foregroundStyle(Noir.green)
+                Spacer()
+                if active {
+                    if ready {
+                        SmallButton(title: "Deliver") {
+                            if store.act({ try Engine.deliver(&$0, c.id) }) { Audio.shared.play(.cash, volume: 0.6) }
+                        }
+                    } else {
+                        Text("You hold \(s.carry[c.good])/\(c.qty)").font(Noir.ui(11)).foregroundStyle(Noir.silver)
+                    }
+                } else {
+                    SmallButton(title: "Take the job", enabled: (s.contracts ?? []).count < 2, tint: Noir.amber) {
+                        if store.act({ try Engine.acceptContract(&$0, c.id) }) { Audio.shared.buzz(.success) }
+                    }
+                }
+            }
+        }
+        .card(padding: 14, tint: active ? (ready ? Noir.green : urgency) : Noir.amber)
     }
 }

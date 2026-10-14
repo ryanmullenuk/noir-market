@@ -21,6 +21,9 @@ struct Overlay: View {
                 } else if let encounter = s.encounters.first {
                     EncounterView(encounter: encounter, s: s)
                         .transition(.opacity)
+                } else if s.pendingEnding == true {
+                    EndingChoice(s: s)
+                        .transition(.opacity)
                 } else if let over = s.over {
                     CaseClosed(over: over, s: s, onDone: onQuit)
                         .transition(.opacity)
@@ -264,7 +267,7 @@ private struct EncounterView: View {
     private var kicker: String {
         switch encounter {
         case .police(let p): (p.round ?? 1) > 1 ? "Shots fired" : p.depot == true ? "At the depot" : p.airport ? "Arrivals hall" : "Blue lights"
-        case .trouble(let t): t.round > 1 ? "Round \(t.round)" : "A dark street"
+        case .trouble(let t): t.round > 1 ? "Round \(t.round)" : t.crew != nil ? "Their turf" : "A dark street"
         case .collector: "A knock at the door"
         }
     }
@@ -272,7 +275,7 @@ private struct EncounterView: View {
     private var title: String {
         switch encounter {
         case .police(let p): p.airport ? "Customs" : "Police Stop"
-        case .trouble: "Trouble"
+        case .trouble(let t): t.crew ?? "Trouble"
         case .collector(let c): "\(lenderName(c))’s Lads"
         }
     }
@@ -287,6 +290,9 @@ private struct EncounterView: View {
                 + "You’ve got \(what)." + (Engine.hasWeapons(s) ? " And something heavier under your coat." : "")
         case .trouble(let t):
             let a = Catalog.attackers[t.attacker]
+            if let crew = t.crew, t.round == 1 {
+                return "The \(crew) step out of a parked car. You’ve been selling on their streets, and they want their cut. All of it."
+            }
             return t.round > 1 ? "They’re still coming." : "You’re cornered by \(a.name). They want your money, and they’re not asking twice."
         case .collector(let c):
             return "\(lenderName(c)) wants \(Money.gbp(c.owed)), and it’s overdue. His lads are cracking their knuckles in a way that feels rehearsed."
@@ -343,7 +349,7 @@ private struct EncounterView: View {
                 Option(choice: .fight, label: again ? (weapon.map { WeaponKind($0) == .gun ? "Fire again" : "Fight on" } ?? "Swing again")
                                                     : (weapon.map { "Fight with the \($0.name.lowercased())" } ?? "Fight with your fists"),
                        odds: t.fightChance, note: "Miss and they hit back.", danger: true),
-                Option(choice: .handOver, label: (again ? "Give up · " : "Hand over ") + Money.gbp(min(s.cash, t.handOver)),
+                Option(choice: .handOver, label: (again ? "Give up · " : t.crew != nil ? "Pay the rent · " : "Hand over ") + Money.gbp(min(s.cash, t.handOver)),
                        note: again ? "They take extra for the trouble." : t.attacker >= 2 ? "They’ll take some stock too." : "Nobody gets hurt."),
             ]
         case .collector(let c):
@@ -595,7 +601,8 @@ private struct CaseClosed: View {
                 VStack(alignment: .leading, spacing: 18) {
                     Text(over.died ? "Obituary" : "Case closed").noirLabel(12, color: Noir.neon)
                         .padding(.top, 40)
-                    Text(over.died ? "Lights out." : "Thirty days.").font(Noir.display(50)).foregroundStyle(Noir.paper)
+                    Text(over.died ? "Lights out." : Engine.endingTitle(over.ending) + ".").font(Noir.display(44)).foregroundStyle(over.ending == "spain" || over.ending == "score" ? Noir.green : over.ending == "raid" || over.ending == "scorefail" ? Noir.red : Noir.paper)
+                        .fixedSize(horizontal: false, vertical: true)
                     Text(over.epitaph).font(Noir.type(17)).foregroundStyle(Noir.silver)
                         .fixedSize(horizontal: false, vertical: true)
 
@@ -639,6 +646,58 @@ private struct CaseClosed: View {
             Text(k).font(Noir.type(14)).foregroundStyle(Noir.silver)
             Spacer()
             Text(v).font(Noir.mono(14)).foregroundStyle(Noir.paper)
+        }
+    }
+}
+
+/// The last night: pick how it ends.
+private struct EndingChoice: View {
+    let s: GameState
+    @Environment(GameStore.self) private var store
+
+    var body: some View {
+        ZStack {
+            Noir.ink.ignoresSafeArea()
+            RadialGradient(colors: [Noir.amber.opacity(0.08), .clear], center: .top, startRadius: 20, endRadius: 500).ignoresSafeArea()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("The last night").noirLabel(12, color: Noir.amber).padding(.top, 40)
+                    Text("How does it end?").font(Noir.display(40)).foregroundStyle(Noir.paper)
+                    Text("You’re worth \(Money.gbp(Engine.netWorth(s))) tonight.\(s.heat >= 70 ? " And the heat is on: with this much attention, the police might get there first." : "")")
+                        .font(Noir.ui(14)).foregroundStyle(s.heat >= 70 ? Noir.red : Noir.silver)
+                        .fixedSize(horizontal: false, vertical: true)
+                    ForEach(Engine.endingOptions(s)) { o in
+                        Button {
+                            Audio.shared.play(.click, volume: 0.6)
+                            store.act { Engine.chooseEnding(&$0, o.id) }
+                        } label: {
+                            HStack(alignment: .top, spacing: 12) {
+                                GlowIcon(symbol: o.id == .spain ? "sun.horizon.fill" : o.id == .score ? "suitcase.fill" : "figure.walk",
+                                         color: o.id == .score ? Noir.red : o.id == .spain ? Noir.green : Noir.amber, size: 40, lit: o.available)
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(o.title.uppercased()).font(Noir.label(13)).tracking(1.2).foregroundStyle(o.available ? Noir.paper : Noir.dim)
+                                    Text(o.detail).font(Noir.ui(12)).foregroundStyle(Noir.silver).fixedSize(horizontal: false, vertical: true)
+                                    if let r = o.reason { Text(r).font(Noir.ui(11)).foregroundStyle(Noir.red) }
+                                }
+                                Spacer(minLength: 0)
+                            }
+                            .padding(14)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color.white.opacity(o.available ? 0.06 : 0.02)))
+                            .overlay { if o.available { RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Color.white.opacity(0.7)) } }
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!o.available)
+                    }
+                    Button("Not yet") {
+                        store.act { $0.pendingEnding = nil }
+                    }
+                    .buttonStyle(.noirQuiet)
+                    .padding(.bottom, 30)
+                }
+                .padding(24)
+            }
+            FilmGrain()
         }
     }
 }

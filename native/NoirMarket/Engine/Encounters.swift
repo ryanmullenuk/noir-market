@@ -18,19 +18,22 @@ extension Engine {
         if copper { bribe = bribe * 3 / 4 / 10 * 10 }
         let bribeChance = clamp(0.30 + Double(s.rep) / 250 - Double(s.heat) / 500 - (airport ? 0.10 : 0) + (copper ? 0.15 : 0), 0.12, 0.9)
         let runChance = clamp(0.45 + (weapon?.escape ?? 0) * 0.35 - (airport ? 0.2 : 0) - Double(units) / 600, 0.10, 0.85)
-        let fightChance = weapon.map { clamp(0.10 + $0.win * 0.55, 0.10, 0.70) } ?? 0.05
+        let fightChance = min(0.8, (weapon.map { clamp(0.10 + $0.win * 0.55, 0.10, 0.70) } ?? 0.05) + (hasCrew(s, 2) ? 0.1 : 0))
         let jail = (hasWeapons(s) || units > 50) ? s.rng.int(1, 3) : 0
         let fine = (s.rng.int(300, 2_500) + value / 20) / 10 * 10
         return PoliceStop(airport: airport, bribe: bribe, bribeChance: bribeChance, runChance: runChance,
                           fightChance: fightChance, jail: jail, fine: fine)
     }
 
-    static func trouble(_ s: inout GameState) -> Trouble {
-        let attacker = s.rng.pick(weights: Catalog.attackers.map(\.weight))
+    static func trouble(_ s: inout GameState, attacker forced: Int? = nil) -> Trouble {
+        let attacker = forced ?? s.rng.pick(weights: Catalog.attackers.map(\.weight))
         let a = Catalog.attackers[attacker]
         let weapon = bestWeapon(s)
-        let run = min(0.95, 0.5 + (weapon?.escape ?? 0))
-        let fight: Double = weapon.map { attacker == 0 ? 0.75 : min(0.96, 0.10 + $0.win) } ?? (attacker == 0 ? 0.45 : 0.25)
+        let muscle = hasCrew(s, 2)
+        let run = min(0.95, 0.5 + (weapon?.escape ?? 0) + (muscle ? 0.1 : 0) - (attacker == 4 ? 0.15 : 0))
+        var fight: Double = weapon.map { attacker == 0 ? 0.75 : min(0.96, 0.10 + $0.win) } ?? (attacker == 0 ? 0.45 : 0.25)
+        if attacker == 4 { fight *= 0.8 }
+        if muscle { fight = min(0.96, fight + 0.15) }
         return Trouble(attacker: attacker, round: 1, runChance: run, fightChance: fight,
                        handOver: a.take(from: s.cash, fraction: a.loot))
     }
@@ -181,6 +184,10 @@ extension Engine {
                 text += " They help themselves to a quarter of your stock as well."
             }
             s.stats.mugged += 1
+            if t.crew != nil {
+                lowerTurf(&s, city: s.city, by: 45)
+                return (Outcome(title: "Tax Paid", text: text + " The \(t.crew!) call it ‘rent’. They’ll leave you be, for now.", good: false), false)
+            }
             return (Outcome(title: "Robbed", text: text + " Nobody gets hurt. This time.", good: false), false)
         case .run:
             if s.rng.chance(t.runChance) {
@@ -203,6 +210,12 @@ extension Engine {
                 let dropped = s.rng.int(100, 400) * (t.attacker + 1) * (t.attacker + 1)
                 s.cash += dropped
                 s.stats.fightsWon += 1
+                if let crew = t.crew {
+                    lowerTurf(&s, city: s.city, by: 100)
+                    s.rep = min(100, s.rep + 6)
+                    award(&s, "turf_war")
+                    return (Outcome(title: "Turf Won", text: "The \(crew) scatter. Word spreads fast: these streets are yours now. Someone dropped \(Money.gbp(dropped)) on the way out.", good: true), false)
+                }
                 if t.attacker == 3 && weapon == nil { award(&s, "bare_knuckle") }
                 return (Outcome(title: "Sent Packing", text: "\(a.name.prefix(1).uppercased() + a.name.dropFirst()) thought better of it. One of them dropped a wallet: \(Money.gbp(dropped)).", good: true), false)
             }
