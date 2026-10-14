@@ -35,5 +35,11 @@ Add an English localisation to each (display name as above; format "Money", GBP)
 | `noir.ach.survive_long` | The Long Game | Finish a Long Game alive. |
 | `noir.ach.daily_done` | Daily Grind | Finish a Daily Challenge. |
 | `noir.ach.tutorial` | Graduate | Complete the tutorial. |
+| `noir.ach.turf_war` | Turf War | Fight off a rival crew on its own streets. |
+| `noir.ach.front` | Legitimate Businessman | Buy a front business. |
+| `noir.ach.contract` | Reliable Supplier | Complete a contract. |
+| `noir.ach.spain` | Costa del Crime | Retire to Spain. |
+| `noir.ach.last_score` | One Last Job | Pull off the final big score. |
+| `noir.ach.raided` | Dawn Raid | Get raided on your last night. |
 
 Achievements also show in-game (Records › Achievements) whether or not Game Center is set up.
