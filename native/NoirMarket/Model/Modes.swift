@@ -75,11 +75,30 @@ enum Perk: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    var blurb: String {
+    var blurb: String { pro }
+
+    var pro: String {
         switch self {
-        case .copper: "Knows how a bribe lands. Bribes cost 25% less and work more often."
+        case .copper: "Old colleagues look the other way: 30% fewer police stops, and bribes cost 25% less and land more often."
         case .student: "Railcard, coach pass, a mate with a car. Travel costs 40% less."
         case .docker: "Knows which crates customs never open. Shipping is cheaper and far safer."
+        }
+    }
+
+    var con: String {
+        switch self {
+        case .copper: "Nobody trusts an ex-copper. You start with zero respect: worse deals, more trouble."
+        case .student: "Skint. You start with £1,000 less, and the street sees you as a kid: 35 respect."
+        case .docker: "Customs know your face. You start with 25% heat, and 40 respect."
+        }
+    }
+
+    /// Starting cash, respect and heat for this background.
+    var start: (cashDelta: Int, respect: Int, heat: Int) {
+        switch self {
+        case .copper: (0, 0, 0)
+        case .student: (-1_000, 35, 0)
+        case .docker: (0, 40, 25)
         }
     }
 

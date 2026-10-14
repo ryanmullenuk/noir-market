@@ -16,7 +16,9 @@ extension Engine {
         let copper = perk(s) == .copper
         var bribe = min(60_000, max(500, 600 + value * 15 / 100 + s.heat * 30 + (airport ? 1_500 : 0))) / 10 * 10
         if copper { bribe = bribe * 3 / 4 / 10 * 10 }
-        let bribeChance = clamp(0.30 + Double(s.rep) / 250 - Double(s.heat) / 500 - (airport ? 0.10 : 0) + (copper ? 0.15 : 0), 0.12, 0.9)
+        // Bent officers still deal with an ex-copper, whatever the street thinks of them.
+        let bribeRep = copper ? max(s.rep, 50) : s.rep
+        let bribeChance = clamp(0.30 + Double(bribeRep) / 250 - Double(s.heat) / 500 - (airport ? 0.10 : 0) + (copper ? 0.15 : 0), 0.12, 0.9)
         let runChance = clamp(0.45 + (weapon?.escape ?? 0) * 0.35 - (airport ? 0.2 : 0) - Double(units) / 600, 0.10, 0.85)
         let fightChance = min(0.8, (weapon.map { clamp(0.10 + $0.win * 0.55, 0.10, 0.70) } ?? 0.05) + (hasCrew(s, 2) ? 0.1 : 0))
         let jail = (hasWeapons(s) || units > 50) ? s.rng.int(1, 3) : 0
@@ -26,7 +28,10 @@ extension Engine {
     }
 
     static func trouble(_ s: inout GameState, attacker forced: Int? = nil) -> Trouble {
-        let attacker = forced ?? s.rng.pick(weights: Catalog.attackers.map(\.weight))
+        // Low respect draws the bigger gangs; high respect keeps them away.
+        let gangScale = s.rep < 30 ? 1.8 : s.rep >= 70 ? 0.55 : 1.0
+        let weights = Catalog.attackers.enumerated().map { i, a in i >= 2 ? a.weight * gangScale : a.weight }
+        let attacker = forced ?? s.rng.pick(weights: weights)
         let a = Catalog.attackers[attacker]
         let weapon = bestWeapon(s)
         let muscle = hasCrew(s, 2)
@@ -184,6 +189,7 @@ extension Engine {
                 text += " They help themselves to a quarter of your stock as well."
             }
             s.stats.mugged += 1
+            changeRespect(&s, -2)
             if t.crew != nil {
                 lowerTurf(&s, city: s.city, by: 45)
                 return (Outcome(title: "Tax Paid", text: text + " The \(t.crew!) call it ‘rent’. They’ll leave you be, for now.", good: false), false)
@@ -210,6 +216,7 @@ extension Engine {
                 let dropped = s.rng.int(100, 400) * (t.attacker + 1) * (t.attacker + 1)
                 s.cash += dropped
                 s.stats.fightsWon += 1
+                changeRespect(&s, 2 + t.attacker)
                 if let crew = t.crew {
                     lowerTurf(&s, city: s.city, by: 100)
                     s.rep = min(100, s.rep + 6)

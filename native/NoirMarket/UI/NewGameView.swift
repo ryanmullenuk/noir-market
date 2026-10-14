@@ -16,6 +16,7 @@ struct NewGameView: View {
         ZStack {
             Noir.ink.ignoresSafeArea()
 
+            ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     HStack {
@@ -54,11 +55,13 @@ struct NewGameView: View {
 
                     if mode != .daily && mode != .tutorial {
                         VStack(alignment: .leading, spacing: 10) {
-                            Text("Your background").noirLabel()
-                            choiceRow(symbol: "person.fill", title: "Nobody special", detail: "No perks, no baggage.", selected: perk == nil, tint: Noir.green) { perk = nil }
+                            Text("Your background").noirLabel().id("background")
+                            choiceRow(symbol: "person.fill", title: "Nobody special", detail: "No perks, no baggage. Average respect.", selected: perk == nil, tint: Noir.green) { perk = nil }
                             ForEach(Perk.allCases) { p in
-                                choiceRow(symbol: p.symbol, title: p.title, detail: p.blurb, selected: perk == p, tint: Noir.green) { perk = p }
+                                choiceRow(symbol: p.symbol, title: p.title, detail: p.pro, con: p.con, selected: perk == p, tint: Noir.green) { perk = p }
                             }
+                            Text("Every edge has a cost. Respect affects prices, how many jobs come your way, who looks after you, and who comes looking for you.")
+                                .font(Noir.ui(11)).foregroundStyle(Noir.dim).fixedSize(horizontal: false, vertical: true)
                         }
                     }
 
@@ -116,6 +119,12 @@ struct NewGameView: View {
                 .padding(24)
             }
             .scrollDismissesKeyboard(.interactively)
+            .onAppear {
+                #if DEBUG
+                if ProcessInfo.processInfo.arguments.contains("-perks") { proxy.scrollTo("background", anchor: .top) }
+                #endif
+            }
+            }
             FilmGrain()
         }
         .onAppear { name = store.playerName }
@@ -123,7 +132,7 @@ struct NewGameView: View {
 }
 
 extension NewGameView {
-    func choiceRow(symbol: String, title: String, detail: String, selected: Bool, tint: Color, action: @escaping () -> Void) -> some View {
+    func choiceRow(symbol: String, title: String, detail: String, con: String? = nil, selected: Bool, tint: Color, action: @escaping () -> Void) -> some View {
         Button {
             withAnimation(.spring(duration: 0.25)) { action() }
             Audio.shared.buzz(.tap)
@@ -132,7 +141,14 @@ extension NewGameView {
                 GlowIcon(symbol: symbol, color: tint, size: 34, lit: selected)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title.uppercased()).font(Noir.label(12)).tracking(1).foregroundStyle(selected ? tint : Noir.paper)
-                    Text(detail).font(Noir.ui(12)).foregroundStyle(Noir.silver).fixedSize(horizontal: false, vertical: true)
+                    if let con {
+                        Label { Text(detail) } icon: { Image(systemName: "plus.circle.fill").foregroundStyle(Noir.green) }
+                            .font(Noir.ui(12)).foregroundStyle(Noir.paper.opacity(0.9)).fixedSize(horizontal: false, vertical: true)
+                        Label { Text(con) } icon: { Image(systemName: "minus.circle.fill").foregroundStyle(Noir.red) }
+                            .font(Noir.ui(12)).foregroundStyle(Noir.silver).fixedSize(horizontal: false, vertical: true)
+                    } else {
+                        Text(detail).font(Noir.ui(12)).foregroundStyle(Noir.silver).fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 Spacer(minLength: 0)
                 if selected { Image(systemName: "checkmark.circle.fill").foregroundStyle(tint) }

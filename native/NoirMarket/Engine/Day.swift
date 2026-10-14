@@ -75,9 +75,11 @@ extension Engine {
             if flight && (carrying || weapons) { police = max(police, 0.22 + Double(s.heat) / 300 + (weapons ? 0.15 : 0)) }
             if s.weather == "rain" { police *= 0.6 }
             if hasCrew(s, 1) { police *= 0.6 }
+            if perk(s) == .copper { police *= 0.7 }
             if eventHere(s, "match") { police *= 1.4 }
             let worthRobbing = s.cash > 200 || carrying
-            var mugging = worthRobbing ? 0.06 + (s.cash > 20_000 ? 0.04 : 0) + (s.rep < 20 ? 0.03 : 0) : 0
+            var mugging = worthRobbing ? 0.06 + (s.cash > 20_000 ? 0.04 : 0) : 0
+            mugging *= 1 - respect(s) * 0.55          // 45% … 155% of normal
             if s.weather == "fog" { mugging *= 1.3 }
             let r = s.rng.unit()
             if rivalVisit(&s) {
@@ -86,7 +88,7 @@ extension Engine {
                 s.encounters.append(.police(policeStop(&s, airport: flight)))
             } else if r < police + mugging {
                 s.encounters.append(.trouble(Engine.trouble(&s)))
-            } else if r < police + mugging + 0.06 {
+            } else if r < police + mugging + 0.07 * (1 + respect(s) * 0.8) {
                 friendGift(&s, lines: &lines)
             }
         }
@@ -254,6 +256,14 @@ extension Engine {
     }
 
     static func friendGift(_ s: inout GameState, lines: inout [String]) {
+        // Sometimes it's money someone owes you rather than goods.
+        if s.rng.chance(0.4) {
+            let amount = s.rng.int(4, 30) * 100 * (s.rep >= 70 ? 3 : 1)
+            s.cash += amount
+            let who = ["An old mate", "A bloke from the pub", "Your cousin’s ex", "A lad you lent a fiver in 2009"][s.rng.int(0, 3)]
+            lines.append("\(who) finds you and settles up: \(Money.gbp(amount)) in a crumpled envelope. Respect has its perks.")
+            return
+        }
         let good = s.rng.int(0, Catalog.goods.count - 1)
         let qty = min(s.rng.int(2, 15), space(s))
         guard qty > 0 else { return }

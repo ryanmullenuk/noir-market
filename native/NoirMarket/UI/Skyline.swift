@@ -85,6 +85,7 @@ struct NeonText: View {
     var size: CGFloat = 16
     var tracking: CGFloat? = nil
     var font: Font? = nil
+    var glow: CGFloat = 1
     @State private var on = true
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -93,8 +94,8 @@ struct NeonText: View {
             .font(font ?? Noir.title(size))
             .tracking(tracking ?? size * 0.55)
             .foregroundStyle(Noir.neon.opacity(on ? 1 : 0.25))
-            .shadow(color: Noir.neon.opacity(on ? 0.9 : 0), radius: 8)
-            .shadow(color: Noir.neon.opacity(on ? 0.6 : 0), radius: 18)
+            .shadow(color: Noir.neon.opacity(on ? 0.9 : 0), radius: 8 * glow)
+            .shadow(color: Noir.neon.opacity(on ? 0.6 * glow : 0), radius: 18 * glow)
             .task {
                 guard !reduceMotion else { return }
                 while !Task.isCancelled {

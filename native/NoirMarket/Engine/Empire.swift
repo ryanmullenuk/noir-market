@@ -132,13 +132,15 @@ extension Engine {
         guard mode(s) != .tutorial, s.day < s.maxDay - 1 else { s.offers = []; return }
         let cities = accessibleCities(s)
         var offers: [Contract] = []
-        for _ in 0..<2 {
+        // More respect, more people want to do business with you.
+        let count = s.rep < 25 ? 1 : s.rep >= 70 ? 3 : 2
+        for _ in 0..<count {
             let city = cities[s.rng.int(0, cities.count - 1)]
             let good = s.rng.int(0, Catalog.goods.count - 1)
             let qty = max(5, Int(Double(capacity(s)) * s.rng.uniform(0.25, 0.7)) / 5 * 5)
             let due = min(s.maxDay, s.day + s.rng.int(3, 7))
             let unit = Catalog.goods[good].mid * Catalog.cities[city].factor(for: good)
-            let reward = Int(unit * Double(qty) * s.rng.uniform(1.5, 2.1)) / 100 * 100
+            let reward = Int(unit * Double(qty) * s.rng.uniform(1.5, 2.1) * (1 + respect(s) * 0.15)) / 100 * 100
             offers.append(Contract(id: s.nextID, good: good, qty: qty, city: city, due: due, reward: reward))
             s.nextID += 1
         }

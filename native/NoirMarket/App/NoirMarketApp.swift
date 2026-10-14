@@ -109,6 +109,7 @@ struct RootView: View {
                 }
             }
         }
+        if args.contains("-noCall") { store.act { $0.call = nil } }
         if args.contains("-newgame") { screen = .newGame; return }
         if args.contains("-empire") {
             store.act { s in

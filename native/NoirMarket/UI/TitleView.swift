@@ -73,7 +73,7 @@ struct TitleView: View {
                             .font(Noir.title(112))
                             .foregroundStyle(Noir.paper)
                             .shadow(color: .black.opacity(0.8), radius: 10)
-                        NeonText(text: "MARKET", size: 82, tracking: 0, font: Noir.title(82))
+                        NeonText(text: "MARKET", size: 82, tracking: 0, font: Noir.title(82), glow: 0.35)
                     }
                     .minimumScaleFactor(0.5)
                     .lineLimit(1)
@@ -148,10 +148,9 @@ struct NeonRedButton: ButtonStyle {
             .foregroundStyle(Noir.neon)
             .frame(maxWidth: .infinity, minHeight: 58)
             .background(shape.fill(Color.black.opacity(0.55)))
-            .background(shape.fill(Noir.neon.opacity(configuration.isPressed ? 0.2 : 0.06)))
-            .overlay(shape.strokeBorder(Noir.neon, lineWidth: 2))
-            .shadow(color: Noir.neon.opacity(0.8), radius: configuration.isPressed ? 14 : 9)
-            .shadow(color: Noir.neon.opacity(0.4), radius: 22)
+            .background(shape.fill(Noir.neon.opacity(configuration.isPressed ? 0.16 : 0.03)))
+            .overlay(shape.strokeBorder(Noir.neon, lineWidth: 1.6))
+            .shadow(color: Noir.neon.opacity(configuration.isPressed ? 0.7 : 0.45), radius: configuration.isPressed ? 8 : 4)
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .animation(.spring(duration: 0.18), value: configuration.isPressed)
     }

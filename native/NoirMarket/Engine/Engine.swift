@@ -109,13 +109,14 @@ enum Engine {
     static func buyQuote(_ s: GameState, good: Int, qty: Int) -> Int {
         let m = s.markets[s.city]
         let i = impact(qty: qty, supply: m.supply[good])
-        return Int((Double(m.price[good]) * Double(qty) * (1 + i / 2)).rounded())
+        // Respected buyers get a few percent off; nobodies pay over the odds.
+        return Int((Double(m.price[good]) * Double(qty) * (1 + i / 2) * (1 - respect(s) * 0.05)).rounded())
     }
 
     static func sellQuote(_ s: GameState, good: Int, qty: Int) -> Int {
         let m = s.markets[s.city]
         let i = impact(qty: qty, supply: m.supply[good])
-        return Int((Double(m.price[good]) * Double(qty) * (1 - i / 2)).rounded())
+        return Int((Double(m.price[good]) * Double(qty) * (1 - i / 2) * (1 + respect(s) * 0.05)).rounded())
     }
 
     static func maxBuy(_ s: GameState, good: Int) -> Int {

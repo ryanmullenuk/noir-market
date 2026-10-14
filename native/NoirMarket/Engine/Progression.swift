@@ -8,9 +8,23 @@ extension Engine {
         s.mode = mode.rawValue
         s.maxDay = mode.days
         s.perk = mode == .daily || mode == .tutorial ? nil : perk?.rawValue
+        if let p = Engine.perk(s) {
+            s.cash += p.start.cashDelta
+            s.rep = p.start.respect
+            s.heat = p.start.heat
+        }
         if mode == .daily { s.fullAccess = false }
         if mode == .tutorial { setUpTutorial(&s) }
         recordHistory(&s)
+    }
+
+    // MARK: Respect
+
+    /// -1 (no respect) … +1 (full respect), 0 at the default 50.
+    static func respect(_ s: GameState) -> Double { Double(s.rep - 50) / 50 }
+
+    static func changeRespect(_ s: inout GameState, _ delta: Int) {
+        s.rep = min(100, max(0, s.rep + delta))
     }
 
     static func mode(_ s: GameState) -> GameMode { GameMode(rawValue: s.mode ?? "") ?? .standard }

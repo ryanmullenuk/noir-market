@@ -266,9 +266,10 @@ private struct StatStrip: View {
                 tile("Debt", debt > 0 ? Money.short(debt) : "None", "exclamationmark.triangle.fill", dueSoon ? Noir.red : Noir.amber, lit: debt > 0)
                 tile("Bag", "\(Engine.carried(s))/\(Engine.capacity(s))", "bag.fill", fill >= 1 ? Noir.red : fill > 0.75 ? Noir.amber : Noir.green, lit: fill > 0)
             }
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 Meter(label: "Health", symbol: "heart.fill", value: s.health, colour: Noir.rag(s.health, highIsGood: true))
                 Meter(label: "Heat", symbol: "flame.fill", value: s.heat, colour: Noir.rag(s.heat, highIsGood: false))
+                Meter(label: "Respect", symbol: "star.fill", value: s.rep, colour: Noir.rag(s.rep, highIsGood: true))
             }
         }
     }
@@ -309,9 +310,9 @@ struct Meter: View {
                 }
             }
             .frame(height: 6)
-            Text("\(value)%").font(Noir.mono(12)).foregroundStyle(colour).frame(width: 40, alignment: .trailing)
+            Text("\(value)").font(Noir.mono(12)).foregroundStyle(colour).frame(width: 26, alignment: .trailing)
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 10)
         .frame(height: 34)
         .background(Capsule().fill(Color.white.opacity(0.05)))
         .accessibilityElement(children: .ignore)

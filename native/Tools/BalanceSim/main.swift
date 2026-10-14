@@ -1,8 +1,9 @@
 import Foundation
 // Balance harness: swiftc -O NoirMarket/Model/*.swift NoirMarket/Engine/*.swift Tools/BalanceSim/main.swift
 func choose(_ e: Encounter, _ s: GameState) -> Choice { e.defaultChoice(s) }
-func play(seed: UInt64, full: Bool, careful: Bool, borrow: Bool) -> (Int, Bool, Int) {
+func play(seed: UInt64, full: Bool, careful: Bool, borrow: Bool, perk: Perk? = nil) -> (Int, Bool, Int) {
     var s = GameState(seed: seed, city: 0, name: "Bot", fullAccess: full)
+    Engine.configure(&s, mode: .standard, perk: perk)
     var r = SplitMix(seed: seed &* 31)
     var steps = 0, encounters = 0
     if borrow { try? Engine.borrow(&s, lender: 0, amount: 8_000) }
@@ -48,3 +49,8 @@ for full in [false, true] { for careful in [false, true] { for borrow in [false,
     for x in w { ranks[Catalog.ranks[Catalog.rank(for: x)].name, default: 0] += 1 }
     print("full=\(full) careful=\(careful) borrow=\(borrow): p10=\(p(0.1)) p25=\(p(0.25)) med=\(p(0.5)) p75=\(p(0.75)) p90=\(p(0.9)) max=\(w.last!) deaths=\(deaths)/600 enc/game=\(String(format: "%.1f", enc)) \(ranks.sorted { $0.key < $1.key })")
 }}}
+
+for perk in [nil] + Perk.allCases.map(Optional.some) {
+    let w = (1...600).map { play(seed: UInt64($0) * 7919, full: false, careful: true, borrow: false, perk: perk).0 }.sorted()
+    print("perk \(perk?.rawValue ?? "none"): p25=\(w[150]) med=\(w[300]) p75=\(w[450])")
+}

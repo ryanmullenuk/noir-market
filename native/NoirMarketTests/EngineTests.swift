@@ -454,6 +454,35 @@ struct EngineTests {
         #expect(raids > 40 && raids < 85)
     }
 
+    @Test func backgroundsHaveDrawbacks() {
+        var c = fresh(), st = fresh(), d = fresh()
+        Engine.configure(&c, mode: .standard, perk: .copper)
+        Engine.configure(&st, mode: .standard, perk: .student)
+        Engine.configure(&d, mode: .standard, perk: .docker)
+        #expect(c.rep == 0)
+        #expect(st.cash == 1_500 && st.rep == 35)
+        #expect(d.heat == 25 && d.rep == 40)
+    }
+
+    @Test func respectMovesPricesAndJobs() {
+        var low = fresh(), high = fresh()
+        low.rep = 0; high.rep = 100
+        let g = cheapest(low)
+        #expect(Engine.sellQuote(high, good: g, qty: 5) > Engine.sellQuote(low, good: g, qty: 5))
+        #expect(Engine.buyQuote(high, good: g, qty: 5) < Engine.buyQuote(low, good: g, qty: 5))
+        Engine.makeOffers(&low); Engine.makeOffers(&high)
+        #expect((high.offers?.count ?? 0) > (low.offers?.count ?? 0))
+        // Low respect draws bigger gangs.
+        var lowGangs = 0, highGangs = 0
+        for seed in 1...400 {
+            var a = fresh(seed: UInt64(seed)); a.rep = 0
+            var b = fresh(seed: UInt64(seed)); b.rep = 100
+            if Engine.trouble(&a).attacker >= 2 { lowGangs += 1 }
+            if Engine.trouble(&b).attacker >= 2 { highGangs += 1 }
+        }
+        #expect(lowGangs > highGangs * 2)
+    }
+
     func cheapest(_ s: GameState) -> Int {
         Catalog.goods.indices.filter { s.markets[s.city].supply[$0] > 0 }.min { s.markets[s.city].price[$0] < s.markets[s.city].price[$1] }!
     }
