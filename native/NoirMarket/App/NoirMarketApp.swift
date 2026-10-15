@@ -1,4 +1,5 @@
 import SwiftUI
+import StoreKit
 
 @main
 struct NoirMarketApp: App {
@@ -18,6 +19,13 @@ struct NoirMarketApp: App {
                 .task {
                     unlock.onChange = { [store] entitled in store.fullAccess = entitled }
                     GameCenter.authenticate()
+                    // Confirm the build's environment with StoreKit; only TestFlight/Xcode builds allow test names.
+                    if case .verified(let t) = try? await AppTransaction.shared {
+                        GameStore.testNamesAllowed = t.environment == .sandbox || t.environment == .xcode
+                        #if DEBUG
+                        GameStore.testNamesAllowed = true
+                        #endif
+                    }
                     await unlock.start()
                 }
         }

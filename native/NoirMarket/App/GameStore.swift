@@ -38,9 +38,19 @@ final class GameStore {
     }
 
     static let godCash = 99_999_999
-    static func isGodName(_ name: String) -> Bool { name.trimmingCharacters(in: .whitespaces).uppercased() == "GODMODE" }
+    /// Test names only work in development and TestFlight builds, never from the App Store,
+    /// so paid content can only be unlocked by the in-app purchase (App Review 3.1.1).
+    nonisolated(unsafe) static var testNamesAllowed: Bool = {
+        #if DEBUG
+        return true
+        #else
+        return Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt"
+        #endif
+    }()
+
+    static func isGodName(_ name: String) -> Bool { testNamesAllowed && name.trimmingCharacters(in: .whitespaces).uppercased() == "GODMODE" }
     /// TESTER opens every city but plays with normal money, for honest test runs.
-    static func isTesterName(_ name: String) -> Bool { name.trimmingCharacters(in: .whitespaces).uppercased() == "TESTER" }
+    static func isTesterName(_ name: String) -> Bool { testNamesAllowed && name.trimmingCharacters(in: .whitespaces).uppercased() == "TESTER" }
     /// Any test name that unlocks all cities.
     static func unlocksAll(_ name: String) -> Bool { isGodName(name) || isTesterName(name) }
 

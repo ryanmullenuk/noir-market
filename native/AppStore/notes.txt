@@ -1,0 +1,19 @@
+Thank you for reviewing Noir Market.
+
+WHAT THE APP IS
+Noir Market is a single-player trading and strategy game, a fictional and satirical take on the classic "buy low, sell high" trading game genre (in the tradition of Drug Wars, 1984). The player moves between 14 UK and Ireland cities over 30 in-game days, buying and selling fictional black-market goods, managing debt, heat and respect, and choosing how to resolve encounters. All characters, places of business and events are invented.
+
+CONTENT AND GUIDELINE 1.4.3
+The game uses the names of illegal substances as tradeable commodities in a market, alongside fictional crime themes. It does NOT depict, simulate or reward drug consumption: there is no use mechanic, no instructions, no real-world sourcing information and no links to real services. Actions have consequences in the game (arrests, robberies, debt, death). The tone is satirical noir. Every launch screen states "Fiction" and the app is age-rated 17+ (18+ where applicable), with frequent references to drugs, crime and mature themes declared in the age-rating questionnaire.
+
+NO ACCOUNT NEEDED
+There is no sign-in. Tap NEW GAME, choose a name (optional), a mode and a starting city, and tap BEGIN. The TUTORIAL mode on that screen is a quick 3-day guided run of every core system.
+
+IN-APP PURCHASE
+One non-consumable: "Unlock All Cities" (games.redhead.noirmarket.unlockallcities). The free game includes London, Manchester and Birmingham and every mode. To reach the purchase: on the New Game screen tap "Unlock all cities" or any locked city, or in a game open Menu (top-left) > Unlock all cities, or open Travel and select any locked city. "Restore purchases" is in the Menu and on the unlock card.
+
+DATA AND PRIVACY
+No data is collected. Saves stay on device. No ads, analytics, tracking or accounts. Game Center is optional for leaderboards and achievements.
+
+SUPPORT
+https://redhead.games/noir-market/support.html

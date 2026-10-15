@@ -125,8 +125,11 @@ struct TitleView: View {
                     .offset(y: buttonsIn ? 0 : 10)
                     .allowsHitTesting(buttonsIn)
 
-                    Text("a redhead games production")
-                        .font(Noir.ui(11))
+                    Text("a redhead games production · fiction · 18+ · entertainment only")
+                        .font(Noir.ui(10))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .padding(.horizontal, 16)
                         .foregroundStyle(Noir.silver.opacity(0.7))
                         .opacity(buttonsIn ? 1 : 0)
                         .padding(.top, 36)
