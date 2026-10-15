@@ -25,6 +25,8 @@ final class GameStore {
     var toast: Achievement?
     /// A big win to celebrate with the slow-motion moment.
     var celebration: Int?
+    /// The centre-screen result alert currently showing.
+    var flashing: Flash?
     private(set) var achievements: Set<String> = Set(UserDefaults.standard.stringArray(forKey: "achievements") ?? [])
     var fullAccess = false {
         didSet {
@@ -113,10 +115,8 @@ final class GameStore {
             if let a = Achievement.all.first(where: { $0.id == id }) { toast = a }
         }
         s.unlocked = nil
-        if let win = s.lastBigWin {
-            celebration = win
-            s.lastBigWin = nil
-        }
+        // Big wins are now shown by the result alert at the point of the action.
+        s.lastBigWin = nil
     }
 
     func clearOutcome() {

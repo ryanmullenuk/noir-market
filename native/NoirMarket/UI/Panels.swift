@@ -290,6 +290,7 @@ struct MoneyView: View {
             .background(Noir.ink)
             .scrollDismissesKeyboard(.interactively)
             .overlay(alignment: .top) { QuipBanner(quip: $quip) }
+            .overlay { FlashOverlay() }
             .sheet(item: $borrowing) { l in
                 let limit = Engine.lenderLimit(s, l)
                 VStack(alignment: .leading, spacing: 16) {
@@ -481,7 +482,7 @@ struct StreetView: View {
                         }
                     }
 
-                    Section(title: "Informants", note: "Each will talk once a day. Tips are about tomorrow, and only as good as the person selling them.", boxed: false) {
+                    Section(title: "Informants", note: "Each will talk once a day. Pay them and they grow loyal: more accurate, and they ring you more. Take a tip on tick and they turn bitter, and bitter snitches sell you out.", boxed: false) {
                         ForEach(Catalog.informants) { info in
                             let price = s.informantPrice[info.id]
                             VStack(alignment: .leading, spacing: 6) {
@@ -491,11 +492,40 @@ struct StreetView: View {
                                     Text(Money.gbp(price)).font(Noir.mono(14)).foregroundStyle(Noir.silver)
                                 }
                                 Text(info.bio).font(Noir.type(12)).foregroundStyle(Noir.dim).fixedSize(horizontal: false, vertical: true)
-                                SmallButton(title: s.informantUsed[info.id] ? "Talked out for today" : "Pay up", enabled: !s.informantUsed[info.id] && s.cash >= price) {
-                                    var out: Outcome?
-                                    if store.act({ out = try Engine.payInformant(&$0, info.id) }) {
-                                        withAnimation { result = out }
-                                        Audio.shared.buzz(.tap)
+                                let loyal = Engine.loyalty(s, info.id)
+                                HStack(spacing: 8) {
+                                    Text("Loyalty").noirLabel(9)
+                                    GeometryReader { geo in
+                                        ZStack(alignment: .leading) {
+                                            Capsule().fill(Color.white.opacity(0.07))
+                                            Capsule().fill(Noir.rag(loyal, highIsGood: true))
+                                                .frame(width: max(5, geo.size.width * Double(loyal) / 100))
+                                                .shadow(color: Noir.rag(loyal, highIsGood: true).opacity(0.7), radius: 4)
+                                        }
+                                    }
+                                    .frame(height: 5)
+                                    Text(Engine.loyaltyWord(loyal)).font(Noir.label(10)).foregroundStyle(Noir.rag(loyal, highIsGood: true))
+                                        .frame(width: 70, alignment: .trailing)
+                                }
+                                .padding(.vertical, 2)
+                                Text("Reliable about \(Int((Engine.trust(s, info.id) * 100).rounded()))% of the time.")
+                                    .font(Noir.ui(11)).foregroundStyle(Noir.silver)
+                                HStack(spacing: 8) {
+                                    SmallButton(title: s.informantUsed[info.id] ? "Talked out" : "Pay \(Money.gbp(price))", enabled: !s.informantUsed[info.id] && s.cash >= price, wide: true) {
+                                        let cash = s.cash
+                                        var out: Outcome?
+                                        if store.act({ out = try Engine.payInformant(&$0, info.id) }), let out {
+                                            withAnimation { result = out }
+                                            store.flash(out.good ? "Tip in" : out.title, out.good ? "\(info.name) talks. Check the tip below; NOIRNET will tell you tomorrow if it was right." : out.text,
+                                                        good: out.good, amount: out.good ? nil : (store.state?.cash ?? cash) - cash)
+                                        }
+                                    }
+                                    SmallButton(title: "On tick", enabled: !s.informantUsed[info.id], tint: Noir.red, wide: true) {
+                                        var out: Outcome?
+                                        if store.act({ out = try Engine.stiffInformant(&$0, info.id) }), let out {
+                                            withAnimation { result = out }
+                                            store.flash("Stiffed \(info.name.components(separatedBy: " ").first ?? "them")", "Free tip. Loyalty takes a beating, and bitter snitches talk to the police.", good: false)
+                                        }
                                     }
                                 }
                             }
@@ -512,10 +542,11 @@ struct StreetView: View {
                                     Audio.shared.buzz(.warning)
                                     return
                                 }
+                                let before = s.cash
                                 var out: Outcome?
-                                if store.act({ out = try Engine.takeDeal(&$0) }) {
+                                if store.act({ out = try Engine.takeDeal(&$0) }), let out {
                                     withAnimation { result = out }
-                                    Audio.shared.buzz(out?.good == true ? .success : .danger)
+                                    store.flash(out, amount: (store.state?.cash ?? before) - before)
                                 }
                             }, onHangUp: { store.act { Engine.hangUp(&$0) } })
                         } else {
@@ -533,6 +564,7 @@ struct StreetView: View {
             }
             .background(Noir.ink)
             .overlay(alignment: .top) { QuipBanner(quip: $quip) }
+            .overlay { FlashOverlay() }
             .noirDialog(isPresented: Binding(get: { shortfall != nil }, set: { if !$0 { shortfall = nil } }),
                         title: shortfall.map { "You’re \(Money.gbp($0)) short" } ?? "",
                         message: "The voice on the phone won’t wait long. Borrow the difference and the deal stays on the table.",
@@ -659,7 +691,9 @@ struct ContractCard: View {
                 if active {
                     if ready {
                         SmallButton(title: "Deliver") {
-                            if store.act({ try Engine.deliver(&$0, c.id) }) { Audio.shared.play(.cash, volume: 0.6) }
+                            if store.act({ try Engine.deliver(&$0, c.id) }) {
+                                store.flash("Job done", "\(c.qty) \(Catalog.goods[c.good].name) delivered in \(Catalog.cities[c.city].name).", good: true, amount: c.reward)
+                            }
                         }
                     } else {
                         Text("You hold \(s.carry[c.good])/\(c.qty)").font(Noir.ui(11)).foregroundStyle(Noir.silver)

@@ -23,7 +23,7 @@ final class Audio {
 
     private var effects: [String: AVAudioPlayer] = [:]
 
-    enum Effect: String { case cash, siren, page, thud, click, key, gunshot, swipe, boom, knuckles, train, bingbong, ring }
+    enum Effect: String { case cash, siren, page, thud, click, key, gunshot, swipe, boom, knuckles, train, bingbong, ring, win, lose }
 
     func play(_ effect: Effect, volume: Float = 0.6) {
         guard soundsOn else { return }

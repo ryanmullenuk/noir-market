@@ -82,7 +82,16 @@ extension Engine {
             mugging *= 1 - respect(s) * 0.55          // 45% … 155% of normal
             if s.weather == "fog" { mugging *= 1.3 }
             let r = s.rng.unit()
-            if rivalVisit(&s) {
+            if let id = s.sellout {
+                // A bitter informant has been talking.
+                s.sellout = nil
+                var stop = policeStop(&s, airport: flight)
+                stop.grass = Catalog.informants[id].name
+                stop.bribeChance *= 0.6
+                s.heat = min(100, s.heat + 15)
+                changeLoyalty(&s, id, 30)
+                s.encounters.append(.police(stop))
+            } else if rivalVisit(&s) {
                 // The local crew got to you first.
             } else if r < police, carrying || weapons || s.heat > 60 {
                 s.encounters.append(.police(policeStop(&s, airport: flight)))

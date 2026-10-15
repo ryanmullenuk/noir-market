@@ -110,6 +110,8 @@ struct RootView: View {
             }
         }
         if args.contains("-noCall") { store.act { $0.call = nil } }
+        if args.contains("-flashwin") { store.flash("Done Deal", "The Ecstasy moves without a hitch.", good: true, amount: 18_450) }
+        if args.contains("-flashlose") { store.flash("Scammed", "The van never turns up. Neither does your money.", good: false, amount: -6_200) }
         if args.contains("-newgame") { screen = .newGame; return }
         if args.contains("-empire") {
             store.act { s in

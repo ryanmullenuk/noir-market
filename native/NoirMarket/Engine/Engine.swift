@@ -433,6 +433,26 @@ enum Engine {
         s.informantUsed = [false, false, false]
     }
 
+    // MARK: Informant loyalty
+
+    static func loyalty(_ s: GameState, _ id: Int) -> Int { s.loyalty?[id] ?? 50 }
+
+    static func changeLoyalty(_ s: inout GameState, _ id: Int, _ delta: Int) {
+        guard id < 3 else { return }
+        var l = s.loyalty ?? [50, 50, 50]
+        l[id] = min(100, max(0, l[id] + delta))
+        s.loyalty = l
+    }
+
+    /// Reliability after loyalty: a loyal snitch is up to 20 points more accurate.
+    static func trust(_ s: GameState, _ id: Int) -> Double {
+        clamp(Catalog.informants[id].trust + Double(loyalty(s, id) - 50) / 250, 0.2, 0.98)
+    }
+
+    static func loyaltyWord(_ v: Int) -> String {
+        v >= 80 ? "Loyal" : v >= 60 ? "Friendly" : v >= 40 ? "Neutral" : v >= 20 ? "Wary" : "Bitter"
+    }
+
     static func payInformant(_ s: inout GameState, _ id: Int) throws -> Outcome {
         try idle(s)
         guard !s.informantUsed[id] else { throw Failure.invalid("They’ve said all they’re saying today.") }
@@ -442,11 +462,33 @@ enum Engine {
         s.cash -= cost
         s.informantUsed[id] = true
         s.stats.tipsBought += 1
-        if s.rng.chance(info.scamChance) {
+        changeLoyalty(&s, id, 8)
+        // Loyal informants don't play you.
+        if s.rng.chance(info.scamChance * (1.5 - Double(loyalty(s, id)) / 100)) {
             s.rep = max(0, s.rep - 1)
             return Outcome(title: "Played", text: info.scam, good: false)
         }
-        return makeTip(&s, informant: id, trust: info.trust, title: info.name)
+        return makeTip(&s, informant: id, trust: trust(s, id), title: info.name)
+    }
+
+    /// Take the tip now and "settle up later". They remember.
+    static func stiffInformant(_ s: inout GameState, _ id: Int) throws -> Outcome {
+        try idle(s)
+        guard !s.informantUsed[id] else { throw Failure.invalid("They’ve said all they’re saying today.") }
+        s.informantUsed[id] = true
+        changeLoyalty(&s, id, -30)
+        return stiffed(&s, id, title: Catalog.informants[id].name)
+    }
+
+    private static func stiffed(_ s: inout GameState, _ id: Int, title: String) -> Outcome {
+        var out = makeTip(&s, informant: id, trust: trust(s, id) * 0.8, title: title)
+        if loyalty(s, id) < 20 {
+            s.sellout = id
+            out.text += " They didn’t say goodbye. That’s never a good sign."
+        } else {
+            out.text += " They’ll remember this."
+        }
+        return out
     }
 
     /// Every tip looks the same; only the source's reliability says how far to trust it.
@@ -472,18 +514,22 @@ enum Engine {
 
     /// Rolls whether someone rings tonight. Snitches call cheap when they're desperate; unknown numbers are a gamble.
     static func maybeCall(_ s: inout GameState) {
-        guard s.call == nil, s.day < s.maxDay, mode(s) != .tutorial, s.rng.chance(0.22) else { return }
-        let caller = s.rng.int(0, 3) // 3 = unknown number
+        let loyal = (0..<3).map { Double(loyalty(s, $0)) }
+        let chance = 0.18 + loyal.reduce(0, +) / 300 * 0.12
+        guard s.call == nil, s.day < s.maxDay, mode(s) != .tutorial, s.rng.chance(chance) else { return }
+        // Loyal snitches ring more; bitter ones stop calling.
+        let caller = s.rng.pick(weights: loyal.map { max(0.05, $0 / 50) } + [1.0]) // 3 = unknown number
         let fee: Int, trust: Double
         if caller < 3 {
             fee = max(20, s.informantPrice[caller] / 2 / 10 * 10)
-            trust = Catalog.informants[caller].trust
+            trust = Engine.trust(s, caller)
         } else {
             fee = s.rng.int(4, 18) * 10
             trust = s.rng.uniform(0.3, 0.75)
         }
         let lines = Press.callOpeners[caller]
-        s.call = IncomingCall(caller: caller, fee: fee, trust: trust, line: lines[s.rng.int(0, lines.count - 1)], answered: false)
+        let female = caller == 1 || (caller == 3 && s.rng.chance(0.5))
+        s.call = IncomingCall(caller: caller, fee: fee, trust: trust, line: lines[s.rng.int(0, lines.count - 1)], answered: false, female: female)
     }
 
     static func callerName(_ caller: Int) -> String { caller < 3 ? Catalog.informants[caller].name : "Unknown number" }
@@ -499,6 +545,7 @@ enum Engine {
         s.cash -= call.fee
         s.stats.tipsBought += 1
         award(&s, "answered")
+        changeLoyalty(&s, call.caller, 6)
         let outcome = call.caller == 3 && s.rng.chance(0.15)
             ? Outcome(title: "Dead Line", text: "You send the money. The number stops working. Somewhere, someone is buying chips with it.", good: false)
             : makeTip(&s, informant: call.caller, trust: call.trust, title: callerName(call.caller))
@@ -506,7 +553,24 @@ enum Engine {
         return outcome
     }
 
-    static func declineCall(_ s: inout GameState) { s.call = nil }
+    static func declineCall(_ s: inout GameState) {
+        if let call = s.call, call.result == nil { changeLoyalty(&s, call.caller, call.answered ? -6 : -3) }
+        s.call = nil
+    }
+
+    /// Take a caller's tip and don't pay.
+    static func stiffCall(_ s: inout GameState) throws -> Outcome {
+        guard let call = s.call, call.result == nil else { throw Failure.invalid("Nobody’s there.") }
+        let outcome: Outcome
+        if call.caller < 3 {
+            changeLoyalty(&s, call.caller, -30)
+            outcome = stiffed(&s, call.caller, title: callerName(call.caller))
+        } else {
+            outcome = Outcome(title: "Line Dead", text: "“No money, no chat.” Click.", good: false)
+        }
+        s.call?.result = outcome
+        return outcome
+    }
 
     // MARK: Contacts
 

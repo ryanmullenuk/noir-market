@@ -82,12 +82,17 @@ struct TradeSheet: View {
                     }
 
                     Button(selling ? "Sell \(q)" : "Buy \(q)") {
+                        let profit = quote - avg * q
                         let ok = store.act { st in
                             if selling { try Engine.sell(&st, good: good, qty: q) } else { try Engine.buy(&st, good: good, qty: q) }
                         }
                         if ok {
                             Audio.shared.buzz(.success)
-                            if selling { Audio.shared.play(.cash) }
+                            if selling {
+                                Audio.shared.play(.cash)
+                                store.flash(profit >= 0 ? "Sold at a profit" : "Sold at a loss",
+                                            "\(q) \(g.name) for \(Money.gbp(quote)).", good: profit >= 0, amount: profit)
+                            }
                             dismiss()
                         }
                     }

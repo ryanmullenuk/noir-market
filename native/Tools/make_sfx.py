@@ -138,3 +138,26 @@ for i in range(n):
     tone = (math.sin(2 * math.pi * 400 * t) + math.sin(2 * math.pi * 450 * t)) * 0.5 if on else 0
     s.append(tone * (0.6 + 0.4 * math.sin(2 * math.pi * 25 * t)))
 write("ring", s)
+
+# Win: a bright rising major arpeggio with a shimmer.
+n = int(R * 0.9); s = []
+notes = [(0.00, 659.3), (0.08, 830.6), (0.16, 987.8), (0.24, 1318.5)]
+for i in range(n):
+    t = i / R
+    v = 0
+    for st, f in notes:
+        if t >= st:
+            u = t - st
+            v += (math.sin(2*math.pi*f*u) + 0.3*math.sin(4*math.pi*f*u)) * math.exp(-5*u) * 0.35
+    s.append(v)
+write("win", s)
+
+# Lose: a falling minor pair with a low thud.
+n = int(R * 0.9); s = []
+for i in range(n):
+    t = i / R
+    a = math.sin(2*math.pi*392*t) * math.exp(-4*t) if t < 0.9 else 0
+    b = math.sin(2*math.pi*311.1*(t-0.18)) * math.exp(-3.5*(t-0.18)) if t > 0.18 else 0
+    low = math.sin(2*math.pi*(90*math.exp(-3*t)+40)*t) * math.exp(-8*t)
+    s.append(a*0.35 + b*0.45 + low*0.5)
+write("lose", s)

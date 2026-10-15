@@ -483,6 +483,30 @@ struct EngineTests {
         #expect(lowGangs > highGangs * 2)
     }
 
+    @Test func loyalSnitchesGetBetterStiffedOnesSellYouOut() throws {
+        var s = fresh()
+        s.cash = 1_000_000
+        let base = Engine.trust(s, 0)
+        for _ in 0..<5 {
+            s.informantUsed = [false, false, false]
+            _ = try Engine.payInformant(&s, 0)
+        }
+        #expect(Engine.loyalty(s, 0) > 80)
+        #expect(Engine.trust(s, 0) > base)
+        // Stiff Lucy until she's bitter, then she grasses.
+        for _ in 0..<2 {
+            s.informantUsed = [false, false, false]
+            _ = try Engine.stiffInformant(&s, 1)
+        }
+        #expect(Engine.loyalty(s, 1) < 20)
+        #expect(s.sellout == 1)
+        s.carry[0] = 5
+        try Engine.stay(&s)
+        let stop = s.encounters.compactMap { if case .police(let p) = $0 { p } else { nil } }.first
+        #expect(stop?.grass == "Lucy Loose Lips")
+        #expect(s.sellout == nil)
+    }
+
     func cheapest(_ s: GameState) -> Int {
         Catalog.goods.indices.filter { s.markets[s.city].supply[$0] > 0 }.min { s.markets[s.city].price[$0] < s.markets[s.city].price[$1] }!
     }

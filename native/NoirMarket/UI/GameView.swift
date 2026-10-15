@@ -32,9 +32,8 @@ struct GameView: View {
                     Dock(onSelect: { panel = $0 }, onStay: { stay() }, s: s)
                 }
                 FilmGrain()
-                if let win = store.celebration, !overlayNeeded, trade == nil {
-                    BigWinMoment(amount: win) { store.celebration = nil }
-                        .zIndex(6)
+                if panel == nil && trade == nil {
+                    FlashOverlay().zIndex(9)
                 }
                 VStack {
                     AchievementToast()

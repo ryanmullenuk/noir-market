@@ -74,6 +74,8 @@ struct PoliceStop: Codable, Sendable, Equatable {
     var round: Int?
     /// Set when the police were tipped off and waiting at a depot.
     var depot: Bool?
+    /// Name of the informant who sold you out, if that's why they're here.
+    var grass: String?
 }
 
 struct Trouble: Codable, Sendable, Equatable {
@@ -109,6 +111,8 @@ struct IncomingCall: Codable, Sendable, Equatable {
     var line: String
     var answered: Bool
     var result: Outcome?
+    /// Silhouette shown on the call card. Optional for older saves.
+    var female: Bool?
 }
 
 struct PendingTip: Codable, Sendable, Equatable {
@@ -213,6 +217,10 @@ struct GameState: Codable, Sendable, Equatable {
     var contracts: [Contract]?
     var offers: [Contract]?
     var pendingEnding: Bool?
+
+    /// Loyalty of each informant (0–100, starts 50), and one who's about to sell you out.
+    var loyalty: [Int]?
+    var sellout: Int?
     /// Test mode: unlimited cash and every city, enabled by the name GODMODE. Never counts for records.
     var godMode: Bool?
     var calledToday = false
