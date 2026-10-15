@@ -135,6 +135,15 @@ struct Stats: Codable, Sendable, Equatable {
     var arrests = 0, bribesPaid = 0, fightsWon = 0, fightsLost = 0, escapes = 0
     var mugged = 0, loansTaken = 0, jailDays = 0, tipsBought = 0, dealsDone = 0
     var shipmentsSent = 0, shipmentsLost = 0, bestWorth = 0
+    // Rundown details. Optional so older saves still decode.
+    var bestDeal: Int?
+    var bestDealText: String?
+    var worstLoss: Int?
+    var worstLossText: String?
+    var totalLost: Int?
+    var contractsDone: Int?
+    var worthByDay: [Int]?
+    var earned: [String]?
 }
 
 struct GameOver: Codable, Sendable, Equatable {

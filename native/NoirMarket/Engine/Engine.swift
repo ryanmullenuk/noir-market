@@ -170,6 +170,7 @@ enum Engine {
         addDirty(&s, value)
         raiseTurf(&s, by: max(1, qty / 6 + value / 15_000))
         let profit = value - basis
+        record(&s, profit, "Sold \(qty) \(Catalog.goods[good].name) in \(Catalog.cities[s.city].name)")
         award(&s, "first_sale")
         if value >= 50_000 { award(&s, "big_sale") }
         if profit >= 10_000 { s.lastBigWin = profit }
@@ -605,20 +606,25 @@ enum Engine {
         switch s.rng.pick(weights: deal.odds) {
         case 0:
             s.cash += deal.payout; s.rep = min(100, s.rep + 2); addDirty(&s, deal.payout)
+            record(&s, deal.payout - deal.buyCost, "Phone deal: \(deal.qty) \(name)")
             return Outcome(title: "Done Deal", text: "The \(name) moves without a hitch. \(Money.gbp(deal.payout)) lands in your hand.", good: true)
         case 1:
             let back = Int(Double(deal.buyCost) * s.rng.uniform(0.6, 1.0))
             s.cash += back
+            record(&s, back - deal.buyCost, "Short-changed on a phone deal")
             return Outcome(title: "Short Changed", text: "The buyer pays light and blames “the economy”. You get \(Money.gbp(back)) back.", good: false)
         case 2:
             s.heat = min(100, s.heat + s.rng.int(12, 25)); s.rep = max(0, s.rep - 2)
+            record(&s, -deal.buyCost, "Set up by a wired buyer")
             return Outcome(title: "Set Up", text: "The buyer was wearing a wire, badly. You walk away, the money and the \(name) don’t.", good: false)
         case 3:
             s.rep = max(0, s.rep - 2)
+            record(&s, -deal.buyCost, "Scammed on a phone deal")
             return Outcome(title: "Scammed", text: "The van never turns up. Neither does your \(Money.gbp(deal.buyCost)).", good: false)
         default:
             let jackpot = Int(Double(deal.payout) * s.rng.uniform(1.4, 1.9))
             s.cash += jackpot; s.rep = min(100, s.rep + 4)
+            record(&s, jackpot - deal.buyCost, "Phone deal jackpot: \(deal.qty) \(name)")
             return Outcome(title: "Jackpot", text: "A bidding war breaks out over your \(name). You walk away with \(Money.gbp(jackpot)).", good: true)
         }
     }

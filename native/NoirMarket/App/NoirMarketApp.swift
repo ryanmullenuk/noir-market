@@ -110,6 +110,25 @@ struct RootView: View {
             }
         }
         if args.contains("-noCall") { store.act { $0.call = nil } }
+        if args.contains("-endgood") {
+            store.act { s in
+                s.call = nil; s.report = nil; s.encounters = []
+                s.cash = 1_850_000; s.rep = 82; s.heat = 20
+                Engine.record(&s, 142_000, "Sold 60 Cocaine in Manchester")
+                Engine.record(&s, -18_500, "Robbed by a small gang")
+                for id in ["first_sale", "big_sale", "legend", "front"] { Engine.award(&s, id) }
+                s.pendingEnding = true
+                Engine.chooseEnding(&s, .spain)
+            }
+        }
+        if args.contains("-enddead") {
+            store.act { s in
+                s.call = nil; s.report = nil; s.encounters = []
+                Engine.record(&s, -9_200, "Nicked by the police")
+                s.health = 0
+                Engine.checkEnd(&s)
+            }
+        }
         if args.contains("-flashwin") { store.flash("Done Deal", "The Ecstasy moves without a hitch.", good: true, amount: 18_450) }
         if args.contains("-flashlose") { store.flash("Scammed", "The van never turns up. Neither does your money.", good: false, amount: -6_200) }
         if args.contains("-newgame") { screen = .newGame; return }

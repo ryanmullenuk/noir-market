@@ -32,7 +32,17 @@ extension Engine {
 
     // MARK: Achievements
 
+    /// Records a deal's result for the end-of-game rundown.
+    static func record(_ s: inout GameState, _ amount: Int, _ text: String) {
+        if amount > (s.stats.bestDeal ?? 0) { s.stats.bestDeal = amount; s.stats.bestDealText = text }
+        if amount < 0 {
+            s.stats.totalLost = (s.stats.totalLost ?? 0) - amount
+            if amount < (s.stats.worstLoss ?? 0) { s.stats.worstLoss = amount; s.stats.worstLossText = text }
+        }
+    }
+
     static func award(_ s: inout GameState, _ id: String) {
+        if !(s.stats.earned ?? []).contains(id) { s.stats.earned = (s.stats.earned ?? []) + [id] }
         guard s.godMode != true, !(s.unlocked ?? []).contains(id) else { return }
         s.unlocked = (s.unlocked ?? []) + [id]
     }
@@ -62,6 +72,7 @@ extension Engine {
             }
         }
         s.history = h
+        s.stats.worthByDay = (s.stats.worthByDay ?? []) + [netWorth(s)]
         if !(s.visited ?? []).contains(s.city) { s.visited = (s.visited ?? []) + [s.city] }
         var seen = s.seenDay ?? Array(repeating: 0, count: Catalog.cities.count)
         seen[s.city] = s.day

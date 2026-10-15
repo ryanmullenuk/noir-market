@@ -593,61 +593,159 @@ private struct CaseClosed: View {
     let s: GameState
     var onDone: () -> Void
     @Environment(GameStore.self) private var store
+    @State private var shown = 0
+    @State private var cursor = true
+    @State private var glitch = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// A good run: alive, not raided or busted, and up on the starting stake.
+    private var good: Bool {
+        !over.died && !["raid", "scorefail", "jail"].contains(over.ending ?? "") && over.worth > 2_500
+    }
+    private var tint: Color { good ? Noir.green : Noir.red }
+
+    struct Line: Identifiable { let id: Int; let tag: String; let text: String; let colour: Color }
+
+    private var lines: [Line] {
+        var out: [Line] = []
+        func add(_ tag: String, _ text: String, _ c: Color = Noir.paper) { out.append(Line(id: out.count, tag: tag, text: text, colour: c)) }
+        let st = s.stats
+        let mode = Engine.mode(s)
+        add(">", "noirnet archive :: case file \(String(format: "%05d", s.seed % 99_999))", Noir.dim)
+        add(">", "subject: \(s.playerName.isEmpty ? "ANONYMOUS" : s.playerName.uppercased()) :: \(mode.title.lowercased()) :: \(Engine.perk(s)?.title.lowercased() ?? "no background")", Noir.dim)
+        add("STATUS", over.died ? "DECEASED" : Engine.endingTitle(over.ending).uppercased(), tint)
+        add("NET WORTH", Money.gbp(over.worth), over.worth >= 0 ? Noir.green : Noir.red)
+        add("RANK", Catalog.ranks[over.rank].name.uppercased(), Noir.amber)
+        add("CASH / BANK", "\(Money.gbp(s.cash)) / \(Money.gbp(s.bank))")
+        let debt = Engine.debt(s)
+        add("DEBT", debt > 0 ? Money.gbp(debt) : "none", debt > 0 ? Noir.red : Noir.green)
+        add("HEALTH", "\(s.health)%", Noir.rag(s.health, highIsGood: true))
+        add("RESPECT", "\(s.rep)/100", Noir.rag(s.rep, highIsGood: true))
+        add("HEAT", "\(s.heat)%", Noir.rag(s.heat, highIsGood: false))
+        add("DAYS", "\(min(s.day, s.maxDay)) of \(s.maxDay)")
+        if let best = st.bestDeal, best > 0 { add("BEST DEAL", "+\(Money.gbp(best)) · \(st.bestDealText ?? "")", Noir.green) }
+        if let worst = st.worstLoss, worst < 0 { add("WORST HIT", "−\(Money.gbp(-worst)) · \(st.worstLossText ?? "")", Noir.red) }
+        if let lost = st.totalLost, lost > 0 { add("TOTAL LOST", Money.gbp(lost), Noir.red) }
+        add("BIGGEST SALE", Money.gbp(st.biggestSale))
+        add("PEAK WORTH", Money.gbp(st.bestWorth))
+        let goals = (st.earned ?? []).compactMap { id in Achievement.all.first { $0.id == id }?.title }
+        add("GOALS", goals.isEmpty ? "none this time" : goals.map { "✓ \($0)" }.joined(separator: "  "), goals.isEmpty ? Noir.dim : Noir.amber)
+        add("TRADE", "\(st.unitsBought) bought · \(st.unitsSold) sold · \(st.contractsDone ?? 0) contracts · \(st.dealsDone) phone deals")
+        add("TRAVEL", "\(st.trips) trips · \((s.visited ?? []).count) cities · \(st.shipmentsSent) shipped, \(st.shipmentsLost) lost")
+        add("STREET", "\(st.fightsWon) fights won · \(st.fightsLost) lost · \(st.escapes) escapes · robbed \(st.mugged)×")
+        add("LAW", "\(st.arrests) arrests · \(st.bribesPaid) bribes · \(st.jailDays) nights inside")
+        add("EMPIRE", "\((s.businesses ?? []).count) fronts · \((s.crew ?? []).count) crew · \(st.tipsBought) tips bought")
+        add("VERDICT", over.epitaph, tint)
+        add(">", good ? "file closed. well played." : "file terminated.", Noir.dim)
+        return out
+    }
 
     var body: some View {
         ZStack {
-            Noir.ink.ignoresSafeArea()
-            Rain(intensity: 60)
-            ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    Text(over.died ? "Obituary" : "Case closed").noirLabel(12, color: Noir.neon)
-                        .padding(.top, 40)
-                    Text(over.died ? "Lights out." : Engine.endingTitle(over.ending) + ".").font(Noir.display(44)).foregroundStyle(over.ending == "spain" || over.ending == "score" ? Noir.green : over.ending == "raid" || over.ending == "scorefail" ? Noir.red : Noir.paper)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Text(over.epitaph).font(Noir.type(17)).foregroundStyle(Noir.silver)
-                        .fixedSize(horizontal: false, vertical: true)
+            Color.black.ignoresSafeArea()
+            RadialGradient(colors: [tint.opacity(0.14), .clear], center: .top, startRadius: 10, endRadius: 520).ignoresSafeArea()
+            Scanlines().ignoresSafeArea()
+            if good { Confetti().ignoresSafeArea() }
 
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("Net worth").noirLabel()
-                        Text(Money.gbp(over.worth)).font(Noir.display(44)).foregroundStyle(over.worth >= 0 ? Noir.paper : Noir.neon)
-                        Text(Catalog.ranks[over.rank].name).font(Noir.typeBold(18)).foregroundStyle(Noir.brass)
-                        if let place = store.records.firstIndex(where: { $0.seed == s.seed }) {
-                            Text(place == 0 ? "A new personal record." : "Number \(place + 1) in your records.")
-                                .font(Noir.type(13)).foregroundStyle(Noir.silver)
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .card(padding: 18)
-
-                    let st = s.stats
-                    VStack(spacing: 8) {
-                        row("Trips taken", "\(st.trips)")
-                        row("Units bought / sold", "\(st.unitsBought) / \(st.unitsSold)")
-                        row("Biggest sale", Money.gbp(st.biggestSale))
-                        row("Brushes with the law", "\(st.arrests + st.bribesPaid + st.escapes)")
-                        row("Nights in a cell", "\(st.jailDays)")
-                        row("Fights won / lost", "\(st.fightsWon) / \(st.fightsLost)")
-                        row("Times robbed", "\(st.mugged)")
-                        row("Best net worth", Money.gbp(st.bestWorth))
-                    }
-                    .card()
-
-                    Button("Back to the street", action: onDone).buttonStyle(.noirPrimary)
-                        .padding(.bottom, 30)
+            VStack(alignment: .leading, spacing: 0) {
+                HStack(spacing: 8) {
+                    Circle().fill(tint).frame(width: 8, height: 8).glow(tint, radius: 6)
+                    Text("NOIRNET").font(Noir.display(22)).foregroundStyle(tint)
+                    Text("// CASE FILE").font(Noir.label(10)).tracking(1.2).foregroundStyle(tint.opacity(0.7))
+                    Spacer()
                 }
-                .padding(24)
-            }
-            FilmGrain()
-        }
-        .onAppear { Audio.shared.buzz(over.died ? .danger : .success) }
-    }
+                Text(good ? (over.ending == "spain" ? "RETIRED." : "CASE CLOSED.") : (over.died ? "FLATLINED." : "BUSTED."))
+                    .font(Noir.title(46))
+                    .foregroundStyle(tint)
+                    .shadow(color: tint.opacity(0.6), radius: 14)
+                    .offset(x: glitch ? 4 : 0)
+                    .padding(.top, 10)
+                Text(Money.gbp(over.worth))
+                    .font(Noir.mono(30))
+                    .foregroundStyle(over.worth >= 0 ? Noir.paper : Noir.red)
+                if let worth = s.stats.worthByDay, worth.count > 2 {
+                    Sparkline(values: worth, colour: tint).frame(height: 36).padding(.vertical, 8)
+                }
+                Rectangle().fill(tint.opacity(0.35)).frame(height: 1)
 
-    private func row(_ k: String, _ v: String) -> some View {
-        HStack {
-            Text(k).font(Noir.type(14)).foregroundStyle(Noir.silver)
-            Spacer()
-            Text(v).font(Noir.mono(14)).foregroundStyle(Noir.paper)
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 9) {
+                            ForEach(lines.prefix(shown)) { l in
+                                (Text(l.tag == ">" ? "> " : "[\(l.tag)] ").foregroundStyle(l.tag == ">" ? Noir.dim : tint.opacity(0.85))
+                                 + Text(l.text).foregroundStyle(l.colour))
+                                    .font(Noir.ui(13))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .id(l.id)
+                            }
+                            Text(cursor ? "█" : " ").font(Noir.ui(13)).foregroundStyle(tint).id(-1)
+                        }
+                        .padding(.vertical, 12)
+                    }
+                    .scrollIndicators(.hidden)
+                    .onChange(of: shown) { withAnimation { proxy.scrollTo(-1, anchor: .bottom) } }
+                }
+
+                Button(good ? "Back to the street" : "Try again") { Audio.shared.play(.click, volume: 0.6); onDone() }
+                    .buttonStyle(good ? NoirButtonStyle(kind: .primary) : NoirButtonStyle(kind: .danger))
+                    .opacity(shown >= lines.count ? 1 : 0.35)
+            }
+            .padding(20)
         }
+        .contentShape(Rectangle())
+        .onTapGesture { shown = lines.count }
+        .task {
+            Audio.shared.play(good ? .win : .lose, volume: 0.6)
+            Audio.shared.buzz(good ? .success : .danger)
+            if reduceMotion { shown = lines.count; return }
+            while shown < lines.count {
+                try? await Task.sleep(for: .milliseconds(110))
+                shown += 1
+                Audio.shared.play(.key, volume: 0.15)
+                Audio.shared.typeTick()
+            }
+        }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(420))
+                cursor.toggle()
+                if !good && !reduceMotion && Int.random(in: 0..<4) == 0 {
+                    glitch = true
+                    try? await Task.sleep(for: .milliseconds(60))
+                    glitch = false
+                }
+            }
+        }
+    }
+}
+
+/// Green powder bursting up and drifting down: the celebration.
+private struct Confetti: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var start = Date()
+
+    var body: some View {
+        TimelineView(.animation(paused: reduceMotion)) { tl in
+            Canvas { ctx, size in
+                let t = tl.date.timeIntervalSince(start)
+                var r = SplitMix(seed: 31)
+                for i in 0..<160 {
+                    let vx = (Double(r.next() % 1000) / 1000 - 0.5) * 420
+                    let vy = -(260 + Double(r.next() % 1000) / 1000 * 420)
+                    let delay = Double(i % 3) * 0.35
+                    let tt = max(0, t - delay)
+                    guard tt > 0, tt < 4.5 else { continue }
+                    let x = size.width / 2 + vx * tt
+                    let y = size.height * 0.32 + vy * tt + 420 * tt * tt
+                    let a = max(0, 1 - tt / 4.5)
+                    let sz = 2 + Double(r.next() % 4)
+                    let c: Color = i % 5 == 0 ? Noir.amber : i % 7 == 0 ? .white : Noir.green
+                    ctx.fill(Path(ellipseIn: CGRect(x: x, y: y, width: sz, height: sz)), with: .color(c.opacity(a)))
+                }
+            }
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 

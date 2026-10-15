@@ -152,11 +152,13 @@ extension Engine {
             s.heat = max(0, s.heat - 6)
             return Outcome(title: "Clean", text: intro + "They turn out your pockets and find a bus ticket and some fluff. “On your way.”", good: true)
         }
+        let seizedValue = carriedValue(s)
         s.carry = s.carry.map { _ in 0 }
         s.carryCost = s.carryCost.map { _ in 0 }
         s.weapons = s.weapons.map { _ in 0 }
         let fine = min(s.cash, stop.fine)
         s.cash -= fine
+        record(&s, -(seizedValue + fine), stop.airport ? "Nicked at customs" : "Nicked by the police")
         s.rep = max(0, s.rep - 5)
         var text = intro + "Everything you were carrying goes into evidence bags"
         text += fine > 0 ? ", and the fine comes to \(Money.gbp(fine))." : "."
@@ -179,6 +181,7 @@ extension Engine {
         case .handOver:
             let take = min(s.cash, t.handOver)
             s.cash -= take
+            record(&s, -take, "Robbed by \(a.name)")
             var text = "You hand over \(Money.gbp(take))."
             if t.attacker >= 2 {
                 for g in s.carry.indices where s.carry[g] > 0 {
@@ -205,6 +208,7 @@ extension Engine {
             let take = a.take(from: s.cash, fraction: s.rng.uniform(0.05, a.loot))
             s.health -= hurt
             s.cash -= take
+            record(&s, -take, "Robbed by \(a.name)")
             s.stats.mugged += 1
             return (Outcome(title: "Caught", text: "They catch you by the bins. \(hurt)% health and \(Money.gbp(take)) later, they’re gone.", good: false), false)
         case .fight:
@@ -245,6 +249,7 @@ extension Engine {
             }
             let take = a.take(from: s.cash, fraction: s.rng.uniform(0.05, a.loot))
             s.cash -= take
+            record(&s, -take, "Robbed by \(a.name)")
             return (Outcome(title: "Broke Away", text: "You lose \(hurt)% health and \(Money.gbp(take)), but you get away.", good: false), false)
         default:
             throw Failure.invalid("Not an option.")

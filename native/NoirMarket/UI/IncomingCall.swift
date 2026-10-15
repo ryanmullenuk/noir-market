@@ -1,100 +1,31 @@
 import SwiftUI
 
-/// A backlit head-and-shoulders silhouette, male or female.
-struct PersonSilhouette: Shape {
-    var female: Bool
-
-    func path(in r: CGRect) -> Path {
-        let w = r.width / 100, h = r.height / 100
-        func p(_ x: CGFloat, _ y: CGFloat) -> CGPoint { CGPoint(x: r.minX + x * w, y: r.minY + y * h) }
-        var path = Path()
-        if female {
-            // Head.
-            path.addEllipse(in: CGRect(x: r.minX + 36 * w, y: r.minY + 18 * h, width: 28 * w, height: 34 * h))
-            // Long hair: a crown over the head that falls in two locks past the shoulders.
-            path.move(to: p(50, 11))
-            path.addCurve(to: p(30, 32), control1: p(38, 11), control2: p(30, 20))
-            path.addCurve(to: p(26, 70), control1: p(30, 46), control2: p(24, 58))
-            path.addCurve(to: p(36, 80), control1: p(27, 76), control2: p(31, 80))
-            path.addLine(to: p(38, 52))
-            path.addCurve(to: p(50, 24), control1: p(36, 36), control2: p(42, 24))
-            path.addCurve(to: p(62, 52), control1: p(58, 24), control2: p(64, 36))
-            path.addLine(to: p(64, 80))
-            path.addCurve(to: p(74, 70), control1: p(69, 80), control2: p(73, 76))
-            path.addCurve(to: p(70, 32), control1: p(76, 58), control2: p(70, 46))
-            path.addCurve(to: p(50, 11), control1: p(70, 20), control2: p(62, 11))
-            path.closeSubpath()
-            // Slim neck and narrower, sloping shoulders.
-            path.move(to: p(45, 48)); path.addLine(to: p(55, 48)); path.addLine(to: p(56, 66)); path.addLine(to: p(44, 66)); path.closeSubpath()
-            path.move(to: p(12, 104))
-            path.addCurve(to: p(32, 74), control1: p(13, 88), control2: p(21, 77))
-            path.addLine(to: p(44, 66))
-            path.addQuadCurve(to: p(56, 66), control: p(50, 72))
-            path.addLine(to: p(68, 74))
-            path.addCurve(to: p(88, 104), control1: p(79, 77), control2: p(87, 88))
-            path.closeSubpath()
-        } else {
-            // Head with short hair, a neck, and broad shoulders in a jacket.
-            path.addEllipse(in: CGRect(x: r.minX + 34 * w, y: r.minY + 16 * h, width: 32 * w, height: 38 * h))
-            path.move(to: p(42, 50))
-            path.addLine(to: p(58, 50))
-            path.addLine(to: p(60, 66))
-            path.addLine(to: p(40, 66))
-            path.closeSubpath()
-            path.move(to: p(2, 104))
-            path.addCurve(to: p(26, 70), control1: p(4, 86), control2: p(12, 74))
-            path.addLine(to: p(40, 64))
-            path.addLine(to: p(50, 74))
-            path.addLine(to: p(60, 64))
-            path.addLine(to: p(74, 70))
-            path.addCurve(to: p(98, 104), control1: p(88, 74), control2: p(96, 86))
-            path.closeSubpath()
-        }
-        return path
-    }
-}
-
-/// Jacket lapels, drawn as a faint detail line on the male figure.
-private struct Lapels: Shape {
-    func path(in r: CGRect) -> Path {
-        let w = r.width / 100, h = r.height / 100
-        var p = Path()
-        p.move(to: CGPoint(x: r.minX + 40 * w, y: r.minY + 64 * h))
-        p.addLine(to: CGPoint(x: r.minX + 46 * w, y: r.minY + 92 * h))
-        p.move(to: CGPoint(x: r.minX + 60 * w, y: r.minY + 64 * h))
-        p.addLine(to: CGPoint(x: r.minX + 54 * w, y: r.minY + 92 * h))
-        return p
-    }
-}
-
-/// The caller portrait: smoke-lit backdrop, black figure, green rim light.
+/// The caller portrait: a hooded or capped figure on a glitching green screen.
 struct CallerPortrait: View {
     var female: Bool
     var unknown: Bool
+    @State private var glitch = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
-        ZStack {
-            Circle().fill(RadialGradient(colors: [Noir.green.opacity(0.45), Noir.green.opacity(0.08), .black],
-                                         center: .init(x: 0.5, y: 0.42), startRadius: 2, endRadius: 78))
-            // Drifting smoke behind the figure.
-            ForEach(0..<3) { i in
-                Ellipse().fill(Color.white.opacity(0.05))
-                    .frame(width: 90, height: 26)
-                    .blur(radius: 8)
-                    .offset(x: CGFloat(i * 18 - 18), y: CGFloat(-30 + i * 14))
+        Image(female ? "CallerFemale" : "CallerMale")
+            .resizable()
+            .scaledToFill()
+            .scaleEffect(1.12)
+            .offset(x: glitch ? 2 : 0)
+            .overlay(Color(red: 0.2, green: 1, blue: 0.5).opacity(glitch ? 0.12 : 0))
+            .frame(width: 140, height: 140)
+            .clipShape(Circle())
+            .task {
+                guard !reduceMotion else { return }
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(Double.random(in: 1.2...3.5)))
+                    glitch = true
+                    try? await Task.sleep(for: .milliseconds(70))
+                    glitch = false
+                }
             }
-            PersonSilhouette(female: female)
-                .fill(LinearGradient(colors: [Color(white: 0.04), .black], startPoint: .top, endPoint: .bottom), style: FillStyle(eoFill: false))
-                .overlay(PersonSilhouette(female: female).stroke(Noir.green.opacity(0.75), lineWidth: 1.4).blur(radius: 0.8))
-                .overlay { if !female { Lapels().stroke(Noir.green.opacity(0.18), lineWidth: 1) } }
-                .frame(width: 132, height: 128)
-                .offset(y: 16)
-            if unknown {
-                Text("?").font(Noir.title(30)).foregroundStyle(Noir.green.opacity(0.35)).offset(y: -8)
-            }
-        }
-        .frame(width: 140, height: 140)
-        .clipShape(Circle())
+            .accessibilityHidden(true)
     }
 }
 

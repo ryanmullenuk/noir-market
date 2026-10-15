@@ -168,6 +168,8 @@ extension Engine {
         addDirty(&s, c.reward)
         s.rep = min(100, s.rep + 3)
         s.contracts = (s.contracts ?? []).filter { $0.id != id }
+        s.stats.contractsDone = (s.stats.contractsDone ?? 0) + 1
+        record(&s, c.reward, "Contract: \(c.qty) \(Catalog.goods[c.good].name) to \(Catalog.cities[c.city].name)")
         award(&s, "contract")
         s.lastBigWin = c.reward
         s.notice = "Job done. \(Money.gbp(c.reward)) in a carrier bag, no receipt."
@@ -225,6 +227,7 @@ extension Engine {
         // Hot enough and the police get there first.
         if s.heat >= 70, mode(s) != .tutorial, s.rng.chance(Double(s.heat - 55) / 70) {
             let seized = carriedValue(s)
+            record(&s, -seized - min(s.cash, dirty(s) / 2), "Dawn raid on the last night")
             s.carry = s.carry.map { _ in 0 }
             s.carryCost = s.carryCost.map { _ in 0 }
             let lostCash = min(s.cash, dirty(s) / 2)
@@ -244,10 +247,12 @@ extension Engine {
             let stake = s.cash / 2
             if s.rng.chance(lastScoreChance(s)) {
                 s.cash += stake
+                record(&s, stake, "One last score")
                 finish(&s, worth: netWorth(s), ending: "score",
                        epitaph: "The deal of a lifetime goes off without a hitch. \(Money.gbp(stake)) richer, you vanish before anyone thinks to ask how.")
                 award(&s, "last_score")
             } else {
+                record(&s, -stake - carriedValue(s), "The last score went wrong")
                 s.cash -= stake
                 s.carry = s.carry.map { _ in 0 }
                 s.carryCost = s.carryCost.map { _ in 0 }

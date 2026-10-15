@@ -157,6 +157,9 @@ extension Engine {
             case "stolen":
                 let who = ["A rival crew", "The Moss Side lot", "Somebody’s cousin with a van", "A gang in matching tracksuits"][s.rng.int(0, 3)]
                 lines.append("SHIPMENT LOST: \(who) hit your crate on the way to \(place). \(units) units gone.")
+                var lostValue = 0
+                for g in ship.goods.indices { lostValue += ship.goods[g] * s.markets[ship.to].price[g] }
+                record(&s, -lostValue, "Shipment to \(place) stolen")
                 s.stats.shipmentsLost += 1
                 s.shipments.remove(at: i)
                 continue
