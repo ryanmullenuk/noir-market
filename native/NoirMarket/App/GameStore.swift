@@ -30,7 +30,7 @@ final class GameStore {
     private(set) var achievements: Set<String> = Set(UserDefaults.standard.stringArray(forKey: "achievements") ?? [])
     var fullAccess = false {
         didSet {
-            let god = state?.godMode == true
+            let god = state?.godMode == true || Self.isTesterName(state?.playerName ?? "")
             let daily = state?.mode == GameMode.daily.rawValue
             state?.fullAccess = !daily && (fullAccess || god)
             persist()
@@ -39,6 +39,10 @@ final class GameStore {
 
     static let godCash = 99_999_999
     static func isGodName(_ name: String) -> Bool { name.trimmingCharacters(in: .whitespaces).uppercased() == "GODMODE" }
+    /// TESTER opens every city but plays with normal money, for honest test runs.
+    static func isTesterName(_ name: String) -> Bool { name.trimmingCharacters(in: .whitespaces).uppercased() == "TESTER" }
+    /// Any test name that unlocks all cities.
+    static func unlocksAll(_ name: String) -> Bool { isGodName(name) || isTesterName(name) }
 
     private let saveURL: URL
     private let recordsURL: URL
@@ -70,13 +74,17 @@ final class GameStore {
         let seed: UInt64 = mode == .daily ? GameMode.dailySeed() : mode == .tutorial ? 2026 : UInt64.random(in: 1...UInt64.max)
         let start = mode == .daily || mode == .tutorial ? 0 : city
         let god = Self.isGodName(playerName)
-        var s = GameState(seed: seed, city: start, name: playerName, fullAccess: mode != .daily && (fullAccess || god))
+        let tester = Self.isTesterName(playerName)
+        var s = GameState(seed: seed, city: start, name: playerName, fullAccess: mode != .daily && (fullAccess || god || tester))
         Engine.configure(&s, mode: mode, perk: perk)
         if god {
             // Test mode: every city and a bottomless wallet.
             s.godMode = true
             s.cash = Self.godCash
             s.notice = "GODMODE. Every city is open and the money never runs out. Nothing here counts for the records."
+        }
+        if tester && !god {
+            s.notice = "TESTER. Every city is open. Normal money, normal rules."
         }
         state = s
         persist()

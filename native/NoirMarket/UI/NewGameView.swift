@@ -70,7 +70,7 @@ struct NewGameView: View {
                         Text("Where it starts").noirLabel()
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 104), spacing: 8)], spacing: 8) {
                             ForEach(Catalog.cities) { c in
-                                let open = unlock.unlocked || GameStore.isGodName(name) || c.id < Catalog.freeCityCount
+                                let open = unlock.unlocked || GameStore.unlocksAll(name) || c.id < Catalog.freeCityCount
                                 Button {
                                     if open {
                                         city = c.id
@@ -93,7 +93,7 @@ struct NewGameView: View {
                                 .accessibilityLabel(open ? c.name : "\(c.name), locked")
                             }
                         }
-                        if !unlock.unlocked && !GameStore.isGodName(name) {
+                        if !unlock.unlocked && !GameStore.unlocksAll(name) {
                             UnlockCard()
                         }
                     }

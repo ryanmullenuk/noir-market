@@ -507,6 +507,21 @@ struct EngineTests {
         #expect(s.sellout == nil)
     }
 
+    @Test func testerOpensCitiesWithNormalMoney() {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let store = GameStore(directory: dir)
+        let previous = store.playerName
+        defer { store.playerName = previous }
+        store.playerName = "Tester"
+        store.newGame(city: 9)
+        #expect(store.state?.fullAccess == true)
+        #expect(store.state?.godMode != true)
+        #expect(store.state?.cash == 2_500)
+        #expect(store.state?.city == 9)
+        store.fullAccess = false
+        #expect(store.state?.fullAccess == true)
+    }
+
     func cheapest(_ s: GameState) -> Int {
         Catalog.goods.indices.filter { s.markets[s.city].supply[$0] > 0 }.min { s.markets[s.city].price[$0] < s.markets[s.city].price[$1] }!
     }

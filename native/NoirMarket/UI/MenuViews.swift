@@ -96,7 +96,7 @@ struct SettingsView: View {
                 group("Player") {
                     TextField("", text: $name, prompt: Text("Anonymous").foregroundStyle(Noir.dim))
                         .font(Noir.ui(17, weight: .semibold))
-                        .foregroundStyle(GameStore.isGodName(name) ? Noir.amber : Noir.paper)
+                        .foregroundStyle(GameStore.unlocksAll(name) ? Noir.amber : Noir.paper)
                         .textInputAutocapitalization(.words)
                         .autocorrectionDisabled()
                         .focused($nameFocused)
