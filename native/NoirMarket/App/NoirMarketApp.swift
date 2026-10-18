@@ -46,6 +46,7 @@ struct RootView: View {
             switch screen {
             case .title:
                 TitleView(hasSave: store.hasSave,
+                          saveSummary: store.state.map { "Day \($0.day) · \(Catalog.cities[$0.city].name) · \(Money.gbp($0.cash))".uppercased() },
                           onContinue: { go(.game) },
                           onNewGame: { go(.newGame) },
                           onHowTo: { sheet = .howTo },
