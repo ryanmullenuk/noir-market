@@ -12,6 +12,7 @@ struct GameView: View {
     @State private var panel: Panel?
     @State private var trade: Int?
     @State private var help: StatHelp?
+    @State private var note: InfoNote?
 
     var body: some View {
         if let s = store.state {
@@ -20,7 +21,7 @@ struct GameView: View {
                 EdgeGlow(colour: condition(s), heat: s.heat)
 
                 VStack(spacing: 0) {
-                    Header(s: s, onMenu: { panel = .settings })
+                    Header(s: s, onMenu: { panel = .settings }, onInfo: { note = $0 })
                         .padding(.horizontal, 16)
                     StatStrip(s: s, onPanel: { panel = $0 }, onHelp: { help = $0 })
                         .padding(.horizontal, 16)
@@ -102,6 +103,10 @@ struct GameView: View {
                         icon: help?.symbol ?? "info.circle.fill",
                         tint: help.map { Noir.rag($0.value(s), highIsGood: $0.highIsGood) } ?? Noir.amber,
                         actions: [DialogAction(title: "Got it", kind: .secondary)])
+            .noirDialog(isPresented: Binding(get: { note != nil }, set: { if !$0 { note = nil } }),
+                        title: note?.title ?? "", message: note?.text ?? "",
+                        icon: note?.symbol ?? "info.circle.fill", tint: note?.tint ?? Noir.amber,
+                        actions: [DialogAction(title: "Got it", kind: .secondary)])
         } else {
             Color.black.onAppear { onQuit() }
         }
@@ -167,99 +172,193 @@ private struct EdgeGlow: View {
 
 // MARK: Header
 
+/// A tap-to-explain note for anything in the header.
+struct InfoNote: Identifiable {
+    let id = UUID()
+    let title: String
+    let text: String
+    let symbol: String
+    let tint: Color
+}
+
+private struct HeaderChip: Identifiable {
+    let id: String
+    var symbol: String? = nil
+    let text: String
+    var detail: String? = nil
+    let colour: Color
+    let note: InfoNote
+}
+
 private struct Header: View {
     let s: GameState
     var onMenu: () -> Void
+    var onInfo: (InfoNote) -> Void = { _ in }
 
     var body: some View {
         let left = s.maxDay - s.day
         let dayColour = left <= 2 ? Noir.red : left <= 7 ? Noir.amber : Noir.green
-        HStack(alignment: .center, spacing: 14) {
-            Button(action: onMenu) {
-                Image(systemName: "line.3.horizontal")
-                    .font(.system(size: 17, weight: .bold))
-            }
-            .buttonStyle(AmberTile(size: 42))
-            .accessibilityLabel("Menu")
-
-            VStack(alignment: .leading, spacing: 4) {
-                Text(Catalog.cities[s.city].name.uppercased())
-                    .font(Noir.display(30))
-                    .foregroundStyle(Noir.green)
-                    .shadow(color: Noir.green.opacity(0.35), radius: 10)
-                    .lineLimit(1).minimumScaleFactor(0.6)
-                HStack(spacing: 6) {
-                    if let w = s.weather {
-                        Image(systemName: w == "rain" ? "cloud.rain.fill" : w == "fog" ? "cloud.fog.fill" : "moon.stars.fill")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(w == "rain" ? Noir.green : w == "fog" ? Noir.amber : Noir.silver)
-                            .accessibilityLabel(w == "clear" ? "Clear night" : w.capitalized)
-                    }
-                    Text(Catalog.cities[s.city].region)
-                        .font(Noir.label(10)).tracking(1.2).textCase(.uppercase)
-                        .foregroundStyle(Noir.silver)
-                    Text(Catalog.ranks[s.rankIndex].name)
-                        .font(Noir.label(10)).tracking(1.2).textCase(.uppercase)
-                        .foregroundStyle(Noir.amber)
-                        .padding(.horizontal, 8).padding(.vertical, 3)
-                        .background(Capsule().fill(Noir.amber.opacity(0.14)))
-                        .overlay(Capsule().strokeBorder(Noir.amber.opacity(0.6)))
-                        .shadow(color: Noir.amber.opacity(0.4), radius: 6)
-                    if s.rankPending > s.rankIndex {
-                        Text("\(s.rankDays)/3 → \(Catalog.ranks[s.rankPending].name)")
-                            .font(Noir.ui(10, weight: .medium)).foregroundStyle(Noir.dim)
-                            .lineLimit(1)
-                    }
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center, spacing: 12) {
+                Button(action: onMenu) {
+                    Image(systemName: "line.3.horizontal")
+                        .font(.system(size: 17, weight: .bold))
                 }
-                let tags = headerTags(s)
-                if !tags.isEmpty {
-                    HStack(spacing: 6) {
-                        ForEach(tags, id: \.0) { tag in
-                            Text(tag.0)
-                                .font(Noir.label(9)).tracking(1).textCase(.uppercase)
-                                .foregroundStyle(tag.1)
-                                .padding(.horizontal, 7).padding(.vertical, 2)
-                                .background(Capsule().fill(tag.1.opacity(0.13)))
-                                .overlay(Capsule().strokeBorder(tag.1.opacity(0.55)))
+                .buttonStyle(AmberTile(size: 42))
+                .accessibilityLabel("Menu")
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(Catalog.cities[s.city].name.uppercased())
+                        .font(Noir.display(30))
+                        .foregroundStyle(Noir.green)
+                        .shadow(color: Noir.green.opacity(0.35), radius: 10)
+                        .lineLimit(1).minimumScaleFactor(0.5)
+                    Button { tap(weatherNote) } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: weatherSymbol)
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(weatherColour)
+                            Text("\(Catalog.cities[s.city].region) · \(weatherName)")
+                                .font(Noir.label(10)).tracking(1.2).textCase(.uppercase)
+                                .foregroundStyle(Noir.silver)
+                                .lineLimit(1).minimumScaleFactor(0.8)
                         }
                     }
+                    .buttonStyle(PressScale())
+                    .accessibilityLabel("\(Catalog.cities[s.city].region), \(weatherName)")
+                    .accessibilityHint("Explains the weather")
                 }
-            }
-            Spacer(minLength: 0)
+                Spacer(minLength: 0)
 
-            // The month as a glowing ring.
-            ZStack {
-                Circle().stroke(Color.white.opacity(0.04), lineWidth: 5)
-                Circle()
-                    .trim(from: 0, to: Double(s.day) / Double(s.maxDay))
-                    .stroke(dayColour, style: StrokeStyle(lineWidth: 5, lineCap: .round))
-                    .rotationEffect(.degrees(-90))
-                    .shadow(color: dayColour.opacity(0.7), radius: 6)
-                VStack(spacing: -2) {
-                    Text("\(s.day)").font(Noir.mono(20)).foregroundStyle(Noir.paper)
-                    Text("of \(s.maxDay)").font(Noir.ui(8, weight: .bold)).foregroundStyle(Noir.dim)
+                // The month as a glowing ring.
+                ZStack {
+                    Circle().stroke(Color.white.opacity(0.04), lineWidth: 5)
+                    Circle()
+                        .trim(from: 0, to: Double(s.day) / Double(s.maxDay))
+                        .stroke(dayColour, style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                        .rotationEffect(.degrees(-90))
+                        .shadow(color: dayColour.opacity(0.7), radius: 6)
+                    VStack(spacing: -2) {
+                        Text("\(s.day)").font(Noir.mono(20)).foregroundStyle(Noir.paper)
+                        Text("of \(s.maxDay)").font(Noir.ui(8, weight: .bold)).foregroundStyle(Noir.dim)
+                    }
                 }
+                .frame(width: 56, height: 56)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel("Day \(s.day) of \(s.maxDay)")
             }
-            .frame(width: 56, height: 56)
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Day \(s.day) of \(s.maxDay)")
+
+            // Everything else as one strip of chips that scrolls sideways instead of wrapping.
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(chips) { chip in
+                        Button { tap(chip.note) } label: { chipView(chip) }
+                            .buttonStyle(PressScale())
+                            .accessibilityHint("Explains \(chip.text.lowercased())")
+                    }
+                }
+                .padding(.vertical, 4)
+                .padding(.trailing, 24)
+            }
+            .mask(LinearGradient(stops: [.init(color: .black, location: 0), .init(color: .black, location: 0.9), .init(color: .clear, location: 1)],
+                                 startPoint: .leading, endPoint: .trailing))
         }
         .padding(.top, 4)
     }
-}
 
-private func headerTags(_ s: GameState) -> [(String, Color)] {
-    var tags: [(String, Color)] = []
-    let mode = Engine.mode(s)
-    if mode != .standard { tags.append((mode.title, mode == .daily ? Noir.amber : Noir.green)) }
-    if let p = Engine.perk(s) { tags.append((p.title, Noir.silver)) }
-    if Engine.eventHere(s, "festival") { tags.append(("Festival", Noir.amber)) }
-    if Engine.eventHere(s, "match") { tags.append(("Match day", Noir.red)) }
-    if Catalog.rivals[s.city] != nil {
-        let t = Engine.turf(s, s.city)
-        tags.append(("Turf \(t)%", t >= 45 ? Noir.red : t >= 20 ? Noir.amber : Noir.silver))
+    private func tap(_ note: InfoNote) {
+        Audio.shared.play(.click, volume: 0.4)
+        Audio.shared.buzz(.tap)
+        onInfo(note)
     }
-    return tags
+
+    private func chipView(_ chip: HeaderChip) -> some View {
+        HStack(spacing: 5) {
+            if let symbol = chip.symbol { Image(systemName: symbol).font(.system(size: 9, weight: .bold)) }
+            Text(chip.text).font(Noir.label(10)).tracking(1).textCase(.uppercase)
+            if let detail = chip.detail {
+                Text(detail).font(Noir.ui(9, weight: .semibold)).foregroundStyle(Noir.silver)
+            }
+        }
+        .foregroundStyle(chip.colour)
+        .lineLimit(1)
+        .fixedSize()
+        .padding(.horizontal, 9).padding(.vertical, 4)
+        .background(Capsule().fill(chip.colour.opacity(0.13)))
+        .overlay(Capsule().strokeBorder(chip.colour.opacity(0.55)))
+    }
+
+    // MARK: Weather
+
+    private var weather: String { s.weather ?? "clear" }
+    private var weatherSymbol: String { weather == "rain" ? "cloud.rain.fill" : weather == "fog" ? "cloud.fog.fill" : "moon.stars.fill" }
+    private var weatherColour: Color { weather == "rain" ? Noir.green : weather == "fog" ? Noir.amber : Noir.silver }
+    private var weatherName: String { weather == "rain" ? "Rain" : weather == "fog" ? "Fog" : "Clear night" }
+    private var weatherNote: InfoNote {
+        let text = switch weather {
+        case "rain": "Rain keeps the patrols in their cars. Police stops are 40% less likely tonight."
+        case "fog": "Fog brings the muggers out. Street trouble is 30% more likely tonight."
+        default: "A clear night. The weather isn’t helping or hurting you."
+        }
+        return InfoNote(title: weatherName, text: text + "\n\nThe weather changes every night, and some cities are wetter than others.", symbol: weatherSymbol, tint: weatherColour)
+    }
+
+    // MARK: Chips
+
+    private var chips: [HeaderChip] {
+        var out: [HeaderChip] = []
+        let city = Catalog.cities[s.city].name
+
+        // Rank, with progress towards the next one.
+        let rank = Catalog.ranks[s.rankIndex].name
+        if s.rankPending > s.rankIndex {
+            let next = Catalog.ranks[s.rankPending].name
+            let dots = String(repeating: "●", count: s.rankDays) + String(repeating: "○", count: max(0, 3 - s.rankDays))
+            out.append(HeaderChip(id: "rank", symbol: "chevron.up.2", text: rank, detail: "\(dots) \(next)", colour: Noir.amber,
+                                  note: InfoNote(title: rank, text: "Your rank follows your net worth. You’re worth enough to be a \(next): hold it for 3 days running and the street will start calling you one.\n\nSo far: \(s.rankDays) of 3 days.", symbol: "chevron.up.2", tint: Noir.amber)))
+        } else {
+            let nextRank = s.rankIndex + 1 < Catalog.ranks.count ? Catalog.ranks[s.rankIndex + 1] : nil
+            let tail = nextRank.map { "\n\nNext: \($0.name), at a net worth of \(Money.gbp($0.threshold)), held for 3 days." } ?? "\n\nThere’s nowhere higher to go."
+            out.append(HeaderChip(id: "rank", symbol: "person.fill", text: rank, colour: Noir.amber,
+                                  note: InfoNote(title: rank, text: "Your rank on the street. It follows your net worth." + tail, symbol: "person.fill", tint: Noir.amber)))
+        }
+
+        // How long you've been sitting still.
+        let nights = s.streak ?? 0
+        if nights >= 3 {
+            let colour = nights >= Engine.raidStreak ? Noir.red : Noir.amber
+            out.append(HeaderChip(id: "streak", symbol: "bed.double.fill", text: "\(nights) nights here", colour: colour,
+                                  note: InfoNote(title: "\(nights) nights in \(city)", text: "You’ve stayed in \(city) \(nights) nights in a row. People notice a face that doesn’t move.\n\nAfter \(Engine.raidStreak) nights a police raid gets likely. Keep moving, or keep your bag empty.", symbol: "bed.double.fill", tint: colour)))
+        }
+
+        if Engine.eventHere(s, "match") {
+            out.append(HeaderChip(id: "match", symbol: "sportscourt.fill", text: "Match day", colour: Noir.red,
+                                  note: InfoNote(title: "Match day", text: "The whole city’s out. Speed, coke and weed sell for about a third more today.\n\nThe police are out too: stops are 40% more likely.", symbol: "sportscourt.fill", tint: Noir.red)))
+        }
+        if Engine.eventHere(s, "festival") {
+            out.append(HeaderChip(id: "festival", symbol: "music.note", text: "Festival", colour: Noir.amber,
+                                  note: InfoNote(title: "Festival weekend", text: "Pills, acid and MDA are flying out of every tent, and their prices are up by half.", symbol: "music.note", tint: Noir.amber)))
+        }
+
+        if let crew = Catalog.rivals[s.city] {
+            let t = Engine.turf(s, s.city)
+            let colour = t >= 45 ? Noir.red : t >= 20 ? Noir.amber : Noir.silver
+            out.append(HeaderChip(id: "turf", symbol: "flag.fill", text: "Turf \(t)%", colour: colour,
+                                  note: InfoNote(title: "Turf · \(t)%", text: "This is the \(crew)’ city. Turf is how much of their attention you’ve drawn. It rises every time you sell here and fades 7 points a night.\n\nFrom 45% they may come to collect, and they won’t ask nicely.", symbol: "flag.fill", tint: colour)))
+        }
+
+        let mode = Engine.mode(s)
+        if mode != .standard {
+            let colour = mode == .daily ? Noir.amber : Noir.green
+            out.append(HeaderChip(id: "mode", symbol: mode.symbol, text: mode.title, colour: colour,
+                                  note: InfoNote(title: mode.title, text: mode.blurb, symbol: mode.symbol, tint: colour)))
+        }
+        if let p = Engine.perk(s) {
+            out.append(HeaderChip(id: "perk", symbol: p.symbol, text: p.title, colour: Noir.silver,
+                                  note: InfoNote(title: p.title, text: "+ \(p.pro)\n\n− \(p.con)", symbol: p.symbol, tint: Noir.silver)))
+        }
+        return out
+    }
 }
 
 // MARK: Stats
