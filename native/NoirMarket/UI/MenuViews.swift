@@ -123,6 +123,25 @@ struct SettingsView: View {
                     .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.white.opacity(0.22), lineWidth: 1))
                 }
 
+                group("Colour palette") {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 4) {
+                            ForEach(Palette.allCases) { p in
+                                Button {
+                                    Audio.shared.play(.click, volume: 0.5)
+                                    Audio.shared.buzz(.tap)
+                                    withAnimation(.easeInOut(duration: 0.35)) { Theme.shared.palette = p }
+                                } label: {
+                                    PaletteSwatch(palette: p, selected: Theme.shared.palette == p)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, -2)
+                    }
+                    .scrollClipDisabled()
+                    Text("Changes the colours across the whole game.").font(Noir.ui(11)).foregroundStyle(Noir.dim)
+                }
+
                 group("Full game") {
                     if unlock.unlocked {
                         Label("All 14 cities unlocked", systemImage: "checkmark.seal.fill")

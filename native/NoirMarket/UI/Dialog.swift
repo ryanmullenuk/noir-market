@@ -44,7 +44,7 @@ struct NoirDialog: View {
                 .padding(.top, 4)
             }
             .padding(20)
-            .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Color(white: 0.07)))
+            .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Noir.surface))
             .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(tint.opacity(0.75), lineWidth: 1.2))
             .shadow(color: tint.opacity(0.3), radius: 24)
             .padding(.horizontal, 26)

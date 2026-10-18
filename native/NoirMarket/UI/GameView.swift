@@ -283,7 +283,7 @@ private struct StatStrip: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 10)
-        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(LinearGradient(colors: [Color(white: 0.11), Color(white: 0.065)], startPoint: .top, endPoint: .bottom)))
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(LinearGradient(colors: [Noir.surfaceTop, Noir.surfaceLow], startPoint: .top, endPoint: .bottom)))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(label) \(value)")
     }

@@ -88,7 +88,7 @@ private struct Newspaper: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            Noir.ink.ignoresSafeArea()
             // Faint green phosphor wash and scanlines.
             RadialGradient(colors: [Noir.green.opacity(0.10), .clear], center: .center, startRadius: 20, endRadius: 520)
                 .ignoresSafeArea()
@@ -642,7 +642,7 @@ private struct CaseClosed: View {
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            Noir.ink.ignoresSafeArea()
             RadialGradient(colors: [tint.opacity(0.14), .clear], center: .top, startRadius: 10, endRadius: 520).ignoresSafeArea()
             Scanlines().ignoresSafeArea()
             if good { Confetti().ignoresSafeArea() }

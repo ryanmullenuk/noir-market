@@ -3,23 +3,29 @@ import CoreText
 
 /// Noir palette: ink blacks and silver-screen greys, lit by red / amber / green signal glows.
 enum Noir {
-    static let ink = Color(red: 0.035, green: 0.035, blue: 0.035)
-    static let coal = Color(red: 0.075, green: 0.075, blue: 0.085)
-    static let smoke = Color(red: 0.14, green: 0.14, blue: 0.155)
+    private static var p: Palette { Theme.shared.palette }
+    static var ink: Color { p.base }
+    static var coal: Color { p.lifted(0.04) }
+    static var smoke: Color { p.lifted(0.11) }
     static let rule = Color.white.opacity(0.09)
     static let paper = Color(red: 0.92, green: 0.93, blue: 0.92)
     static let silver = Color(red: 0.66, green: 0.66, blue: 0.69)
     static let dim = Color(red: 0.44, green: 0.44, blue: 0.47)
-    static let blood = Color(red: 0.80, green: 0.14, blue: 0.16)
-    static let neon = Color(red: 1.0, green: 0.30, blue: 0.30)
-    static let brass = Color(red: 0.96, green: 0.74, blue: 0.30)
-    static let go = Color(red: 0.16, green: 1.0, blue: 0.52)
-    static let rise = go
+    /// The signature neon: the title's MARKET and the title-screen buttons.
+    static var neon: Color { p.accent }
+    static var brass: Color { p.amber }
+    static var go: Color { p.go }
+    static var rise: Color { go }
 
     // RAG signal colours.
-    static let red = neon
-    static let amber = brass
-    static let green = go
+    static var red: Color { p.danger }
+    static var amber: Color { p.amber }
+    static var green: Color { p.go }
+
+    /// Card and panel surfaces, lifted from the palette's background.
+    static var surfaceTop: Color { p.lifted(0.075) }
+    static var surface: Color { p.lifted(0.03) }
+    static var surfaceLow: Color { p.lifted(0.025) }
 
     /// Red / amber / green for a 0–100 value where high is good (health) or bad (heat).
     static func rag(_ value: Int, highIsGood: Bool) -> Color {
@@ -74,7 +80,7 @@ extension View {
         self.padding(padding)
             .background {
                 RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .fill(LinearGradient(colors: [Color(white: 0.105), Color(white: 0.06)], startPoint: .top, endPoint: .bottom))
+                    .fill(LinearGradient(colors: [Noir.surfaceTop, Noir.surfaceLow], startPoint: .top, endPoint: .bottom))
                     .overlay {
                         if let tint {
                             RoundedRectangle(cornerRadius: radius, style: .continuous)

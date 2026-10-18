@@ -91,7 +91,7 @@ struct IncomingCallView: View {
                 }
             }
             .padding(22)
-            .background(RoundedRectangle(cornerRadius: 24, style: .continuous).fill(Color(white: 0.06)))
+            .background(RoundedRectangle(cornerRadius: 24, style: .continuous).fill(Noir.surface))
             .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(Noir.amber.opacity(0.85), lineWidth: 1.2))
             .shadow(color: Noir.amber.opacity(0.25), radius: 24)
             .padding(.horizontal, 24)

@@ -16,7 +16,7 @@ struct TitleView: View {
     var body: some View {
         ZStack {
             // Pure black so the Redhead logo (on black) blends with no visible box.
-            Color.black.ignoresSafeArea()
+            Noir.ink.ignoresSafeArea()
             if phase == 0 {
                 Image("RedheadLogo")
                     .resizable().scaledToFit()

@@ -43,7 +43,7 @@ struct AchievementToast: View {
                 Spacer(minLength: 0)
             }
             .padding(14)
-            .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Color(white: 0.07)))
+            .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(Noir.surface))
             .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(Noir.amber.opacity(0.8), lineWidth: 1.1))
             .shadow(color: Noir.amber.opacity(0.35), radius: 16)
             .padding(.horizontal, 16)

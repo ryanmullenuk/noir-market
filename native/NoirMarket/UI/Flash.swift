@@ -83,7 +83,7 @@ struct FlashOverlay: View {
                 }
                 .padding(22)
                 .frame(maxWidth: 320)
-                .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Color(white: 0.06)))
+                .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Noir.surface))
                 .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(tint.opacity(0.08)))
                 .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(tint.opacity(0.85), lineWidth: 1.4))
                 .shadow(color: tint.opacity(0.4), radius: 26)
