@@ -594,6 +594,7 @@ private struct CaseClosed: View {
     let s: GameState
     var onDone: () -> Void
     @Environment(GameStore.self) private var store
+    @Environment(Unlock.self) private var unlock
     @State private var shown = 0
     @State private var cursor = true
     @State private var glitch = false
@@ -687,6 +688,23 @@ private struct CaseClosed: View {
                     .onChange(of: shown) { withAnimation { proxy.scrollTo(-1, anchor: .bottom) } }
                 }
 
+                if !unlock.full(s.playerName) && shown >= lines.count {
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("WANT A BIGGER PATCH?").font(Noir.label(11)).tracking(1.2).foregroundStyle(Noir.amber)
+                            Text("11 more cities, Long Game and Sprint, backgrounds and palettes.")
+                                .font(Noir.ui(11)).foregroundStyle(Noir.silver)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 4)
+                        Button(unlock.busy ? "…" : (unlock.product?.displayPrice ?? "Unlock")) { Task { await unlock.purchase() } }
+                            .buttonStyle(.noirAmber)
+                            .frame(width: 96)
+                            .disabled(unlock.busy)
+                    }
+                    .padding(.bottom, 12)
+                    .transition(.opacity)
+                }
                 Button(good ? "Back to the street" : "Try again") { Audio.shared.play(.click, volume: 0.6); onDone() }
                     .buttonStyle(good ? NoirButtonStyle(kind: .primary) : NoirButtonStyle(kind: .danger))
                     .opacity(shown >= lines.count ? 1 : 0.35)

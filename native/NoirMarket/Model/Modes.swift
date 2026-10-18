@@ -4,6 +4,9 @@ enum GameMode: String, CaseIterable, Identifiable, Sendable {
     case standard, long, sprint, daily, tutorial
     var id: String { rawValue }
 
+    /// Long Game and Sprint come with the Full Game; Standard, Daily and the Tutorial are free.
+    var premium: Bool { self == .long || self == .sprint }
+
     var days: Int {
         switch self {
         case .standard, .daily: 30

@@ -17,7 +17,10 @@ struct NoirMarketApp: App {
                 // No system glass pills on custom buttons; every styled button sets its own look.
                 .buttonStyle(.plain)
                 .task {
-                    unlock.onChange = { [store] entitled in store.fullAccess = entitled }
+                    unlock.onChange = { [store] entitled in
+                        store.fullAccess = entitled
+                        if !entitled && !GameStore.unlocksAll(store.playerName) && Theme.shared.palette.premium { Theme.shared.palette = .classic }
+                    }
                     GameCenter.authenticate()
                     // Confirm the build's environment with StoreKit; only TestFlight/Xcode builds allow test names.
                     if case .verified(let t) = try? await AppTransaction.shared {

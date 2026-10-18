@@ -10,7 +10,7 @@ NO ACCOUNT NEEDED
 There is no sign-in. Tap NEW GAME, choose a name (optional), a mode and a starting city, and tap BEGIN. The TUTORIAL mode on that screen is a quick 3-day guided run of every core system.
 
 IN-APP PURCHASE
-One non-consumable: "Unlock All Cities" (games.redhead.noirmarket.unlockallcities). The free game includes London, Manchester and Birmingham and every mode. To reach the purchase: on the New Game screen tap "Unlock all cities" or any locked city, or in a game open Menu (top-left) > Unlock all cities, or open Travel and select any locked city. "Restore purchases" is in the Menu and on the unlock card.
+One non-consumable, the Full Game (games.redhead.noirmarket.unlockallcities). The free game includes London, Manchester and Birmingham, Standard games, the Daily Challenge and the Tutorial, with every gameplay feature. The purchase adds all 14 cities, the Long Game and Sprint modes, three character backgrounds (Ex-Copper, Student, Dock Worker) and four extra colour palettes. To reach the purchase: on the New Game screen tap "Unlock full game", any locked mode, background or city; in Settings tap "Unlock full game" or a locked colour palette; open Travel and select any locked city; or use the prompt at the end of a game. "Restore purchases" is in Settings and on the unlock card.
 
 DATA AND PRIVACY
 No data is collected. Saves stay on device. No ads, analytics, tracking or accounts. Game Center is optional for leaderboards and achievements.

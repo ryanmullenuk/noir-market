@@ -8,6 +8,9 @@ enum Palette: String, CaseIterable, Identifiable, Codable {
 
     var id: String { rawValue }
 
+    /// Every palette but Noir Terminal comes with the Full Game.
+    var premium: Bool { self != .classic }
+
     /// The two names shown on the swatch: background, then accent.
     var names: (base: String, accent: String) {
         switch self {
@@ -110,6 +113,7 @@ final class Theme: @unchecked Sendable {
 struct PaletteSwatch: View {
     let palette: Palette
     let selected: Bool
+    var locked = false
 
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
@@ -120,6 +124,17 @@ struct PaletteSwatch: View {
         .frame(width: 112, height: 132)
         .clipShape(shape)
         .overlay(shape.strokeBorder(selected ? palette.swatchAccent : Color.white.opacity(0.14), lineWidth: selected ? 2.5 : 1))
+        .saturation(locked ? 0.55 : 1)
+        .overlay(alignment: .bottomTrailing) {
+            if locked {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(Color.white)
+                    .padding(5)
+                    .background(Circle().fill(Color.black.opacity(0.7)))
+                    .padding(5)
+            }
+        }
         .overlay(alignment: .topTrailing) {
             if selected {
                 Image(systemName: "checkmark.circle.fill")
@@ -131,7 +146,7 @@ struct PaletteSwatch: View {
         .shadow(color: selected ? palette.swatchAccent.opacity(0.45) : .clear, radius: 10)
         .padding(6)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(palette.names.accent) on \(palette.names.base)")
+        .accessibilityLabel("\(palette.names.accent) on \(palette.names.base)\(locked ? ", Full Game" : "")")
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
     }
 

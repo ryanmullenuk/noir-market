@@ -235,7 +235,7 @@ private struct DestinationCard: View {
             if open {
                 Button(flight ? "Fly to \(c.name)" : "Go to \(c.name)", action: onGo).buttonStyle(.noirPrimary)
             } else {
-                Button(unlock.busy ? "…" : "Unlock all cities") { Task { await unlock.purchase() } }
+                Button(unlock.busy ? "…" : "Unlock full game") { Task { await unlock.purchase() } }
                     .buttonStyle(.noirAmber)
             }
         }

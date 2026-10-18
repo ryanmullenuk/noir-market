@@ -127,29 +127,36 @@ struct SettingsView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 4) {
                             ForEach(Palette.allCases) { p in
+                                let locked = p.premium && !unlock.full(name.isEmpty ? store.playerName : name)
                                 Button {
                                     Audio.shared.play(.click, volume: 0.5)
                                     Audio.shared.buzz(.tap)
-                                    withAnimation(.easeInOut(duration: 0.35)) { Theme.shared.palette = p }
+                                    if locked {
+                                        Task { await unlock.purchase() }
+                                    } else {
+                                        withAnimation(.easeInOut(duration: 0.35)) { Theme.shared.palette = p }
+                                    }
                                 } label: {
-                                    PaletteSwatch(palette: p, selected: Theme.shared.palette == p)
+                                    PaletteSwatch(palette: p, selected: Theme.shared.palette == p, locked: locked)
                                 }
                             }
                         }
                         .padding(.horizontal, -2)
                     }
                     .scrollClipDisabled()
-                    Text("Changes the colours across the whole game.").font(Noir.ui(11)).foregroundStyle(Noir.dim)
+                    Text(unlock.full(store.playerName) ? "Changes the colours across the whole game." : "Changes the colours across the whole game. Noir Terminal is free; the others come with the Full Game.").font(Noir.ui(11)).foregroundStyle(Noir.dim)
                 }
 
                 group("Full game") {
                     if unlock.unlocked {
-                        Label("All 14 cities unlocked", systemImage: "checkmark.seal.fill")
+                        Label("Full game unlocked", systemImage: "checkmark.seal.fill")
                             .font(Noir.ui(15, weight: .semibold)).foregroundStyle(Noir.amber)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .card(padding: 16, tint: Noir.amber)
                     } else {
-                        Button(unlock.product.map { "Unlock all cities · \($0.displayPrice)" } ?? "Unlock all cities") {
+                        Text(Unlock.includes).font(Noir.ui(12)).foregroundStyle(Noir.silver)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Button(unlock.product.map { "Unlock full game · \($0.displayPrice)" } ?? "Unlock full game") {
                             Task { await unlock.purchase() }
                         }
                         .buttonStyle(.noirAmber)
