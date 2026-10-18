@@ -83,6 +83,7 @@ struct RootView: View {
         #if DEBUG
         let args = ProcessInfo.processInfo.arguments
         if let i = args.firstIndex(of: "-palette"), i + 1 < args.count, let p = Palette(rawValue: args[i + 1]) { Theme.shared.palette = p }
+        if args.contains("-settings") { sheet = .settings }
         guard args.contains("-demo") else { return }
         let mode = args.firstIndex(of: "-mode").flatMap { i in i + 1 < args.count ? GameMode(rawValue: args[i + 1]) : nil } ?? .standard
         store.newGame(city: 0, mode: mode, perk: args.contains("-copper") ? .copper : nil)

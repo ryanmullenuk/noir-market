@@ -11,7 +11,7 @@ enum Palette: String, CaseIterable, Identifiable, Codable {
     /// The two names shown on the swatch: background, then accent.
     var names: (base: String, accent: String) {
         switch self {
-        case .classic: ("Noir", "Neon")
+        case .classic: ("Noir", "Terminal")
         case .blaze: ("Almost Black", "Blaze Orange")
         case .imperial: ("Night", "Imperial")
         case .mint: ("Carbon Black", "Electric Mint")
@@ -65,6 +65,9 @@ enum Palette: String, CaseIterable, Identifiable, Codable {
         }
     }
 
+    /// The colour shown on the swatch's lower half: Classic shows its hacker green.
+    var swatchAccent: Color { self == .classic ? go : accent }
+
     var base: Color { Color(hex: baseHex) }
     var accent: Color { Color(hex: accentHex) }
     var go: Color { Color(hex: goHex) }
@@ -111,21 +114,21 @@ struct PaletteSwatch: View {
     var body: some View {
         let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
         VStack(spacing: 0) {
-            half(palette.names.base.uppercased(), fill: palette.base, text: palette.accent)
-            half(palette.names.accent.uppercased(), fill: palette.accent, text: palette.base)
+            half(palette.names.base.uppercased(), fill: palette.base, text: palette.swatchAccent)
+            half(palette.names.accent.uppercased(), fill: palette.swatchAccent, text: palette.base)
         }
         .frame(width: 112, height: 132)
         .clipShape(shape)
-        .overlay(shape.strokeBorder(selected ? palette.accent : Color.white.opacity(0.14), lineWidth: selected ? 2.5 : 1))
+        .overlay(shape.strokeBorder(selected ? palette.swatchAccent : Color.white.opacity(0.14), lineWidth: selected ? 2.5 : 1))
         .overlay(alignment: .topTrailing) {
             if selected {
                 Image(systemName: "checkmark.circle.fill")
                     .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(palette.accent, palette.base)
+                    .foregroundStyle(palette.swatchAccent, palette.base)
                     .padding(7)
             }
         }
-        .shadow(color: selected ? palette.accent.opacity(0.45) : .clear, radius: 10)
+        .shadow(color: selected ? palette.swatchAccent.opacity(0.45) : .clear, radius: 10)
         .padding(6)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(palette.names.accent) on \(palette.names.base)")
