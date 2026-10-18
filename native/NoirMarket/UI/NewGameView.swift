@@ -12,7 +12,7 @@ struct NewGameView: View {
     @State private var perk: Perk? = nil
     @FocusState private var nameFocused: Bool
 
-    private var full: Bool { unlock.full(name) }
+    private var full: Bool { unlock.full }
 
     var body: some View {
         ZStack {

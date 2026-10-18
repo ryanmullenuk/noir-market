@@ -30,29 +30,12 @@ final class GameStore {
     private(set) var achievements: Set<String> = Set(UserDefaults.standard.stringArray(forKey: "achievements") ?? [])
     var fullAccess = false {
         didSet {
-            let god = state?.godMode == true || Self.isTesterName(state?.playerName ?? "")
             let daily = state?.mode == GameMode.daily.rawValue
-            state?.fullAccess = !daily && (fullAccess || god)
+            state?.fullAccess = !daily && fullAccess
             persist()
         }
     }
 
-    static let godCash = 99_999_999
-    /// Test names only work in development and TestFlight builds, never from the App Store,
-    /// so paid content can only be unlocked by the in-app purchase (App Review 3.1.1).
-    nonisolated(unsafe) static var testNamesAllowed: Bool = {
-        #if DEBUG
-        return true
-        #else
-        return Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt"
-        #endif
-    }()
-
-    static func isGodName(_ name: String) -> Bool { testNamesAllowed && name.trimmingCharacters(in: .whitespaces).uppercased() == "GODMODE" }
-    /// TESTER opens every city but plays with normal money, for honest test runs.
-    static func isTesterName(_ name: String) -> Bool { testNamesAllowed && name.trimmingCharacters(in: .whitespaces).uppercased() == "TESTER" }
-    /// Any test name that unlocks all cities.
-    static func unlocksAll(_ name: String) -> Bool { isGodName(name) || isTesterName(name) }
 
     private let saveURL: URL
     private let recordsURL: URL
@@ -83,19 +66,8 @@ final class GameStore {
     func newGame(city: Int, mode: GameMode = .standard, perk: Perk? = nil) {
         let seed: UInt64 = mode == .daily ? GameMode.dailySeed() : mode == .tutorial ? 2026 : UInt64.random(in: 1...UInt64.max)
         let start = mode == .daily || mode == .tutorial ? 0 : city
-        let god = Self.isGodName(playerName)
-        let tester = Self.isTesterName(playerName)
-        var s = GameState(seed: seed, city: start, name: playerName, fullAccess: mode != .daily && (fullAccess || god || tester))
+        var s = GameState(seed: seed, city: start, name: playerName, fullAccess: mode != .daily && fullAccess)
         Engine.configure(&s, mode: mode, perk: perk)
-        if god {
-            // Test mode: every city and a bottomless wallet.
-            s.godMode = true
-            s.cash = Self.godCash
-            s.notice = "GODMODE. Every city is open and the money never runs out. Nothing here counts for the records."
-        }
-        if tester && !god {
-            s.notice = "TESTER. Every city is open. Normal money, normal rules."
-        }
         state = s
         persist()
     }
@@ -111,7 +83,6 @@ final class GameStore {
         guard var s = state else { return false }
         do {
             try action(&s)
-            if s.godMode == true, s.over == nil { s.cash = max(s.cash, Self.godCash) }
             drainProgress(&s)
             state = s
             finishIfOver()
@@ -148,7 +119,7 @@ final class GameStore {
     }
 
     private func finishIfOver() {
-        guard let s = state, let over = s.over, s.godMode != true else { return }
+        guard let s = state, let over = s.over else { return }
         let mode = Engine.mode(s)
         guard mode != .tutorial else { return }
         if let i = records.firstIndex(where: { $0.seed == s.seed }) {

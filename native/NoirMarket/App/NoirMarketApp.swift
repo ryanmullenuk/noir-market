@@ -19,16 +19,9 @@ struct NoirMarketApp: App {
                 .task {
                     unlock.onChange = { [store] entitled in
                         store.fullAccess = entitled
-                        if !entitled && !GameStore.unlocksAll(store.playerName) && Theme.shared.palette.premium { Theme.shared.palette = .classic }
+                        if !entitled && Theme.shared.palette.premium { Theme.shared.palette = .classic }
                     }
                     GameCenter.authenticate()
-                    // Confirm the build's environment with StoreKit; only TestFlight/Xcode builds allow test names.
-                    if case .verified(let t) = try? await AppTransaction.shared {
-                        GameStore.testNamesAllowed = t.environment == .sandbox || t.environment == .xcode
-                        #if DEBUG
-                        GameStore.testNamesAllowed = true
-                        #endif
-                    }
                     await unlock.start()
                 }
         }
@@ -124,6 +117,7 @@ struct RootView: View {
             }
         }
         if args.contains("-noCall") { store.act { $0.call = nil } }
+        if !args.contains("-raid") { store.act { $0.raid = nil; $0.streak = 0 } }
         if args.contains("-raid") { store.act { $0.call = nil; $0.streak = 6; $0.raid = RaidAlert(city: $0.city, day: $0.day, seen: false) } }
         if args.contains("-endgood") {
             store.act { s in

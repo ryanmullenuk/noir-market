@@ -16,8 +16,8 @@ final class Unlock {
     var onChange: ((Bool) -> Void)?
     @ObservationIgnored private var updates: Task<Void, Never>?
 
-    /// True when the full game is open: bought, or a TestFlight test name is in use.
-    func full(_ name: String) -> Bool { unlocked || GameStore.unlocksAll(name) }
+    /// True when the full game has been bought.
+    var full: Bool { unlocked }
 
     /// Exactly what the purchase includes, shown wherever it's offered.
     static let includes = "All 14 cities · Long Game and Sprint · three backgrounds · four colour palettes"

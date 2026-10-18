@@ -184,21 +184,6 @@ struct EngineTests {
         #expect(!line.contains("{"))
     }
 
-    @Test func godModeUnlocksEverythingAndNeverRunsDry() throws {
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        let store = GameStore(directory: dir)
-        let previous = store.playerName
-        defer { store.playerName = previous }
-        store.playerName = "godmode"
-        store.newGame(city: 0)
-        #expect(store.state?.godMode == true)
-        #expect(store.state?.fullAccess == true)
-        store.act { try Engine.buyBag(&$0, 3) }
-        #expect(store.state?.cash == GameStore.godCash)
-        store.act { try Engine.travel(&$0, to: 10) }
-        #expect(store.state?.city == 10 || !(store.state?.encounters.isEmpty ?? true))
-    }
-
     @Test func shipmentsWaitAtTheDepotUntilCollected() throws {
         var fates: [String: Int] = [:]
         for seed in 1...200 {
@@ -505,21 +490,6 @@ struct EngineTests {
         let stop = s.encounters.compactMap { if case .police(let p) = $0 { p } else { nil } }.first
         #expect(stop?.grass == "Lucy Loose Lips")
         #expect(s.sellout == nil)
-    }
-
-    @Test func testerOpensCitiesWithNormalMoney() {
-        let dir = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-        let store = GameStore(directory: dir)
-        let previous = store.playerName
-        defer { store.playerName = previous }
-        store.playerName = "Tester"
-        store.newGame(city: 9)
-        #expect(store.state?.fullAccess == true)
-        #expect(store.state?.godMode != true)
-        #expect(store.state?.cash == 2_500)
-        #expect(store.state?.city == 9)
-        store.fullAccess = false
-        #expect(store.state?.fullAccess == true)
     }
 
     @Test func longStaysBringRaidAlertsAndStashingKeepsYouClean() throws {

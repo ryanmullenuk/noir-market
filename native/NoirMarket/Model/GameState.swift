@@ -244,8 +244,6 @@ struct GameState: Codable, Sendable, Equatable {
     var streak: Int?
     var raid: RaidAlert?
     var vaultWeapons: [[Int]]?
-    /// Test mode: unlimited cash and every city, enabled by the name GODMODE. Never counts for records.
-    var godMode: Bool?
     var calledToday = false
     var deal: DealOffer?
     var tradedToday = false

@@ -700,7 +700,7 @@ private struct CaseClosed: View {
                     .onChange(of: shown) { withAnimation { proxy.scrollTo(-1, anchor: .bottom) } }
                 }
 
-                if !unlock.full(s.playerName) && shown >= lines.count {
+                if !unlock.full && shown >= lines.count {
                     HStack(spacing: 12) {
                         VStack(alignment: .leading, spacing: 3) {
                             Text("WANT A BIGGER PATCH?").font(Noir.label(11)).tracking(1.2).foregroundStyle(Noir.amber)

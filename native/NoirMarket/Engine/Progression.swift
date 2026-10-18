@@ -43,7 +43,7 @@ extension Engine {
 
     static func award(_ s: inout GameState, _ id: String) {
         if !(s.stats.earned ?? []).contains(id) { s.stats.earned = (s.stats.earned ?? []) + [id] }
-        guard s.godMode != true, !(s.unlocked ?? []).contains(id) else { return }
+        guard !(s.unlocked ?? []).contains(id) else { return }
         s.unlocked = (s.unlocked ?? []) + [id]
     }
 

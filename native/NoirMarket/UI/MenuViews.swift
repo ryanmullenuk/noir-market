@@ -96,7 +96,7 @@ struct SettingsView: View {
                 group("Player") {
                     TextField("", text: $name, prompt: Text("Anonymous").foregroundStyle(Noir.dim))
                         .font(Noir.ui(17, weight: .semibold))
-                        .foregroundStyle(GameStore.unlocksAll(name) ? Noir.amber : Noir.paper)
+                        .foregroundStyle(Noir.paper)
                         .textInputAutocapitalization(.words)
                         .autocorrectionDisabled()
                         .focused($nameFocused)
@@ -127,7 +127,7 @@ struct SettingsView: View {
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack(spacing: 4) {
                             ForEach(Palette.allCases) { p in
-                                let locked = p.premium && !unlock.full(name.isEmpty ? store.playerName : name)
+                                let locked = p.premium && !unlock.full
                                 Button {
                                     Audio.shared.play(.click, volume: 0.5)
                                     Audio.shared.buzz(.tap)
@@ -144,7 +144,7 @@ struct SettingsView: View {
                         .padding(.horizontal, -2)
                     }
                     .scrollClipDisabled()
-                    Text(unlock.full(store.playerName) ? "Changes the colours across the whole game." : "Changes the colours across the whole game. Noir Terminal is free; the others come with the Full Game.").font(Noir.ui(11)).foregroundStyle(Noir.dim)
+                    Text(unlock.full ? "Changes the colours across the whole game." : "Changes the colours across the whole game. Noir Terminal is free; the others come with the Full Game.").font(Noir.ui(11)).foregroundStyle(Noir.dim)
                 }
 
                 group("Full game") {
