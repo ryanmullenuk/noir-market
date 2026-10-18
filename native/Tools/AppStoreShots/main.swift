@@ -98,3 +98,92 @@ for (dir, W, H) in [("AppStore/screenshots", 1320, 2868), ("AppStore/screenshots
     for shot in shots { render(shot, width: W, height: H, to: URL(fileURLWithPath: "\(dir)/\(shot.file).jpg")) }
     print("wrote \(shots.count) to \(dir)")
 }
+
+// MARK: Header banner (3840×1646): the neon logo on the left, three screens on the right.
+
+func glyphPath(_ text: String, font: CTFont, kern: CGFloat) -> CGPath {
+    let l = CTLineCreateWithAttributedString(NSAttributedString(string: text, attributes: [.font: font, .kern: kern]))
+    let path = CGMutablePath()
+    for run in CTLineGetGlyphRuns(l) as! [CTRun] {
+        let n = CTRunGetGlyphCount(run)
+        var glyphs = [CGGlyph](repeating: 0, count: n), pts = [CGPoint](repeating: .zero, count: n)
+        CTRunGetGlyphs(run, CFRange(location: 0, length: n), &glyphs)
+        CTRunGetPositions(run, CFRange(location: 0, length: n), &pts)
+        for i in 0..<n {
+            var t = CGAffineTransform(translationX: pts[i].x, y: 0)
+            if let g = CTFontCreatePathForGlyph(font, glyphs[i], &t) { path.addPath(g.normalized()) }
+        }
+    }
+    return path
+}
+
+func neon(_ ctx: CGContext, _ path: CGPath, at origin: CGPoint, scale: CGFloat, tube: CGFloat, hex: UInt32, filled: Bool) {
+    var t = CGAffineTransform(translationX: origin.x, y: origin.y).scaledBy(x: scale, y: scale)
+    guard let p = path.copy(using: &t) else { return }
+    for (blur, width, alpha) in [(90.0, tube * 5, 0.55), (28.0, tube * 2.4, 0.9)] as [(CGFloat, CGFloat, CGFloat)] {
+        ctx.saveGState()
+        ctx.setShadow(offset: .zero, blur: blur, color: colour(hex, alpha))
+        ctx.addPath(p); ctx.setStrokeColor(colour(hex, alpha * 0.6)); ctx.setLineWidth(width); ctx.setLineJoin(.round); ctx.strokePath()
+        ctx.restoreGState()
+    }
+    if filled {
+        ctx.addPath(p); ctx.setFillColor(colour(hex == 0xFF4D4D ? 0xFFB3B3 : 0xFFFFFF)); ctx.fillPath()
+        ctx.addPath(p); ctx.setStrokeColor(colour(hex)); ctx.setLineWidth(tube); ctx.strokePath()
+    } else {
+        ctx.addPath(p); ctx.setStrokeColor(colour(0xFFFFFF)); ctx.setLineWidth(tube); ctx.setLineJoin(.round); ctx.strokePath()
+    }
+}
+
+func banner(to out: URL) {
+    let W = 3840, H = 1646
+    let w = CGFloat(W), h = CGFloat(H)
+    let ctx = CGContext(data: nil, width: W, height: H, bitsPerComponent: 8, bytesPerRow: 0,
+                        space: CGColorSpace(name: CGColorSpace.sRGB)!, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+    ctx.setFillColor(colour(0x070707)); ctx.fill(CGRect(x: 0, y: 0, width: w, height: h))
+    let sRGB = CGColorSpace(name: CGColorSpace.sRGB)
+    let red = CGGradient(colorsSpace: sRGB, colors: [colour(0xFF4D4D, 0.22), colour(0xFF4D4D, 0)] as CFArray, locations: [0, 1])!
+    ctx.drawRadialGradient(red, startCenter: CGPoint(x: 1150, y: 800), startRadius: 0, endCenter: CGPoint(x: 1150, y: 800), endRadius: 1300, options: [])
+    let green = CGGradient(colorsSpace: sRGB, colors: [colour(0x29FF85, 0.12), colour(0x29FF85, 0)] as CFArray, locations: [0, 1])!
+    ctx.drawRadialGradient(green, startCenter: CGPoint(x: 2900, y: 820), startRadius: 0, endCenter: CGPoint(x: 2900, y: 820), endRadius: 1200, options: [])
+    // Falling powder.
+    var seed: UInt64 = 1947
+    func rnd() -> CGFloat { seed = seed &* 6364136223846793005 &+ 1442695040888963407; return CGFloat(seed >> 33) / CGFloat(UInt32.max) }
+    for _ in 0..<1400 {
+        let r = rnd() * 3 + 0.8
+        ctx.setFillColor(colour(0xFFFFFF, rnd() * 0.5 + 0.1))
+        ctx.fillEllipse(in: CGRect(x: rnd() * w, y: rnd() * h, width: r, height: r))
+    }
+
+    // Logo: NOIR as a white outline tube, MARKET as red filled tubes.
+    let condensed = NSFont.systemFont(ofSize: 100, weight: .heavy, width: .condensed) as CTFont
+    let roundedDesc = NSFont.systemFont(ofSize: 100, weight: .semibold).fontDescriptor.withDesign(.rounded)!
+    let rounded = NSFont(descriptor: roundedDesc, size: 100)! as CTFont
+    let noir = glyphPath("NOIR", font: condensed, kern: 4), market = glyphPath("MARKET", font: rounded, kern: 6)
+    let logoW: CGFloat = 1500, left: CGFloat = 330
+    let ns = logoW / noir.boundingBox.width, ms = logoW / market.boundingBox.width
+    neon(ctx, noir, at: CGPoint(x: left - noir.boundingBox.minX * ns, y: 760), scale: ns, tube: 9, hex: 0xEAEAEA, filled: false)
+    neon(ctx, market, at: CGPoint(x: left - market.boundingBox.minX * ms, y: 470), scale: ms, tube: 7, hex: 0xFF4D4D, filled: true)
+    let tag = line("TRADE SMART – PLAY DIRTY – COME OUT ON TOP", font: "JetBrainsMono-Bold", size: 54, colour: colour(0xE8EAE8, 0.9), tracking: 6)
+    draw(tag, in: ctx, centreX: left + logoW / 2, baseline: 330)
+
+    // Three screens, fanned.
+    let screens = [("05_noirnet", -7.0, 2350.0, 760.0), ("06_raid", 7.0, 3330.0, 760.0), ("02_market", 0.0, 2840.0, 820.0)]
+    for (file, deg, cx, cy) in screens {
+        guard let img = NSImage(contentsOfFile: "AppStore/raw/\(file).png"), let cg = img.cgImage(forProposedRect: nil, context: nil, hints: nil) else { continue }
+        let sh: CGFloat = 1500, sw = sh * CGFloat(cg.width) / CGFloat(cg.height)
+        let rect = CGRect(x: -sw / 2, y: -sh / 2, width: sw, height: sh)
+        ctx.saveGState()
+        ctx.translateBy(x: cx, y: cy); ctx.rotate(by: CGFloat(deg) * .pi / 180)
+        let path = CGPath(roundedRect: rect, cornerWidth: 80, cornerHeight: 80, transform: nil)
+        ctx.saveGState(); ctx.setShadow(offset: CGSize(width: 0, height: -20), blur: 80, color: colour(0x000000, 0.9))
+        ctx.addPath(path); ctx.setFillColor(colour(0x000000)); ctx.fillPath(); ctx.restoreGState()
+        ctx.addPath(path); ctx.clip(); ctx.interpolationQuality = .high; ctx.draw(cg, in: rect)
+        ctx.resetClip()
+        ctx.addPath(path); ctx.setStrokeColor(colour(0xFFFFFF, 0.25)); ctx.setLineWidth(6); ctx.strokePath()
+        ctx.restoreGState()
+    }
+    let rep = NSBitmapImageRep(cgImage: ctx.makeImage()!)
+    try? rep.representation(using: .png, properties: [:])!.write(to: out)
+    print("wrote banner")
+}
+banner(to: URL(fileURLWithPath: "AppStore/header-3840x1646.png"))

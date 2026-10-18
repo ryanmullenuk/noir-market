@@ -1,19 +1,22 @@
 Thank you for reviewing Noir Market.
 
 WHAT THE APP IS
-Noir Market is a single-player trading and strategy game, a fictional and satirical take on the classic "buy low, sell high" trading game genre (in the tradition of Drug Wars, 1984). The player moves between 14 UK and Ireland cities over 30 in-game days, buying and selling fictional black-market goods, managing debt, heat and respect, and choosing how to resolve encounters. All characters, places of business and events are invented.
+Noir Market is a single-player trading and strategy game, a fictional and satirical take on the classic "buy low, sell high" trading game genre (in the tradition of Drug Wars, 1984). The player moves between UK and Ireland cities over 30 in-game days, buying and selling fictional black-market goods, managing debt, heat and respect, and choosing how to resolve encounters. All characters, businesses and events are invented.
 
 CONTENT AND GUIDELINE 1.4.3
-The game uses the names of illegal substances as tradeable commodities in a market, alongside fictional crime themes. It does NOT depict, simulate or reward drug consumption: there is no use mechanic, no instructions, no real-world sourcing information and no links to real services. Actions have consequences in the game (arrests, robberies, debt, death). The tone is satirical noir. Every launch screen states "Fiction" and the app is age-rated 17+ (18+ where applicable), with frequent references to drugs, crime and mature themes declared in the age-rating questionnaire.
+The game uses the names of illegal substances as tradeable commodities in a market, alongside fictional crime themes. It does NOT depict, simulate or reward drug consumption: there is no use mechanic, no instructions, no real-world sourcing information and no links to real services. Actions carry consequences in the game (arrests, raids, robberies, debt, death). The tone is satirical noir. Every launch shows a full-screen disclaimer stating that the game is for entertainment only, that real city names are used only as fictional settings, and that all characters and events are fictional. The title screen also reads "fiction · 18+ · entertainment only". The app is age-rated 18+ with frequent references to drugs, crime and mature themes declared in the age-rating questionnaire.
 
 NO ACCOUNT NEEDED
 There is no sign-in. Tap NEW GAME, choose a name (optional), a mode and a starting city, and tap BEGIN. The TUTORIAL mode on that screen is a quick 3-day guided run of every core system.
 
 IN-APP PURCHASE
-One non-consumable, the Full Game (games.redhead.noirmarket.unlockallcities). The free game includes London, Manchester and Birmingham, Standard games, the Daily Challenge and the Tutorial, with every gameplay feature. The purchase adds all 14 cities, the Long Game and Sprint modes, three character backgrounds (Ex-Copper, Student, Dock Worker) and four extra colour palettes. To reach the purchase: on the New Game screen tap "Unlock full game", any locked mode, background or city; in Settings tap "Unlock full game" or a locked colour palette; open Travel and select any locked city; or use the prompt at the end of a game. "Restore purchases" is in Settings and on the unlock card.
+One non-consumable, "Full Game" (games.redhead.noirmarket.unlockallcities). The free game includes London, Manchester and Birmingham, Standard games, the Daily Challenge and the Tutorial, with every gameplay feature. The purchase adds all 14 cities, the Long Game and Sprint modes, three character backgrounds (Ex-Copper, Student, Dock Worker) and four extra colour palettes. To reach it: on the New Game screen tap "Unlock full game" or any locked mode, background or city; in Settings tap "Unlock full game" or a locked colour palette; in a game open Travel and select a locked city; or use the prompt at the end of a game. "Restore purchases" is in Settings and on the unlock card. There are no hidden codes or cheat names: paid content is unlocked only by the purchase.
+
+GAME CENTER
+Optional. 4 leaderboards (Standard, Long Game, Sprint, Daily Challenge) and 24 achievements. The game is fully playable without signing in.
 
 DATA AND PRIVACY
-No data is collected. Saves stay on device. No ads, analytics, tracking or accounts. Game Center is optional for leaderboards and achievements.
+No data is collected. Saves stay on device. No ads, analytics, tracking or accounts.
 
 SUPPORT
 https://redhead.games/noir-market/support.html
