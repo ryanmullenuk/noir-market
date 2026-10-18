@@ -9,40 +9,67 @@ struct TitleView: View {
     var onSettings: () -> Void
     var onRecords: () -> Void
 
-    @State private var phase = 0 // 0 logo, 1 title
+    /// 0 logo, 1 black, 2 disclaimer, 3 black, 4 title.
+    @State private var phase = 0
     @State private var titleIn = false
     @State private var buttonsIn = false
+    @State private var sequence: Task<Void, Never>?
 
     var body: some View {
         ZStack {
             // Pure black so the Redhead logo (on black) blends with no visible box.
-            Noir.ink.ignoresSafeArea()
-            if phase == 0 {
+            Color.black.ignoresSafeArea()
+            switch phase {
+            case 0:
                 Image("RedheadLogo")
                     .resizable().scaledToFit()
                     .frame(width: 240)
                     .transition(.opacity)
                     .accessibilityLabel("Redhead Games")
-            } else {
-                title.transition(.opacity)
+            case 2:
+                Disclaimer().transition(.opacity)
+            case 4:
+                ZStack {
+                    Noir.ink.ignoresSafeArea()
+                    title
+                }
+                .transition(.opacity)
+            default:
+                EmptyView()
             }
         }
-        .task {
-            try? await Task.sleep(for: .seconds(1.8))
-            withAnimation(.easeInOut(duration: 0.9)) { phase = 1 }
+        .onAppear { run(from: 0) }
+        .onTapGesture {
+            // Tapping skips to the next card: logo → disclaimer → title.
+            if phase < 2 { run(from: 1) } else if phase < 4 { run(from: 3) }
+        }
+    }
+
+    /// Plays the intro from a given phase: logo, fade to black, disclaimer, fade to black, title.
+    private func run(from start: Int) {
+        sequence?.cancel()
+        sequence = Task { @MainActor in
+            if start <= 0 {
+                try? await Task.sleep(for: .seconds(1.8))
+                guard !Task.isCancelled else { return }
+            }
+            if start <= 1 {
+                withAnimation(.easeInOut(duration: 0.7)) { phase = 1 }
+                try? await Task.sleep(for: .seconds(0.8))
+                guard !Task.isCancelled else { return }
+                withAnimation(.easeInOut(duration: 0.9)) { phase = 2 }
+                try? await Task.sleep(for: .seconds(5.5))
+                guard !Task.isCancelled else { return }
+            }
+            withAnimation(.easeInOut(duration: 0.7)) { phase = 3 }
+            try? await Task.sleep(for: .seconds(0.8))
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeInOut(duration: 0.9)) { phase = 4 }
             Audio.shared.play()
             try? await Task.sleep(for: .seconds(0.5))
             withAnimation(.easeOut(duration: 1.4)) { titleIn = true }
             try? await Task.sleep(for: .seconds(1.3))
             withAnimation(.easeOut(duration: 0.9)) { buttonsIn = true }
-        }
-        .onTapGesture {
-            if phase == 0 {
-                withAnimation(.easeInOut(duration: 0.4)) { phase = 1 }
-                Audio.shared.play()
-                withAnimation(.easeOut(duration: 1.0)) { titleIn = true }
-                withAnimation(.easeOut(duration: 0.8).delay(0.6)) { buttonsIn = true }
-            }
         }
     }
 
@@ -171,5 +198,29 @@ struct TitleOutlineButton: ButtonStyle {
             .overlay(shape.strokeBorder(Color.white.opacity(configuration.isPressed ? 0.7 : 0.35), lineWidth: 1.2))
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .animation(.spring(duration: 0.18), value: configuration.isPressed)
+    }
+}
+
+/// Shown between the Redhead logo and the title.
+private struct Disclaimer: View {
+    var body: some View {
+        VStack(spacing: 22) {
+            Text("DISCLAIMER")
+                .font(Noir.title(30)).tracking(1)
+                .foregroundStyle(Color(hex: 0xFF3B3B))
+                .shadow(color: Color(hex: 0xFF3B3B).opacity(0.45), radius: 10)
+            VStack(spacing: 18) {
+                Text("THIS GAME IS FOR ENTERTAINMENT PURPOSES ONLY.")
+                Text("REAL CITY NAMES ARE USED AS FICTIONAL SETTINGS. THEIR DEPICTION DOES NOT REPRESENT REAL CONDITIONS, COMMUNITIES OR ACTIVITIES.")
+                Text("ALL CHARACTERS AND EVENTS ARE FICTIONAL. ANY RESEMBLANCE TO REAL PEOPLE OR EVENTS IS PURELY COINCIDENTAL.")
+            }
+            .font(Noir.ui(13, weight: .semibold)).tracking(0.6)
+            .lineSpacing(4)
+            .foregroundStyle(Color.white)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        .multilineTextAlignment(.center)
+        .padding(.horizontal, 34)
+        .accessibilityElement(children: .combine)
     }
 }
