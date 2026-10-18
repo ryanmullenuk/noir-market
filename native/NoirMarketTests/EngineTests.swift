@@ -522,6 +522,43 @@ struct EngineTests {
         #expect(store.state?.fullAccess == true)
     }
 
+    @Test func longStaysBringRaidAlertsAndStashingKeepsYouClean() throws {
+        // Over many seeds: five-plus nights in one city usually brings a Breaking News alert,
+        // staying put after it usually brings a raid, and a stashed player walks away clean.
+        var alerts = 0, raids = 0, clean = 0
+        for seed in 1...40 {
+            var s = fresh(seed: UInt64(seed))
+            s.weapons[0] = 1
+            s.carry[cheapest(s)] = 5
+            s.streak = Engine.raidStreak
+            s.encounters = []; s.call = nil
+            Engine.maybeRaidAlert(&s)
+            guard s.raid != nil else { continue }
+            alerts += 1
+            Engine.goToGround(&s)
+            #expect(Engine.carried(s) == 0)
+            #expect(!Engine.hasWeapons(s))
+            #expect(Engine.stashedWeapons(s, s.city)[0] == 1)
+            try Engine.stay(&s)
+            if case .police(let stop)? = s.encounters.first, stop.raid == true {
+                raids += 1
+                let out = try Engine.resolve(&s, .comply)
+                if out.good { clean += 1 }
+            }
+        }
+        #expect(alerts >= 15)
+        #expect(raids >= alerts / 2)
+        #expect(clean == raids)
+
+        // Moving on clears the warning.
+        var t = fresh(seed: 3, full: true)
+        t.raid = RaidAlert(city: t.city, day: t.day, seen: true)
+        try Engine.travel(&t, to: 1)
+        #expect(t.raid == nil || t.raid?.city == 1)
+        #expect(!t.encounters.contains { if case .police(let p) = $0 { p.raid == true } else { false } })
+        #expect(t.streak == 0)
+    }
+
     func cheapest(_ s: GameState) -> Int {
         Catalog.goods.indices.filter { s.markets[s.city].supply[$0] > 0 }.min { s.markets[s.city].price[$0] < s.markets[s.city].price[$1] }!
     }

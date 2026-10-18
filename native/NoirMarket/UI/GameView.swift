@@ -11,6 +11,7 @@ struct GameView: View {
     @Environment(GameStore.self) private var store
     @State private var panel: Panel?
     @State private var trade: Int?
+    @State private var help: StatHelp?
 
     var body: some View {
         if let s = store.state {
@@ -21,7 +22,7 @@ struct GameView: View {
                 VStack(spacing: 0) {
                     Header(s: s, onMenu: { panel = .settings })
                         .padding(.horizontal, 16)
-                    StatStrip(s: s)
+                    StatStrip(s: s, onPanel: { panel = $0 }, onHelp: { help = $0 })
                         .padding(.horizontal, 16)
                         .padding(.top, 10)
                     Ticker(lines: s.ticker)
@@ -41,18 +42,25 @@ struct GameView: View {
                 }
                 .zIndex(7)
                 .animation(.spring(duration: 0.4), value: store.toast?.id)
-                if let call = s.call, !overlayNeeded, panel == nil, trade == nil {
+                if let raid = s.raid, !raid.seen, !overlayNeeded, panel == nil, trade == nil {
+                    BreakingNewsView(raid: raid, onTravel: { panel = .travel })
+                        .transition(.opacity)
+                        .zIndex(6)
+                }
+                if let call = s.call, s.raid?.seen != false, !overlayNeeded, panel == nil, trade == nil {
                     IncomingCallView(call: call, city: Catalog.cities[s.city].name)
                         .transition(.opacity.combined(with: .scale(scale: 0.95)))
                         .zIndex(5)
                 }
             }
             .animation(.spring(duration: 0.35), value: s.call == nil)
+            .animation(.easeOut(duration: 0.25), value: s.raid?.seen)
             .onAppear {
                 #if DEBUG
                 let args = ProcessInfo.processInfo.arguments
                 if let i = args.firstIndex(of: "-panel"), i + 1 < args.count { panel = Panel(rawValue: args[i + 1]) }
                 if let i = args.firstIndex(of: "-trade"), i + 1 < args.count { trade = Int(args[i + 1]) }
+                if let i = args.firstIndex(of: "-help"), i + 1 < args.count { help = StatHelp(rawValue: args[i + 1]) }
                 #endif
             }
             .sheet(item: $panel) { p in
@@ -88,6 +96,12 @@ struct GameView: View {
                 .buttonStyle(.plain)
             }
             .noirErrors(store, when: panel == nil && trade == nil)
+            .noirDialog(isPresented: Binding(get: { help != nil }, set: { if !$0 { help = nil } }),
+                        title: help.map { "\($0.title) · \($0.value(s))" } ?? "",
+                        message: help?.text(s) ?? "",
+                        icon: help?.symbol ?? "info.circle.fill",
+                        tint: help.map { Noir.rag($0.value(s), highIsGood: $0.highIsGood) } ?? Noir.amber,
+                        actions: [DialogAction(title: "Got it", kind: .secondary)])
         } else {
             Color.black.onAppear { onQuit() }
         }
@@ -252,6 +266,8 @@ private func headerTags(_ s: GameState) -> [(String, Color)] {
 
 private struct StatStrip: View {
     let s: GameState
+    var onPanel: (Panel) -> Void = { _ in }
+    var onHelp: (StatHelp) -> Void = { _ in }
 
     var body: some View {
         let debt = Engine.debt(s)
@@ -259,21 +275,40 @@ private struct StatStrip: View {
         let fill = Double(Engine.carried(s)) / Double(max(1, Engine.capacity(s)))
         VStack(spacing: 10) {
             HStack(spacing: 8) {
-                tile("Cash", Money.short(s.cash), "sterlingsign", Noir.green, lit: true)
+                tile("Cash", Money.short(s.cash), "sterlingsign", Noir.green, lit: true, opens: .money)
                     .animation(.spring(duration: 0.8), value: s.cash)
-                tile("Bank", Money.short(s.bank), "building.columns.fill", Noir.green, lit: s.bank > 0)
-                tile("Debt", debt > 0 ? Money.short(debt) : "None", "exclamationmark.triangle.fill", dueSoon ? Noir.red : Noir.amber, lit: debt > 0)
-                tile("Bag", "\(Engine.carried(s))/\(Engine.capacity(s))", "bag.fill", fill >= 1 ? Noir.red : fill > 0.75 ? Noir.amber : Noir.green, lit: fill > 0)
+                tile("Bank", Money.short(s.bank), "building.columns.fill", Noir.green, lit: s.bank > 0, opens: .money)
+                tile("Debt", debt > 0 ? Money.short(debt) : "None", "exclamationmark.triangle.fill", dueSoon ? Noir.red : Noir.amber, lit: debt > 0, opens: .money)
+                tile("Bag", "\(Engine.carried(s))/\(Engine.capacity(s))", "bag.fill", fill >= 1 ? Noir.red : fill > 0.75 ? Noir.amber : Noir.green, lit: fill > 0, opens: .shop)
             }
             HStack(spacing: 8) {
-                Meter(label: "Health", symbol: "heart.fill", value: s.health, colour: Noir.rag(s.health, highIsGood: true))
-                Meter(label: "Heat", symbol: "flame.fill", value: s.heat, colour: Noir.rag(s.heat, highIsGood: false))
-                Meter(label: "Respect", symbol: "star.fill", value: s.rep, colour: Noir.rag(s.rep, highIsGood: true))
+                ForEach([StatHelp.health, .heat, .respect]) { stat in
+                    Button {
+                        Audio.shared.play(.click, volume: 0.4)
+                        Audio.shared.buzz(.tap)
+                        onHelp(stat)
+                    } label: {
+                        Meter(label: stat.title, symbol: stat.symbol, value: stat.value(s), colour: Noir.rag(stat.value(s), highIsGood: stat.highIsGood))
+                    }
+                    .buttonStyle(PressScale())
+                    .accessibilityHint("Explains \(stat.title.lowercased())")
+                }
             }
         }
     }
 
-    private func tile(_ label: String, _ value: String, _ symbol: String, _ colour: Color, lit: Bool) -> some View {
+    private func tile(_ label: String, _ value: String, _ symbol: String, _ colour: Color, lit: Bool, opens: Panel) -> some View {
+        Button {
+            Audio.shared.buzz(.tap)
+            onPanel(opens)
+        } label: {
+            tileBody(label, value, symbol, colour, lit: lit)
+        }
+        .buttonStyle(PressScale())
+        .accessibilityHint(opens == .money ? "Opens Money" : "Opens Market")
+    }
+
+    private func tileBody(_ label: String, _ value: String, _ symbol: String, _ colour: Color, lit: Bool) -> some View {
         VStack(spacing: 6) {
             GlowIcon(symbol: symbol, color: colour, size: 28, lit: lit)
             Text(value).font(Noir.mono(14)).foregroundStyle(lit ? Noir.paper : Noir.silver)
@@ -286,6 +321,16 @@ private struct StatStrip: View {
         .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(LinearGradient(colors: [Noir.surfaceTop, Noir.surfaceLow], startPoint: .top, endPoint: .bottom)))
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(label) \(value)")
+    }
+}
+
+/// Plain press feedback for tappable stat tiles.
+struct PressScale: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.95 : 1)
+            .opacity(configuration.isPressed ? 0.8 : 1)
+            .animation(.spring(duration: 0.18), value: configuration.isPressed)
     }
 }
 

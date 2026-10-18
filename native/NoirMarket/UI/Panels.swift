@@ -117,6 +117,37 @@ struct StashView: View {
                         }
                     }
 
+                    let carriedGuns = Catalog.weapons.filter { s.weapons[$0.id] > 0 }
+                    let storedGuns = Catalog.weapons.filter { Engine.stashedWeapons(s, s.city)[$0.id] > 0 }
+                    if !carriedGuns.isEmpty || !storedGuns.isEmpty {
+                        Section(title: "Hardware", note: "Weapons in the lock-up can’t be found on you, but they can’t protect you either.") {
+                            HStack(spacing: 12) {
+                                GlowIcon(symbol: "scope", color: carriedGuns.isEmpty ? Noir.silver : Noir.red, size: 34, lit: !carriedGuns.isEmpty)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("On you").font(Noir.ui(14, weight: .semibold)).foregroundStyle(Noir.paper)
+                                    Text(carriedGuns.isEmpty ? "Nothing" : carriedGuns.map(\.name).joined(separator: ", "))
+                                        .font(Noir.ui(11)).foregroundStyle(Noir.silver)
+                                }
+                                Spacer()
+                                if !carriedGuns.isEmpty {
+                                    SmallButton(title: "Stash") { store.act { Engine.stashWeapons(&$0) } }
+                                }
+                            }
+                            HStack(spacing: 12) {
+                                GlowIcon(symbol: "lock.fill", color: Noir.amber, size: 34, lit: !storedGuns.isEmpty)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("In the lock-up").font(Noir.ui(14, weight: .semibold)).foregroundStyle(Noir.paper)
+                                    Text(storedGuns.isEmpty ? "Nothing" : storedGuns.map(\.name).joined(separator: ", "))
+                                        .font(Noir.ui(11)).foregroundStyle(Noir.silver)
+                                }
+                                Spacer()
+                                if !storedGuns.isEmpty {
+                                    SmallButton(title: "Take", tint: Noir.paper) { store.act { try Engine.retrieveWeapons(&$0) } }
+                                }
+                            }
+                        }
+                    }
+
                     if s.vaultLevel[s.city] + 1 < Catalog.vaultLevels.count {
                         let next = Catalog.vaultLevels[s.vaultLevel[s.city] + 1]
                         Section(title: "Upgrade", note: "\(next.name) lock-up holds \(next.capacity) units.") {

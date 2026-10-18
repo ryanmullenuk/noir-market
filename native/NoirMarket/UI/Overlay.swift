@@ -266,7 +266,7 @@ private struct EncounterView: View {
 
     private var kicker: String {
         switch encounter {
-        case .police(let p): (p.round ?? 1) > 1 ? "Shots fired" : p.grass != nil ? "Sold out" : p.depot == true ? "At the depot" : p.airport ? "Arrivals hall" : "Blue lights"
+        case .police(let p): (p.round ?? 1) > 1 ? "Shots fired" : p.grass != nil ? "Sold out" : p.raid == true ? "Raid" : p.depot == true ? "At the depot" : p.airport ? "Arrivals hall" : "Blue lights"
         case .trouble(let t): t.round > 1 ? "Round \(t.round)" : t.crew != nil ? "Their turf" : "A dark street"
         case .collector: "A knock at the door"
         }
@@ -286,6 +286,7 @@ private struct EncounterView: View {
         case .police(let p):
             let what = units > 0 ? "\(units) units in your bag" : "nothing in your pockets but nerves"
             return (p.grass != nil ? "They know your name, your city and what’s in your bag. \(p.grass!) has been talking. "
+                    : p.raid == true ? "4 a.m. The door comes off its hinges. Torches, shouting, a warrant with your name spelled wrong. The tip-off was right. "
                     : p.depot == true ? "Two plain-clothes officers step out from behind the shipping crates. They were expecting you. "
                     : p.airport ? "A customs officer with tired eyes points at your bag. " : "A patrol car pulls up and two officers get out slowly. ")
                 + "You’ve got \(what)." + (Engine.hasWeapons(s) ? " And something heavier under your coat." : "")

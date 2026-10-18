@@ -76,6 +76,16 @@ struct PoliceStop: Codable, Sendable, Equatable {
     var depot: Bool?
     /// Name of the informant who sold you out, if that's why they're here.
     var grass: String?
+    /// Set when this is the raid a Breaking News alert warned about.
+    var raid: Bool?
+}
+
+/// A Breaking News tip-off that the police are about to raid the city you're in.
+struct RaidAlert: Codable, Sendable, Equatable {
+    var city: Int
+    var day: Int
+    /// The player has seen the alert and chosen what to do.
+    var seen: Bool
 }
 
 struct Trouble: Codable, Sendable, Equatable {
@@ -230,6 +240,10 @@ struct GameState: Codable, Sendable, Equatable {
     /// Loyalty of each informant (0–100, starts 50), and one who's about to sell you out.
     var loyalty: [Int]?
     var sellout: Int?
+    /// Nights in a row spent in the current city, a pending raid warning, and weapons left in each city's lock-up.
+    var streak: Int?
+    var raid: RaidAlert?
+    var vaultWeapons: [[Int]]?
     /// Test mode: unlimited cash and every city, enabled by the name GODMODE. Never counts for records.
     var godMode: Bool?
     var calledToday = false

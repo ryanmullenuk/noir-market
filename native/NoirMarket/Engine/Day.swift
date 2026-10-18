@@ -16,6 +16,7 @@ extension Engine {
         s.city = dest
         s.stats.trips += 1
         if !(s.visited ?? []).contains(dest) { s.visited = (s.visited ?? []) + [dest] }
+        s.streak = 0
         advance(&s, travelled: true, flight: flight,
                 opening: "\(flight ? "You fly" : "You take the late train") from \(from) to \(Catalog.cities[dest].name). \(Money.gbp(cost)) well spent, probably.")
     }
@@ -29,6 +30,7 @@ extension Engine {
             return
         }
         s.stats.nightsIn += 1
+        s.streak = (s.streak ?? 0) + 1
         let lowProfile = !s.tradedToday
         advance(&s, travelled: false, flight: false,
                 opening: lowProfile ? "You keep your head down in \(Catalog.cities[s.city].name). The heat cools off a little."
@@ -43,6 +45,18 @@ extension Engine {
         let yesterday = s.story
 
         tick(&s, lines: &lines)
+
+        // A Breaking News warning from last night: stay put and they come for you.
+        var raidTonight = false
+        if let raid = s.raid {
+            s.raid = nil
+            if raid.city == s.city && !travelled {
+                raidTonight = s.rng.chance(0.85)
+                if !raidTonight { lines.append("The squad cars circle the block twice and move on. Lucky. Don’t count on it again.") }
+            } else if travelled {
+                lines.append("Word on the wire: the squad kicked in a door in \(Catalog.cities[raid.city].name) an hour after you left.")
+            }
+        }
 
         // Yesterday's story either comes good or turns out to be nonsense. Nobody tells you which.
         var checks: [String] = []
@@ -68,6 +82,12 @@ extension Engine {
                 stop.jail = 0
                 s.encounters.append(.police(stop))
             }
+        } else if raidTonight, s.encounters.isEmpty {
+            var stop = policeStop(&s, airport: false)
+            stop.raid = true
+            stop.bribeChance *= 0.7
+            stop.runChance *= 0.7
+            s.encounters.append(.police(stop))
         } else if s.encounters.isEmpty {
             let weapons = hasWeapons(s)
             let value = Double(carriedValue(s))
@@ -102,6 +122,7 @@ extension Engine {
             }
         }
 
+        maybeRaidAlert(&s)
         maybeCall(&s)
         s.report = DayReport(day: s.day, city: s.city, travelled: travelled,
                              headline: s.ticker.first ?? "", story: s.story?.text ?? "", lines: lines, checks: checks)
