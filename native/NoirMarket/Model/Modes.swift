@@ -83,25 +83,25 @@ enum Perk: String, CaseIterable, Identifiable, Sendable {
     var pro: String {
         switch self {
         case .copper: "Old colleagues look the other way: 30% fewer police stops, and bribes cost 25% less and land more often."
-        case .student: "Railcard, coach pass, a mate with a car. Travel costs 40% less."
+        case .student: "Railcard, coach pass, a mate with a car. Travel costs 40% less, and you’re quick on your feet: running away works 12% more often."
         case .docker: "Knows which crates customs never open. Shipping is cheaper and far safer."
         }
     }
 
     var con: String {
         switch self {
-        case .copper: "Nobody trusts an ex-copper. You start with zero respect: worse deals, more trouble."
-        case .student: "Skint. You start with £1,000 less, and the street sees you as a kid: 35 respect."
-        case .docker: "Customs know your face. You start with 25% heat, and 40 respect."
+        case .copper: "Nobody trusts an ex-copper. You start with 25 respect: worse deals, more trouble."
+        case .student: "The street sees you as a kid. You start with 35 respect: worse prices, fewer jobs, more chancers."
+        case .docker: "Customs know your face. You start with 12% heat, and 45 respect."
         }
     }
 
     /// Starting cash, respect and heat for this background.
     var start: (cashDelta: Int, respect: Int, heat: Int) {
         switch self {
-        case .copper: (0, 0, 0)
-        case .student: (-1_000, 35, 0)
-        case .docker: (0, 40, 25)
+        case .copper: (0, 25, 0)
+        case .student: (0, 35, 0)
+        case .docker: (0, 45, 12)
         }
     }
 

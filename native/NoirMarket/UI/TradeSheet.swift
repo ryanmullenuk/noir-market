@@ -24,6 +24,12 @@ struct TradeSheet: View {
                         Text(g.name).font(Noir.display(30)).foregroundStyle(Noir.paper)
                         Text("\(Money.gbp(price)) each · \(s.markets[s.city].supply[good]) about")
                             .font(Noir.mono(12, weight: .regular)).foregroundStyle(Noir.silver)
+                        if owned > 0 {
+                            // What you paid, so the profit is obvious before you sell.
+                            Text("You hold \(owned) · paid \(Money.gbp(avg)) each")
+                                .font(Noir.mono(12, weight: .semibold))
+                                .foregroundStyle(price > avg ? Noir.rise : price < avg ? Noir.neon : Noir.silver)
+                        }
                     }
                     Spacer()
                 }
@@ -34,7 +40,7 @@ struct TradeSheet: View {
                 }
                 .padding(4)
                 .background(Capsule().fill(Color.white.opacity(0.05)))
-                .onChange(of: selling) { qty = selling ? Double(owned) : 0 }
+                .onChange(of: selling) { qty = selling ? Double(owned) : Double(Engine.maxBuy(s, good: good)) }
 
                 if maxQty == 0 {
                     Text(reason(s, owned: owned))
@@ -126,7 +132,8 @@ struct TradeSheet: View {
             .padding(22)
             .onAppear {
                 selling = owned > 0 && s.markets[s.city].price[good] > avg
-                qty = selling ? Double(owned) : 0
+                // Start at the most you can do: sell everything, or buy as much as cash and space allow.
+                qty = selling ? Double(owned) : Double(Engine.maxBuy(s, good: good))
                 store.error = nil
             }
         }

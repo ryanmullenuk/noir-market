@@ -161,3 +161,20 @@ extension Engine {
         }
     }
 }
+
+extension Engine {
+    /// A rough guide to what your bag would fetch in another city: the last price you saw there,
+    /// or for somewhere you've never been, the going rate adjusted for what that city wants.
+    static func bagEstimate(_ s: GameState, at city: Int) -> (value: Int, guessed: Bool) {
+        var total = 0, guessed = false
+        for g in Catalog.goods.indices where s.carry[g] > 0 {
+            if let seen = remembered(s, city: city, good: g).last, seen > 0 {
+                total += seen * s.carry[g]
+            } else {
+                total += Int(Catalog.goods[g].mid * Catalog.cities[city].factor(for: g)) * s.carry[g]
+                guessed = true
+            }
+        }
+        return (total, guessed)
+    }
+}

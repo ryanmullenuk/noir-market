@@ -209,7 +209,7 @@ struct MoneyView: View {
                     .card()
                     ErrorLine()
 
-                    Section(title: "The bank", note: "Money in the bank can’t be stolen or seized. No interest, no questions.", ring: .white.opacity(0.75)) {
+                    Section(title: "The bank", note: "Money in the bank can’t be stolen or seized. Gangs size you up by what you carry, so walking around loaded brings bigger trouble.", ring: .white.opacity(0.75)) {
                         TextField("", text: $amount, prompt: Text("Amount").foregroundStyle(Noir.dim))
                             .keyboardType(.numberPad)
                             .font(Noir.mono(18))
@@ -217,6 +217,20 @@ struct MoneyView: View {
                             .padding(12)
                             .background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                             .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Color.white.opacity(0.32)))
+                        HStack(spacing: 6) {
+                            ForEach([("£1k", 1_000), ("£5k", 5_000), ("£10k", 10_000), ("Half", -1)], id: \.0) { chip in
+                                Button(chip.0) {
+                                    Audio.shared.buzz(.tap)
+                                    amount = String(chip.1 > 0 ? chip.1 : max(0, s.cash / 2))
+                                }
+                                .font(Noir.label(11)).tracking(1)
+                                .foregroundStyle(Noir.paper)
+                                .frame(maxWidth: .infinity, minHeight: 34)
+                                .background(Capsule().fill(Color.white.opacity(0.06)))
+                                .overlay(Capsule().strokeBorder(Color.white.opacity(0.18)))
+                                .buttonStyle(.plain)
+                            }
+                        }
                         HStack(spacing: 8) {
                             Button("Deposit") { bank(true, s) }.buttonStyle(.noirOutline)
                             Button("Withdraw") { bank(false, s) }.buttonStyle(.noirOutline)

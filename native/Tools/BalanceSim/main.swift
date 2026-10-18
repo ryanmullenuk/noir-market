@@ -1,7 +1,11 @@
 import Foundation
 // Balance harness: swiftc -O NoirMarket/Model/*.swift NoirMarket/Engine/*.swift Tools/BalanceSim/main.swift
-func choose(_ e: Encounter, _ s: GameState) -> Choice { e.defaultChoice(s) }
-func play(seed: UInt64, full: Bool, careful: Bool, borrow: Bool, perk: Perk? = nil) -> (Int, Bool, Int) {
+nonisolated(unsafe) var brave = false
+func choose(_ e: Encounter, _ s: GameState) -> Choice {
+    if brave, case .trouble(let t) = e, t.fightChance >= 0.2 { return .fight }
+    return e.defaultChoice(s)
+}
+func play(seed: UInt64, full: Bool, careful: Bool, borrow: Bool, perk: Perk? = nil, smart: Bool = true) -> (Int, Bool, Int) {
     var s = GameState(seed: seed, city: 0, name: "Bot", fullAccess: full)
     Engine.configure(&s, mode: .standard, perk: perk)
     var r = SplitMix(seed: seed &* 31)
@@ -35,7 +39,16 @@ func play(seed: UInt64, full: Bool, careful: Bool, borrow: Bool, perk: Perk? = n
         }
         if careful, s.cash > 50_000 { try? Engine.deposit(&s, s.cash - 20_000) }
         let opts = Engine.accessibleCities(s).filter { $0 != s.city && Engine.fare(s, to: $0) < s.cash }
-        if s.day < s.maxDay, !opts.isEmpty { try? Engine.travel(&s, to: opts[r.int(0, opts.count - 1)]) } else { try? Engine.stay(&s) }
+        // Head where the bag sells dear (public info on the Travel screen), avoiding flights when carrying.
+        let held = Catalog.goods.indices.filter { s.carry[$0] > 0 }
+        let score = { (c: Int) -> Double in
+            let city = Catalog.cities[c]
+            var v = held.reduce(0.0) { $0 + Double(s.carry[$1]) * Catalog.goods[$1].mid * city.factor(for: $1) }
+            if Catalog.cities[s.city].needsFlight(to: city) && !held.isEmpty { v *= 0.8 }
+            return v - Double(Engine.fare(s, to: c)) + r.uniform(0, 200)
+        }
+        let dest = smart ? opts.max { score($0) < score($1) } : opts.isEmpty ? nil : opts[r.int(0, opts.count - 1)]
+        if s.day < s.maxDay, let dest { try? Engine.travel(&s, to: dest) } else { try? Engine.stay(&s) }
     }
     return (s.over?.worth ?? Engine.netWorth(s), s.over?.died ?? false, encounters)
 }
@@ -53,4 +66,11 @@ for full in [false, true] { for careful in [false, true] { for borrow in [false,
 for perk in [nil] + Perk.allCases.map(Optional.some) {
     let w = (1...600).map { play(seed: UInt64($0) * 7919, full: false, careful: true, borrow: false, perk: perk).0 }.sorted()
     print("perk \(perk?.rawValue ?? "none"): p25=\(w[150]) med=\(w[300]) p75=\(w[450])")
+}
+
+brave = true
+for full in [false, true] {
+    let res = (1...600).map { play(seed: UInt64($0) * 7919, full: full, careful: false, borrow: false) }
+    let w = res.map(\.0).sorted()
+    print("brave full=\(full): med=\(w[300]) deaths=\(res.filter(\.1).count)/600")
 }

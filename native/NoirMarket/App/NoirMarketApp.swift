@@ -64,7 +64,7 @@ struct RootView: View {
                 }, onBack: { go(.title) })
                 .transition(.opacity)
             case .game:
-                GameView(onQuit: { go(.title) })
+                GameView(onQuit: { go(.title) }, onNewGame: { go(.newGame) })
                     .transition(.opacity)
             }
         }

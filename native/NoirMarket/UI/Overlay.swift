@@ -3,6 +3,7 @@ import SwiftUI
 /// Full-screen beats between days: the morning paper, then any trouble, then the result.
 struct Overlay: View {
     var onQuit: () -> Void
+    var onNewGame: () -> Void = {}
     @Environment(GameStore.self) private var store
 
     var body: some View {
@@ -25,7 +26,7 @@ struct Overlay: View {
                     EndingChoice(s: s)
                         .transition(.opacity)
                 } else if let over = s.over {
-                    CaseClosed(over: over, s: s, onDone: onQuit)
+                    CaseClosed(over: over, s: s, onDone: onQuit, onNewGame: onNewGame)
                         .transition(.opacity)
                 }
             }
@@ -280,6 +281,15 @@ private struct EncounterView: View {
         }
     }
 
+    /// Unarmed? Show what a weapon would do for the odds, so the Black Market makes sense.
+    private func fightNote(_ t: Trouble, armed: Bool) -> String {
+        guard !armed, t.round == 1 else { return "Miss and they hit back." }
+        let machete = Catalog.weapons[2]
+        var odds = t.attacker == 0 ? 0.75 : min(0.96, 0.10 + machete.win)
+        if t.attacker == 4 { odds *= 0.8 }
+        return "Miss and they hit back. With a \(machete.name.lowercased()) it’d be \(Int((odds * 100).rounded()))%. The Black Market sells them."
+    }
+
     private var text: String {
         let units = Engine.carried(s)
         switch encounter {
@@ -350,7 +360,7 @@ private struct EncounterView: View {
                 Option(choice: .run, label: "Run", odds: t.runChance, primary: true),
                 Option(choice: .fight, label: again ? (weapon.map { WeaponKind($0) == .gun ? "Fire again" : "Fight on" } ?? "Swing again")
                                                     : (weapon.map { "Fight with the \($0.name.lowercased())" } ?? "Fight with your fists"),
-                       odds: t.fightChance, note: "Miss and they hit back.", danger: true),
+                       odds: t.fightChance, note: fightNote(t, armed: weapon != nil), danger: true),
                 Option(choice: .handOver, label: (again ? "Give up · " : t.crew != nil ? "Pay the rent · " : "Hand over ") + Money.gbp(min(s.cash, t.handOver)),
                        note: again ? "They take extra for the trouble." : t.attacker >= 2 ? "They’ll take some stock too." : "Nobody gets hurt."),
             ]
@@ -593,8 +603,10 @@ private struct CaseClosed: View {
     let over: GameOver
     let s: GameState
     var onDone: () -> Void
+    var onNewGame: () -> Void = {}
     @Environment(GameStore.self) private var store
     @Environment(Unlock.self) private var unlock
+    @State private var shareImage: Image?
     @State private var shown = 0
     @State private var cursor = true
     @State private var glitch = false
@@ -633,7 +645,7 @@ private struct CaseClosed: View {
         let goals = (st.earned ?? []).compactMap { id in Achievement.all.first { $0.id == id }?.title }
         add("GOALS", goals.isEmpty ? "none this time" : goals.map { "✓ \($0)" }.joined(separator: "  "), goals.isEmpty ? Noir.dim : Noir.amber)
         add("TRADE", "\(st.unitsBought) bought · \(st.unitsSold) sold · \(st.contractsDone ?? 0) contracts · \(st.dealsDone) phone deals")
-        add("TRAVEL", "\(st.trips) trips · \((s.visited ?? []).count) cities · \(st.shipmentsSent) shipped, \(st.shipmentsLost) lost")
+        add("TRAVEL", "\(st.trips) trips · \((s.visited ?? []).count) \((s.visited ?? []).count == 1 ? "city" : "cities") · \(st.shipmentsSent) shipped, \(st.shipmentsLost) lost")
         add("STREET", "\(st.fightsWon) fights won · \(st.fightsLost) lost · \(st.escapes) escapes · robbed \(st.mugged)×")
         add("LAW", "\(st.arrests) arrests · \(st.bribesPaid) bribes · \(st.jailDays) nights inside")
         add("EMPIRE", "\((s.businesses ?? []).count) fronts · \((s.crew ?? []).count) crew · \(st.tipsBought) tips bought")
@@ -705,14 +717,32 @@ private struct CaseClosed: View {
                     .padding(.bottom, 12)
                     .transition(.opacity)
                 }
-                Button(good ? "Back to the street" : "Try again") { Audio.shared.play(.click, volume: 0.6); onDone() }
-                    .buttonStyle(good ? NoirButtonStyle(kind: .primary) : NoirButtonStyle(kind: .danger))
+                HStack(spacing: 10) {
+                    Button(good ? "New game" : "Try again") { Audio.shared.play(.click, volume: 0.6); onNewGame() }
+                        .buttonStyle(good ? NoirButtonStyle(kind: .primary) : NoirButtonStyle(kind: .danger))
+                    if let shareImage {
+                        ShareLink(item: shareImage, preview: SharePreview("Noir Market case file", image: shareImage)) {
+                            Image(systemName: "square.and.arrow.up").font(.system(size: 18, weight: .bold))
+                        }
+                        .buttonStyle(AmberTile(size: 50))
+                        .accessibilityLabel("Share your case file")
+                    }
+                }
+                .opacity(shown >= lines.count ? 1 : 0.35)
+                Button("Back to the title") { Audio.shared.play(.click, volume: 0.5); onDone() }
+                    .buttonStyle(.noirQuiet)
+                    .padding(.top, 2)
                     .opacity(shown >= lines.count ? 1 : 0.35)
             }
             .padding(20)
         }
         .contentShape(Rectangle())
         .onTapGesture { shown = lines.count }
+        .onAppear {
+            let renderer = ImageRenderer(content: ShareCard(over: over, s: s, good: good))
+            renderer.scale = 3
+            if let ui = renderer.uiImage { shareImage = Image(uiImage: ui) }
+        }
         .task {
             Audio.shared.play(good ? .win : .lose, volume: 0.6)
             Audio.shared.buzz(good ? .success : .danger)
@@ -817,5 +847,57 @@ private struct EndingChoice: View {
             }
             FilmGrain()
         }
+    }
+}
+
+
+/// The shareable case file: a square card with the result, in the game's NOIRNET style.
+private struct ShareCard: View {
+    let over: GameOver
+    let s: GameState
+    let good: Bool
+
+    var body: some View {
+        let tint = good ? Color(hex: 0x29FF85) : Color(hex: 0xFF4D4D)
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 8) {
+                Circle().fill(tint).frame(width: 8, height: 8)
+                Text("NOIRNET").font(Noir.display(18)).foregroundStyle(tint)
+                Text("// CASE FILE").font(Noir.label(9)).tracking(1.2).foregroundStyle(tint.opacity(0.7))
+                Spacer()
+                Text("DAY \(min(s.day, s.maxDay))/\(s.maxDay)").font(Noir.label(9)).tracking(1.2).foregroundStyle(Color.white.opacity(0.5))
+            }
+            Text(good ? (over.ending == "spain" ? "RETIRED." : "CASE CLOSED.") : (over.died ? "FLATLINED." : "BUSTED."))
+                .font(Noir.title(40)).foregroundStyle(tint)
+            Text(Money.gbp(over.worth)).font(Noir.mono(30)).foregroundStyle(Color.white)
+            if let worth = s.stats.worthByDay, worth.count > 2 {
+                Sparkline(values: worth, colour: tint).frame(height: 40)
+            }
+            VStack(alignment: .leading, spacing: 6) {
+                row("RANK", Catalog.ranks[over.rank].name.uppercased(), Color(hex: 0xF5BD4D))
+                row("MODE", Engine.mode(s).title.uppercased(), Color.white)
+                row("CITIES", "\((s.visited ?? []).count)", Color.white)
+            }
+            Text(over.epitaph).font(Noir.ui(12)).foregroundStyle(tint.opacity(0.9))
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+            HStack(alignment: .lastTextBaseline) {
+                VStack(alignment: .leading, spacing: -4) {
+                    Text("NOIR").font(Noir.title(26)).foregroundStyle(Color.white)
+                    Text("MARKET").font(Noir.title(20)).foregroundStyle(Color(hex: 0xFF4D4D))
+                }
+                Spacer()
+                Text("fiction · 18+").font(Noir.ui(9)).foregroundStyle(Color.white.opacity(0.4))
+            }
+        }
+        .padding(28)
+        .frame(width: 400, height: 500)
+        .background(Color(hex: 0x090909))
+        .overlay(RoundedRectangle(cornerRadius: 0).strokeBorder(tint.opacity(0.5), lineWidth: 2))
+    }
+
+    private func row(_ tag: String, _ value: String, _ colour: Color) -> some View {
+        (Text("[\(tag)] ").foregroundStyle(Color.white.opacity(0.5)) + Text(value).foregroundStyle(colour))
+            .font(Noir.ui(13))
     }
 }

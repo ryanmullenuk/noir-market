@@ -19,7 +19,8 @@ extension Engine {
         // Bent officers still deal with an ex-copper, whatever the street thinks of them.
         let bribeRep = copper ? max(s.rep, 50) : s.rep
         let bribeChance = clamp(0.30 + Double(bribeRep) / 250 - Double(s.heat) / 500 - (airport ? 0.10 : 0) + (copper ? 0.15 : 0), 0.12, 0.9)
-        let runChance = clamp(0.45 + (weapon?.escape ?? 0) * 0.35 - (airport ? 0.2 : 0) - Double(units) / 600, 0.10, 0.85)
+        let quick = perk(s) == .student ? 0.12 : 0
+        let runChance = clamp(0.45 + quick + (weapon?.escape ?? 0) * 0.35 - (airport ? 0.2 : 0) - Double(units) / 600, 0.10, 0.85)
         let fightChance = min(0.8, (weapon.map { clamp(0.10 + $0.win * 0.55, 0.10, 0.70) } ?? 0.05) + (hasCrew(s, 2) ? 0.1 : 0))
         let jail = (hasWeapons(s) || units > 50) ? s.rng.int(1, 3) : 0
         let fine = (s.rng.int(300, 2_500) + value / 20) / 10 * 10
@@ -27,15 +28,22 @@ extension Engine {
                           fightChance: fightChance, jail: jail, fine: fine)
     }
 
+    /// How dangerous the street is for you: money you walk around with (cash and stock, not the bank)
+    /// draws bigger gangs who hit harder. 1.0 normally, 1.25 over £100k, 1.5 over £500k.
+    static func menace(_ s: GameState) -> Double {
+        let exposed = s.cash + carriedValue(s)
+        return exposed > 500_000 ? 1.5 : exposed > 100_000 ? 1.25 : 1.0
+    }
+
     static func trouble(_ s: inout GameState, attacker forced: Int? = nil) -> Trouble {
-        // Low respect draws the bigger gangs; high respect keeps them away.
-        let gangScale = s.rep < 30 ? 1.8 : s.rep >= 70 ? 0.55 : 1.0
+        // Low respect draws the bigger gangs; high respect keeps them away. Flashing money brings them back.
+        let gangScale = (s.rep < 30 ? 1.8 : s.rep >= 70 ? 0.55 : 1.0) * menace(s) * menace(s)
         let weights = Catalog.attackers.enumerated().map { i, a in i >= 2 ? a.weight * gangScale : a.weight }
         let attacker = forced ?? s.rng.pick(weights: weights)
         let a = Catalog.attackers[attacker]
         let weapon = bestWeapon(s)
         let muscle = hasCrew(s, 2)
-        let run = min(0.95, 0.5 + (weapon?.escape ?? 0) + (muscle ? 0.1 : 0) - (attacker == 4 ? 0.15 : 0))
+        let run = min(0.95, 0.5 + (weapon?.escape ?? 0) + (muscle ? 0.1 : 0) + (perk(s) == .student ? 0.12 : 0) - (attacker == 4 ? 0.15 : 0))
         var fight: Double = weapon.map { attacker == 0 ? 0.75 : min(0.96, 0.10 + $0.win) } ?? (attacker == 0 ? 0.45 : 0.25)
         if attacker == 4 { fight *= 0.8 }
         if muscle { fight = min(0.96, fight + 0.15) }
@@ -204,7 +212,8 @@ extension Engine {
                 s.stats.escapes += 1
                 return (Outcome(title: "Legged It", text: "You know these streets better than \(a.name) does. They give up at the third alley.", good: true), false)
             }
-            let hurt = s.rng.int(max(2, a.damage / 2), a.damage)
+            let dmg = Int(Double(a.damage) * menace(s))
+            let hurt = s.rng.int(max(2, dmg / 2), dmg)
             let take = a.take(from: s.cash, fraction: s.rng.uniform(0.05, a.loot))
             s.health -= hurt
             s.cash -= take
@@ -232,7 +241,7 @@ extension Engine {
             }
             // A miss: they hit back, then you decide again.
             let reduction = min(0.85, weapon?.escape ?? 0)
-            let base = Double(a.damage) * (1 - reduction)
+            let base = Double(a.damage) * menace(s) * (1 - reduction)
             let hurt = s.rng.int(max(2, Int(base / 2)), max(3, Int(base.rounded())))
             s.health -= hurt
             s.stats.fightsLost += 1

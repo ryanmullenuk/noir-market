@@ -39,6 +39,10 @@ struct TravelView: View {
                         Text("Tap a city on the map or pick one below.").font(Noir.type(13)).foregroundStyle(Noir.dim)
                     }
 
+                    let carrying = Engine.carried(s) > 0
+                    let estimates = Dictionary(uniqueKeysWithValues: Catalog.cities.filter { $0.id != s.city && Engine.accessible(s, $0.id) }
+                        .map { ($0.id, Engine.bagEstimate(s, at: $0.id)) })
+                    let best = carrying ? estimates.max { $0.value.value < $1.value.value }?.key : nil
                     VStack(spacing: 0) {
                         ForEach(Catalog.cities.filter { $0.id != s.city }.sorted { Engine.fare(s, to: $0.id) < Engine.fare(s, to: $1.id) }) { c in
                             let open = Engine.accessible(s, c.id)
@@ -50,7 +54,20 @@ struct TravelView: View {
                                     if !open { Image(systemName: "lock.fill").font(.system(size: 11)).foregroundStyle(Noir.brass) }
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(c.name.uppercased()).font(Noir.ui(15, weight: .semibold)).foregroundStyle(open ? Noir.paper : Noir.dim)
-                                        Text(c.region).font(Noir.ui(10)).foregroundStyle(Noir.dim)
+                                        if carrying, let est = estimates[c.id] {
+                                            HStack(spacing: 6) {
+                                                Text("Your bag \(est.guessed ? "≈" : "") \(Money.short(est.value))")
+                                                    .font(Noir.ui(10, weight: .semibold))
+                                                    .foregroundStyle(c.id == best ? Noir.green : Noir.silver)
+                                                if c.id == best {
+                                                    Text("BEST").font(Noir.label(8)).tracking(1).foregroundStyle(Noir.green)
+                                                        .padding(.horizontal, 5).padding(.vertical, 1)
+                                                        .overlay(Capsule().strokeBorder(Noir.green.opacity(0.7)))
+                                                }
+                                            }
+                                        } else {
+                                            Text(c.region).font(Noir.ui(10)).foregroundStyle(Noir.dim)
+                                        }
                                     }
                                     Spacer()
                                     Image(systemName: Catalog.cities[s.city].needsFlight(to: c) ? "airplane" : "tram.fill")
@@ -70,6 +87,12 @@ struct TravelView: View {
                     }
                     .card(padding: 0)
                     .clipShape(RoundedRectangle(cornerRadius: Noir.radius, style: .continuous))
+
+                    if carrying {
+                        Text("Bag values use the last prices you saw there. ≈ means you haven’t been: it’s a guess from what the city is known to want.")
+                            .font(Noir.ui(10)).foregroundStyle(Noir.dim)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
 
                     if !unlock.unlocked { UnlockCard() }
                 }
@@ -345,8 +368,8 @@ struct MapView: View {
 
     enum Side { case left, right, above, below }
     static let labelSide: [String: Side] = [
-        "Glasgow": .left, "Edinburgh": .right, "Liverpool": .above, "Manchester": .below, "Leeds": .right,
-        "Cardiff": .left, "Bristol": .right, "London": .right, "Birmingham": .right, "Newcastle": .right,
+        "Glasgow": .left, "Edinburgh": .right, "Liverpool": .left, "Manchester": .below, "Leeds": .right,
+        "Cardiff": .left, "Bristol": .below, "London": .right, "Birmingham": .right, "Newcastle": .right,
         "Aberdeen": .right, "Belfast": .right, "Dublin": .left, "Cork": .left,
     ]
 

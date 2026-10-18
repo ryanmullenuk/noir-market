@@ -7,6 +7,7 @@ enum Panel: String, Identifiable {
 
 struct GameView: View {
     var onQuit: () -> Void
+    var onNewGame: () -> Void = {}
 
     @Environment(GameStore.self) private var store
     @State private var panel: Panel?
@@ -93,7 +94,7 @@ struct GameView: View {
             .fullScreenCover(isPresented: Binding(get: { overlayNeeded }, set: { _ in })) {
                 Overlay(onQuit: {
                     onQuit()
-                })
+                }, onNewGame: onNewGame)
                 .buttonStyle(.plain)
             }
             .noirErrors(store, when: panel == nil && trade == nil)
@@ -542,24 +543,22 @@ private struct MarketList: View {
                 }
 
                 if s.day <= 2 && !seenTips && Engine.mode(s) != .tutorial {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Label("First night in town", systemImage: "lightbulb.fill")
-                                .font(Noir.label(11)).tracking(1.2).textCase(.uppercase)
-                                .foregroundStyle(Noir.green)
-                            Spacer()
-                            Button {
-                                withAnimation { seenTips = true }
-                            } label: { Image(systemName: "xmark.circle.fill").font(.system(size: 17)) }
-                            .buttonStyle(.plain)
-                            .foregroundStyle(Noir.dim)
-                            .accessibilityLabel("Dismiss tips")
-                        }
-                        Text("Tap any drug to buy or sell. Green CHEAP tags are bargains in this city; gold IN DEMAND tags sell high. Carry stock to where it’s wanted, sell, repeat. Every trip or night moves the clock on.")
-                            .font(Noir.ui(14)).foregroundStyle(Noir.paper.opacity(0.9))
+                    // Compact first-day hint, so the market stays on screen.
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "lightbulb.fill").font(.system(size: 13)).foregroundStyle(Noir.green)
+                        (Text("Tap a drug to trade. ") + Text("CHEAP").foregroundStyle(Noir.green) + Text(" = buy here, ")
+                         + Text("IN DEMAND").foregroundStyle(Noir.amber) + Text(" = sell here. Every trip or night costs a day."))
+                            .font(Noir.ui(12)).foregroundStyle(Noir.paper.opacity(0.9))
                             .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 0)
+                        Button {
+                            withAnimation { seenTips = true }
+                        } label: { Image(systemName: "xmark.circle.fill").font(.system(size: 16)) }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(Noir.dim)
+                        .accessibilityLabel("Dismiss tip")
                     }
-                    .card(padding: 14, tint: Noir.green)
+                    .card(padding: 10, tint: Noir.green)
                 }
 
                 if s.day == s.maxDay {

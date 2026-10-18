@@ -459,9 +459,9 @@ struct EngineTests {
         Engine.configure(&c, mode: .standard, perk: .copper)
         Engine.configure(&st, mode: .standard, perk: .student)
         Engine.configure(&d, mode: .standard, perk: .docker)
-        #expect(c.rep == 0)
-        #expect(st.cash == 1_500 && st.rep == 35)
-        #expect(d.heat == 25 && d.rep == 40)
+        #expect(c.rep == 25)
+        #expect(st.cash == 2_500 && st.rep == 35)
+        #expect(d.heat == 12 && d.rep == 45)
     }
 
     @Test func respectMovesPricesAndJobs() {
