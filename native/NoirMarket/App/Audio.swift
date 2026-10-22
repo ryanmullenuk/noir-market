@@ -1,5 +1,7 @@
 import AVFoundation
+#if os(iOS)
 import UIKit
+#endif
 
 /// Background music plus haptics. Music respects the silent switch (ambient category).
 @MainActor
@@ -28,7 +30,9 @@ final class Audio {
     func play(_ effect: Effect, volume: Float = 0.6) {
         guard soundsOn else { return }
         if effects[effect.rawValue] == nil, let url = Bundle.main.url(forResource: effect.rawValue, withExtension: "wav") {
+            #if os(iOS)
             try? AVAudioSession.sharedInstance().setCategory(.ambient)
+            #endif
             effects[effect.rawValue] = try? AVAudioPlayer(contentsOf: url)
         }
         guard let p = effects[effect.rawValue] else { return }
@@ -49,8 +53,10 @@ final class Audio {
     func play(volume: Float = 1.0) {
         guard musicOn else { return }
         if player == nil, let url = Bundle.main.url(forResource: "game-music", withExtension: "mp3") {
+            #if os(iOS)
             try? AVAudioSession.sharedInstance().setCategory(.ambient)
             try? AVAudioSession.sharedInstance().setActive(true)
+            #endif
             player = try? AVAudioPlayer(contentsOf: url)
             player?.numberOfLoops = -1
             player?.volume = 0
@@ -93,18 +99,23 @@ final class Audio {
         }
     }
 
+    #if os(iOS)
     private let typing = UIImpactFeedbackGenerator(style: .soft)
+    #endif
 
-    /// A faint tick while NOIRNET types.
+    /// A faint tick while NOIRNET types (iPhone haptics; nothing on the Mac).
     func typeTick() {
         guard hapticsOn else { return }
+        #if os(iOS)
         typing.impactOccurred(intensity: 0.45)
+        #endif
     }
 
     enum Buzz { case tap, success, warning, danger }
 
     func buzz(_ kind: Buzz) {
         guard hapticsOn else { return }
+        #if os(iOS)
         switch kind {
         case .tap: UIImpactFeedbackGenerator(style: .light).impactOccurred()
         case .success: UINotificationFeedbackGenerator().notificationOccurred(.success)
@@ -113,5 +124,6 @@ final class Audio {
             UIImpactFeedbackGenerator(style: .heavy).impactOccurred()
             UINotificationFeedbackGenerator().notificationOccurred(.error)
         }
+        #endif
     }
 }

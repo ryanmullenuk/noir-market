@@ -1,7 +1,9 @@
 import Foundation
 import Observation
 import StoreKit
+#if os(iOS)
 import UIKit
+#endif
 
 /// The one in-app purchase: a non-consumable that opens all 14 cities.
 /// The entitlement lives with StoreKit, never inside the save, so a new game can't lose it.
@@ -61,11 +63,13 @@ final class Unlock {
         }
     }
 
+    #if os(iOS)
     /// The window the purchase sheet should appear over (needed on iPad and multi-window).
     private var activeScene: UIWindowScene? {
         let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
         return scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
     }
+    #endif
 
     func purchase() async {
         guard !busy else { return }
@@ -79,11 +83,15 @@ final class Unlock {
         }
         do {
             let result: Product.PurchaseResult
+            #if os(iOS)
             if let scene = activeScene {
                 result = try await product.purchase(confirmIn: scene)
             } else {
                 result = try await product.purchase()
             }
+            #else
+            result = try await product.purchase()
+            #endif
             switch result {
             case .success(let verification):
                 guard case .verified(let t) = verification, t.productID == Self.productID else {

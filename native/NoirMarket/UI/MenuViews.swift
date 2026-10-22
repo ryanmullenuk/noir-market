@@ -11,6 +11,7 @@ struct MenuHeader: View {
             SheetTitle(kicker: kicker, title: title)
             Spacer()
             Button(action: close) { Image(systemName: "xmark").font(.system(size: 16, weight: .bold)) }
+                .keyboardShortcut(.cancelAction)
                 .buttonStyle(AmberTile(size: 42))
                 .accessibilityLabel("Close")
                 .padding(.top, 8)
@@ -97,7 +98,7 @@ struct SettingsView: View {
                     TextField("", text: $name, prompt: Text("Anonymous").foregroundStyle(Noir.dim))
                         .font(Noir.ui(17, weight: .semibold))
                         .foregroundStyle(Noir.paper)
-                        .textInputAutocapitalization(.words)
+                        .wordsCapitalized()
                         .autocorrectionDisabled()
                         .focused($nameFocused)
                         .submitLabel(.done)

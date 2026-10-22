@@ -37,7 +37,7 @@ struct NewGameView: View {
                         TextField("", text: $name, prompt: Text("Anonymous").foregroundStyle(Noir.dim))
                             .font(Noir.type(20))
                             .foregroundStyle(Noir.paper)
-                            .textInputAutocapitalization(.words)
+                            .wordsCapitalized()
                             .autocorrectionDisabled()
                             .focused($nameFocused)
                             .submitLabel(.done)

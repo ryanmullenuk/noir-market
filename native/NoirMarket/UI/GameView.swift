@@ -83,6 +83,10 @@ struct GameView: View {
                 .buttonStyle(.plain)
                 .presentationDragIndicator(.visible)
                 .presentationBackground(Noir.ink)
+                .modifier(SheetChromeUnlessSettings(panel: p))
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .noirSettings)) { _ in
+                if trade == nil { panel = .settings }
             }
             .sheet(item: Binding(get: { trade.map(TradeID.init) }, set: { trade = $0?.id })) { t in
                 TradeSheet(good: t.id)
@@ -90,8 +94,9 @@ struct GameView: View {
                     .presentationDetents([.fraction(0.68), .large])
                     .presentationDragIndicator(.visible)
                     .presentationBackground(Noir.coal)
+                    .macSheet()
             }
-            .fullScreenCover(isPresented: Binding(get: { overlayNeeded }, set: { _ in })) {
+            .coverScreen(isPresented: overlayNeeded) {
                 Overlay(onQuit: {
                     onQuit()
                 }, onNewGame: onNewGame)
@@ -714,11 +719,11 @@ private struct Dock: View {
         let streetAlert = s.deal != nil
         VStack(spacing: 10) {
             HStack(spacing: 8) {
-                item("Travel", "tram.fill", .travel, alert: nil)
-                item("Stash", "shippingbox.fill", .stash, alert: stashAlert ? Noir.paper : nil)
-                item("Money", "sterlingsign.circle.fill", .money, alert: loanAlert ? Noir.red : nil)
-                item("Market", "bag.fill", .shop, alert: doctor ? Noir.red : nil)
-                item("Street", "phone.fill", .street, alert: streetAlert ? Noir.green : nil)
+                item("Travel", "tram.fill", .travel, alert: nil).keyboardShortcut("t", modifiers: [])
+                item("Stash", "shippingbox.fill", .stash, alert: stashAlert ? Noir.paper : nil).keyboardShortcut("s", modifiers: [])
+                item("Money", "sterlingsign.circle.fill", .money, alert: loanAlert ? Noir.red : nil).keyboardShortcut("m", modifiers: [])
+                item("Market", "bag.fill", .shop, alert: doctor ? Noir.red : nil).keyboardShortcut("k", modifiers: [])
+                item("Street", "phone.fill", .street, alert: streetAlert ? Noir.green : nil).keyboardShortcut("e", modifiers: [])
             }
 
             Button(action: onStay) {
@@ -728,6 +733,7 @@ private struct Dock: View {
                 }
             }
             .buttonStyle(s.day == s.maxDay ? NoirButtonStyle(kind: .danger) : NoirButtonStyle(kind: .primary))
+            .keyboardShortcut(.return, modifiers: .command)
             .accessibilityIdentifier("stay")
         }
         .padding(.horizontal, 16)
@@ -778,5 +784,14 @@ struct AmberTile: ButtonStyle {
             .shadow(color: Noir.amber.opacity(configuration.isPressed ? 0.5 : 0), radius: 8)
             .scaleEffect(configuration.isPressed ? 0.95 : 1)
             .animation(.spring(duration: 0.18), value: configuration.isPressed)
+    }
+}
+
+
+/// Settings has its own close button; every other game panel gets the Mac sheet chrome.
+private struct SheetChromeUnlessSettings: ViewModifier {
+    let panel: Panel
+    @ViewBuilder func body(content: Content) -> some View {
+        if panel == .settings { content.macSheetSize() } else { content.macSheet() }
     }
 }

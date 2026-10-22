@@ -211,7 +211,7 @@ struct MoneyView: View {
 
                     Section(title: "The bank", note: "Money in the bank can’t be stolen or seized. Gangs size you up by what you carry, so walking around loaded brings bigger trouble.", ring: .white.opacity(0.75)) {
                         TextField("", text: $amount, prompt: Text("Amount").foregroundStyle(Noir.dim))
-                            .keyboardType(.numberPad)
+                            .numberKeyboard()
                             .font(Noir.mono(18))
                             .foregroundStyle(Noir.paper)
                             .padding(12)

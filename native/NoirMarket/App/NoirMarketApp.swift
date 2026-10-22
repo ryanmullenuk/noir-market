@@ -6,11 +6,30 @@ struct NoirMarketApp: App {
     @State private var store = GameStore()
     @State private var unlock = Unlock()
 
-    init() { Noir.registerFonts() }
+    init() {
+        Noir.registerFonts()
+        #if DEBUG && os(macOS)
+        MacSnapshot.scheduleIfRequested()
+        #endif
+    }
 
     var body: some Scene {
+        #if os(macOS)
+        mainWindow
+            .defaultSize(width: 560, height: 960)
+            .windowResizability(.contentMinSize)
+            .commands { NoirCommands() }
+        #else
+        mainWindow
+        #endif
+    }
+
+    private var mainWindow: some Scene {
         WindowGroup {
             RootView()
+                #if os(macOS)
+                .frame(minWidth: 460, minHeight: 760)
+                #endif
                 .environment(store)
                 .environment(unlock)
                 .preferredColorScheme(.dark)
@@ -61,12 +80,20 @@ struct RootView: View {
                     .transition(.opacity)
             }
         }
+        .macReadableWidth()
         .sheet(item: $sheet) { which in
             switch which {
-            case .howTo: HowToPlayView().presentationBackground(Noir.ink)
-            case .settings: SettingsView(inGame: false, onAbandon: {}).presentationBackground(Noir.ink)
-            case .records: RecordsView().presentationBackground(Noir.ink)
+            case .howTo: HowToPlayView().presentationBackground(Noir.ink).macSheetSize()
+            case .settings: SettingsView(inGame: false, onAbandon: {}).presentationBackground(Noir.ink).macSheetSize()
+            case .records: RecordsView().presentationBackground(Noir.ink).macSheetSize()
             }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .noirNewGame)) { _ in
+            sheet = nil
+            go(.newGame)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .noirSettings)) { _ in
+            if screen != .game { sheet = .settings }
         }
         .onAppear(perform: debugLaunch)
         .onChange(of: phase) { _, new in

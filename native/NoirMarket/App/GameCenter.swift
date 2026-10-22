@@ -1,5 +1,9 @@
 import GameKit
+#if os(iOS)
 import UIKit
+#else
+import AppKit
+#endif
 
 /// Thin Game Center wrapper: sign-in, leaderboard scores, achievements and the dashboard.
 /// Everything is optional; the game plays the same signed out.
@@ -34,11 +38,16 @@ enum GameCenter {
 
     static func showLeaderboard(_ id: String) {
         guard signedIn else { authenticate(); return }
+        #if os(iOS)
         let vc = GKGameCenterViewController(leaderboardID: id, playerScope: .global, timeScope: .allTime)
         vc.gameCenterDelegate = Dismisser.shared
         present(vc)
+        #else
+        GKAccessPoint.shared.trigger(state: .leaderboards) {}
+        #endif
     }
 
+    #if os(iOS)
     private static func present(_ vc: UIViewController) {
         guard let root = UIApplication.shared.connectedScenes
             .compactMap({ ($0 as? UIWindowScene)?.keyWindow?.rootViewController }).first else { return }
@@ -53,4 +62,11 @@ enum GameCenter {
             Task { @MainActor in gameCenterViewController.dismiss(animated: true) }
         }
     }
+    #else
+    /// Shows Game Center's sign-in sheet over the main window.
+    private static func present(_ vc: NSViewController) {
+        guard let window = NSApplication.shared.keyWindow ?? NSApplication.shared.windows.first else { return }
+        window.contentViewController?.presentAsSheet(vc)
+    }
+    #endif
 }

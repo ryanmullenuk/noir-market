@@ -265,7 +265,7 @@ struct NeonSign: View {
     private let letters: [Path]
     private let bounds: CGRect
 
-    init(text: String, style: Style = .tube, font: UIFont, kern: CGFloat = 6, colour: Color, core: Color, powered: Bool,
+    init(text: String, style: Style = .tube, font: PlatformFont, kern: CGFloat = 6, colour: Color, core: Color, powered: Bool,
          broken: Int? = nil, flickerEvery: ClosedRange<Double> = 3...8) {
         self.text = text
         self.style = style
@@ -399,7 +399,7 @@ struct NeonSign: View {
     }
 
     /// Glyph outlines, one path per letter, in a y-down space.
-    private static func outline(_ text: String, font: UIFont, kern: CGFloat) -> ([Path], CGRect) {
+    private static func outline(_ text: String, font: PlatformFont, kern: CGFloat) -> ([Path], CGRect) {
         let ct = font as CTFont
         let line = CTLineCreateWithAttributedString(NSAttributedString(string: text, attributes: [.font: font, .kern: kern]))
         var paths: [Path] = []
@@ -423,13 +423,17 @@ struct NeonSign: View {
     }
 
     /// SF Rounded at a weight, for MARKET's tubes.
-    static func rounded(_ weight: UIFont.Weight) -> UIFont {
-        let base = UIFont.systemFont(ofSize: 100, weight: weight)
+    static func rounded(_ weight: PlatformFont.Weight) -> PlatformFont {
+        let base = PlatformFont.systemFont(ofSize: 100, weight: weight)
+        #if os(macOS)
+        return base.fontDescriptor.withDesign(.rounded).flatMap { NSFont(descriptor: $0, size: 100) } ?? base
+        #else
         return base.fontDescriptor.withDesign(.rounded).map { UIFont(descriptor: $0, size: 100) } ?? base
+        #endif
     }
 
     /// Tall condensed SF, for NOIR's outline.
-    static func condensed(_ weight: UIFont.Weight) -> UIFont {
-        UIFont.systemFont(ofSize: 100, weight: weight, width: .condensed)
+    static func condensed(_ weight: PlatformFont.Weight) -> PlatformFont {
+        PlatformFont.systemFont(ofSize: 100, weight: weight, width: .condensed)
     }
 }

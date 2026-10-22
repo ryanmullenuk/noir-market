@@ -741,7 +741,7 @@ private struct CaseClosed: View {
         .onAppear {
             let renderer = ImageRenderer(content: ShareCard(over: over, s: s, good: good))
             renderer.scale = 3
-            if let ui = renderer.uiImage { shareImage = Image(uiImage: ui) }
+            if let img = renderer.platformImage { shareImage = Image(platformImage: img) }
         }
         .task {
             Audio.shared.play(good ? .win : .lose, volume: 0.6)
