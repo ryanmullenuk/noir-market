@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import StoreKit
+import UIKit
 
 /// The one in-app purchase: a non-consumable that opens all 14 cities.
 /// The entitlement lives with StoreKit, never inside the save, so a new game can't lose it.
@@ -50,28 +51,48 @@ final class Unlock {
 
     func loadProduct() async {
         guard product == nil else { return }
-        product = try? await Product.products(for: [Self.productID]).first
+        // The App Store can be slow to answer on first launch; try a few times before giving up.
+        for attempt in 0..<3 {
+            if let found = try? await Product.products(for: [Self.productID]).first {
+                product = found
+                return
+            }
+            try? await Task.sleep(for: .seconds(Double(attempt + 1)))
+        }
+    }
+
+    /// The window the purchase sheet should appear over (needed on iPad and multi-window).
+    private var activeScene: UIWindowScene? {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        return scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
     }
 
     func purchase() async {
         guard !busy else { return }
-        if product == nil { await loadProduct() }
-        guard let product else {
-            message = "The App Store isn’t answering. Try again in a moment."
-            return
-        }
         busy = true
         message = nil
         defer { busy = false }
+        if product == nil { await loadProduct() }
+        guard let product else {
+            message = "Couldn’t reach the App Store. Check your connection and try again."
+            return
+        }
         do {
-            switch try await product.purchase() {
-            case .success(let result):
-                guard case .verified(let t) = result, t.productID == Self.productID else {
+            let result: Product.PurchaseResult
+            if let scene = activeScene {
+                result = try await product.purchase(confirmIn: scene)
+            } else {
+                result = try await product.purchase()
+            }
+            switch result {
+            case .success(let verification):
+                guard case .verified(let t) = verification, t.productID == Self.productID else {
                     message = "Apple couldn’t verify that purchase, so nothing was unlocked."
                     return
                 }
                 await t.finish()
                 await refresh()
+                if unlocked { message = "Full game unlocked. Enjoy every city." }
             case .pending:
                 message = "Your purchase is waiting for approval."
             case .userCancelled:
@@ -80,7 +101,7 @@ final class Unlock {
                 message = "Purchase didn’t complete."
             }
         } catch {
-            message = "Purchase didn’t complete. Please try again later."
+            message = "Purchase didn’t complete: \(error.localizedDescription)"
         }
     }
 
@@ -91,7 +112,7 @@ final class Unlock {
         do {
             try await AppStore.sync()
             await refresh()
-            message = unlocked ? "All cities restored." : "No unlock found for this Apple Account."
+            message = unlocked ? "Full game restored." : "No Full Game purchase found for this Apple Account."
         } catch {
             message = "Couldn’t restore purchases. Please try again."
         }
