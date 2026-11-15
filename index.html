@@ -1,143 +1,28 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover" />
-  <title>Noir Market V9.7</title>
-  <link rel="preload" as="image" href="assets/redhead-games-logo.png" fetchpriority="high" />
-  <link rel="manifest" href="manifest.json?v=9.7.3" />
-  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
-  <link rel="apple-touch-icon" sizes="180x180" media="(prefers-color-scheme: dark)" href="apple-touch-icon-dark.png" />
-  <link rel="apple-touch-icon" sizes="180x180" media="(prefers-color-scheme: light)" href="apple-touch-icon-light.png" />
-  <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png" />
-  <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png" />
-  <style id="noir-v66-critical-intro">
-    body.preintro-running{background:#000;}
-    .preintro{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;background:#000;opacity:1;visibility:visible;pointer-events:none;}
-    .preintro-logo{width:min(78vw,430px);max-width:430px;height:auto;display:block;opacity:1;transform:translateY(-3.5vh) scale(1);}
-    #splash{position:fixed;inset:0;z-index:2147482000;display:block;background:#0d0c12;opacity:1;visibility:visible;}
-  </style>
-  <link rel="stylesheet" href="styles.css?v=9.7.3" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Noir Market · Redhead Games</title>
+  <meta name="description" content="The Noir Market browser game is no longer available. Contact Redhead Games for support.">
+  <link rel="stylesheet" href="support.css">
 </head>
-<body class="preintro-running">
-  
-  <div id="preintro" class="preintro" aria-label="Redhead Games">
-    <img class="preintro-logo" src="assets/redhead-games-logo.png" alt="Redhead Games" width="640" height="640" decoding="sync" fetchpriority="high" />
-  </div>
-  <div id="splash" class="splash">
-    <canvas id="pixelSnowCanvasV97" class="pixel-snow-canvas-v97" aria-hidden="true"></canvas>
-    <div class="splash-vignette" aria-hidden="true"></div>
-    <h1 class="splash-title-v97" aria-label="Noir Market"><span>NOIR</span><span>MARKET</span></h1>
-    <button type="button" id="splashEnter" class="splash-loader" aria-label="Loading Noir Market" disabled>
-      <span class="splash-loader-fill" id="splashLoaderFill"></span>
-      <span class="splash-loader-text" id="splashLoaderText">LOADING</span>
-    </button>
-  </div>
-  <audio id="backgroundMusicV93" src="assets/game-music.mp3" preload="none" loop hidden aria-hidden="true"></audio>
-  <div id="mainParallaxBg" class="main-parallax-bg" aria-hidden="true"></div>
-  <main class="app">
-    <section class="news-ticker card"><span>NEWS</span><div class="ticker-track"><div id="newsTicker">MARKETS ARE QUIET.</div></div></section>
-    <header class="topbar">
-      <button class="icon-btn" id="menuBtn" aria-label="Menu">☰</button>
-      <div>
-        <h1>NOIR MARKET</h1>
-        <p id="headline">Move quietly. Trade fast. Survive the market.</p>
-      </div>
-      <div class="daybox"><span>DAY</span><strong id="dayCount">1</strong><em>/30</em></div>
-    </header>
-
-    <section class="stats cards">
-      <div><span>Cash</span><strong id="cash">£0</strong></div>
-      <div><span>Finances</span><strong id="bank">£0</strong></div>
-      <div><span>Debt</span><strong class="bad" id="debt">£0</strong></div>
-      <div><span>Health</span><strong id="health">100%</strong></div>
-    </section>
-
-    <section class="location card">
-      <div class="flag" id="flag">🇬🇧</div>
-      <div class="place">
-        <h2 id="city">London</h2>
-        <p id="country">UK</p>
-      </div>
-      <div class="market-info" id="marketInfo"></div>
-    </section>
-
-    <section class="notice card">
-      <h3>Information</h3>
-      <p id="noticeText">You start in London with £1,000 cash, £0 in the bank and a clean slate.</p>
-    </section>
-
-    <section class="market card">
-      <div class="section-head">
-        <h3>The Market</h3>
-        <p><span class="up">↑ Rising</span> <span class="down">↓ Falling</span></p>
-      </div>
-      <div class="table" id="marketTable"></div>
-    </section>
-
-    <section class="pocket card">
-      <div class="section-head">
-        <h3>Storage <span id="spaceLabel">0/20</span></h3>
-      </div>
-      <div class="table small" id="pocketTable"></div>
-    </section>
-
-    <section class="actions card">
-      <h3>Action</h3>
-      <div class="button-grid">
-        <button class="buy" id="buyBtn">Buy</button>
-        <button class="sell" id="sellBtn">Sell</button>
-        <button id="dumpBtn">Storage</button>
-        <button id="bankBtn">Finances</button>
-        <button id="travelBtn">Travel &amp; Shipping</button>
-        <button id="shopBtn">Black Market</button>
-        <button id="hustleBtn">Hustle</button>
-        <button id="contactsBtn">Contacts</button>
-        <button id="stayBtn">Stay Here</button>
-      </div>
-    </section>
-
-    <section class="status card">
-      <h3>Status</h3>
-      <div class="healthbar"><span id="healthBar"></span></div>
-      <div class="status-grid">
-        <p><span>Location</span><strong id="statusLocation"></strong></p>
-        <p><span>Rank</span><strong id="rank"></strong></p>
-        <p><span>Days Held</span><strong id="rankDays">0/5</strong></p>
-        <p><span>Reputation</span><strong id="reputation">50/100</strong></p>
-        <p><span>Storage</span><strong id="space"></strong></p>
-        <p><span>Heat</span><strong id="heat"></strong></p>
-      </div>
-    </section>
-  </main>
-
-  <dialog id="modal">
-    <form method="dialog" class="modal-card">
-      <h3 id="modalTitle"></h3>
-      <div id="modalBody"></div>
-      <menu>
-        <button value="cancel">Close</button>
-      </menu>
-    </form>
-  </dialog>
-
-  <script>
-    /* Independent intro safeguard: scheduled before the main game script so a
-       recoverable startup error cannot leave the Redhead screen covering the app. */
-    window.__NOIR_RELEASE_INTRO=function(){
-      var preintro=document.getElementById('preintro');
-      var splash=document.getElementById('splash');
-      document.body.classList.remove('preintro-running');
-      document.body.classList.add('splash-ui-revealed');
-      if(preintro){
-        preintro.classList.add('preintro-fade-v97');
-        preintro.style.pointerEvents='none';
-        window.setTimeout(function(){preintro.classList.add('preintro-hide');preintro.style.visibility='hidden';},620);
-      }
-      if(splash){splash.style.visibility='visible';splash.style.pointerEvents='auto';}
-    };
-    window.__NOIR_INTRO_SAFEGUARD=window.setTimeout(window.__NOIR_RELEASE_INTRO,2200);
-  </script>
-  <script src="game.js?v=9.7.3"></script>
+<body>
+<main>
+  <a class="brand" href="/">REDHEAD GAMES</a>
+  <nav aria-label="Information pages"><a href="support.html">Contact support</a><a href="privacy.html">Privacy</a></nav>
+  <h1>Noir Market</h1>
+  <p>The browser game is no longer available.</p>
+  <p>Our <a href="support.html">support and contact page</a> and <a href="privacy.html">privacy policy</a> remain available.</p>
+  <footer><a href="/">Back to Redhead Games</a></footer>
+</main>
+<script>
+  // Update existing installations to the retirement worker without touching saved games.
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistration('./').then(function (registration) {
+      if (registration) return registration.update();
+    }).catch(function () {});
+  }
+</script>
 </body>
 </html>

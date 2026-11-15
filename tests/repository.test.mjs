@@ -9,7 +9,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const read = (file) => fs.readFileSync(path.join(root, file), 'utf8');
 
 test('release metadata is aligned across the app shell', () => {
-  const html = read('index.html');
+  const html = read('ios/game-shell.html.template');
   const manifest = JSON.parse(read('manifest.json'));
   const serviceWorker = read('sw.js');
 
@@ -17,7 +17,7 @@ test('release metadata is aligned across the app shell', () => {
   assert.match(html, /styles\.css\?v=9\.7\.3/);
   assert.match(html, /game\.js\?v=9\.7\.3/);
   assert.equal(manifest.version, '9.7');
-  assert.match(serviceWorker, /noir-market-v9\.7/);
+  assert.match(serviceWorker, /registration\.unregister/);
 });
 
 test('all packaged assets referenced by the app shell exist', () => {
@@ -53,7 +53,7 @@ test('game source parses and contains one active top-level declaration per funct
 
 test('the V9.7 startup uses one bounded settling-snow animation and one game renderer', () => {
   const source = read('game.js');
-  const html = read('index.html');
+  const html = read('ios/game-shell.html.template');
   const serviceWorker = read('sw.js');
 
   assert.match(source, /window\.NOIR_STATIC_VISUALS=true/);

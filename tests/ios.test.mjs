@@ -5,7 +5,7 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 import { nativeGameSource, nativeHTML } from '../scripts/prepare-ios.mjs';
 
 const game = nativeGameSource(fs.readFileSync(new URL('../game.js', import.meta.url), 'utf8'));
-const html = nativeHTML(fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8'));
+const html = nativeHTML(fs.readFileSync(new URL('../ios/game-shell.html.template', import.meta.url), 'utf8'));
 const wait = (window, ms) => new Promise(resolve => window.setTimeout(resolve, ms));
 
 test('native package excludes web preview unlock and uses local resource paths', () => {

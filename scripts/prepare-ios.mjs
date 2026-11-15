@@ -45,7 +45,7 @@ export function nativeHTML(source) {
 export function prepareIOS() {
   fs.mkdirSync(path.join(output, 'assets'), { recursive: true });
   fs.writeFileSync(path.join(output, 'game.js'), nativeGameSource(read('game.js')));
-  fs.writeFileSync(path.join(output, 'index.html'), nativeHTML(read('index.html')));
+  fs.writeFileSync(path.join(output, 'index.html'), nativeHTML(read('ios/game-shell.html.template')));
   for (const name of ['styles.css', 'assets/redhead-games-logo.png', 'assets/game-music.mp3']) {
     fs.copyFileSync(path.join(root, name), path.join(output, name));
   }

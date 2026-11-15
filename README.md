@@ -1,6 +1,6 @@
 # Noir Market
 
-Noir Market is a static, installable browser game hosted at [redhead.games](https://redhead.games/index.html). The current release is V9.7.
+The Noir Market browser edition is retired. The public index is an information page; support.html and privacy.html remain available. The iOS game shell is preserved in ios/game-shell.html.template and packaged by scripts/prepare-ios.mjs.
 
 ## Run locally
 
@@ -11,7 +11,7 @@ npm ci
 npm run serve
 ```
 
-Open `http://localhost:4173/index.html`.
+Open `http://localhost:4173/index.html` to preview the retirement page.
 
 ## Regression checks
 
@@ -23,9 +23,9 @@ This validates JavaScript syntax, release metadata, packaged assets, the runtime
 
 ## Runtime structure
 
-- `index.html` and `styles.css` contain the app shell and responsive UI.
+- `ios/game-shell.html.template` and `styles.css` contain the native app shell and responsive UI.
 - `game.js` contains game state, features, save migrations and the single active V9.7 renderer.
-- `sw.js` provides network-first offline caching; its cache version must change for each release.
+- `sw.js` retires existing browser installations by clearing only Noir Market app caches and unregistering itself. Saved game data is preserved.
 - `manifest.json` and the icon files define the installable PWA.
 - Browser saves use `localStorage`. V9.7 writes `noir_market_v9_7` and migrates earlier supported keys.
 
@@ -53,4 +53,4 @@ npm run clean:legacy
 npm run check
 ```
 
-Before a release, align the version in `package.json`, `index.html`, `manifest.json`, `sw.js`, the metadata controller in `game.js`, and the regression assertions. Never remove an older save key from the migration list without an explicit data-retention decision.
+Before a release, align the version in `package.json`, `ios/game-shell.html.template`, `manifest.json`, the metadata controller in `game.js`, and the regression assertions. Never remove an older save key from the migration list without an explicit data-retention decision.

@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { JSDOM, VirtualConsole } from 'jsdom';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8')
+const html = fs.readFileSync(path.join(root, 'ios/game-shell.html.template'), 'utf8')
   .replace('<script src="game.js?v=9.7.3"></script>', '');
 const game = fs.readFileSync(path.join(root, 'game.js'), 'utf8');
 

@@ -1,31 +1,18 @@
-const CACHE_NAME='noir-market-v9.7.3';
-const CORE_ASSETS=['./','./index.html','./styles.css?v=9.7.3','./game.js?v=9.7.3','./manifest.json?v=9.7.3','./assets/redhead-games-logo.png'];
-const OPTIONAL_ASSETS=['./icon-192.png','./icon-512.png','./apple-touch-icon.png','./apple-touch-icon-dark.png','./apple-touch-icon-light.png','./icon-192-light.png','./icon-512-light.png'];
-function cacheAsset(cache,asset){return cache.add(asset).catch(function(){return null;});}
-self.addEventListener('install',function(event){
-  event.waitUntil(caches.open(CACHE_NAME).then(function(cache){
-    return Promise.all(CORE_ASSETS.map(function(asset){return cacheAsset(cache,asset);})).then(function(){
-      return Promise.all(OPTIONAL_ASSETS.map(function(asset){return cacheAsset(cache,asset);}));
-    });
-  }));
-  self.skipWaiting();
-});
-self.addEventListener('activate',function(event){
-  event.waitUntil(caches.keys().then(function(keys){
-    return Promise.all(keys.filter(function(k){return k!==CACHE_NAME;}).map(function(k){return caches.delete(k);}));
-  }));
-  self.clients.claim();
-});
-self.addEventListener('fetch',function(event){
-  if(event.request.method!=='GET')return;
-  var requestPath=new URL(event.request.url).pathname;
-  if(requestPath.slice(-22)==='/assets/game-music.mp3'){
-    event.respondWith(fetch(event.request));
-    return;
-  }
-  event.respondWith(fetch(event.request).then(function(response){
-    var copy=response.clone();
-    caches.open(CACHE_NAME).then(function(cache){cache.put(event.request,copy).catch(function(){});});
-    return response;
-  }).catch(function(){return caches.match(event.request).then(function(cached){return cached||caches.match('./index.html');});}));
+// Retire the browser edition and its offline app cache; preserve saved game data.
+self.addEventListener('install', function () { self.skipWaiting(); });
+self.addEventListener('activate', function (event) {
+  event.waitUntil((async function () {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(key => key.startsWith('noir-market-')).map(key => caches.delete(key)));
+    await self.clients.claim();
+    const scope = new URL(self.registration.scope);
+    const clients = await self.clients.matchAll({ type: 'window' });
+    await Promise.all(clients.map(function (client) {
+      const url = new URL(client.url);
+      if (url.origin === scope.origin && (url.pathname === scope.pathname || url.pathname === scope.pathname + 'index.html')) {
+        return client.navigate(scope.href).catch(function () {});
+      }
+    }));
+    await self.registration.unregister();
+  })());
 });
