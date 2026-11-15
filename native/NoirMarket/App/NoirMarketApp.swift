@@ -52,6 +52,8 @@ struct RootView: View {
     @Environment(\.scenePhase) private var phase
     @State private var screen: Screen = .title
     @State private var sheet: TitleSheet?
+    @State private var tour = Tour.shared
+    @State private var offerTour = false
 
     enum Screen { case title, newGame, game }
     enum TitleSheet: String, Identifiable { case howTo, settings, records; var id: String { rawValue } }
@@ -66,7 +68,13 @@ struct RootView: View {
                           onNewGame: { go(.newGame) },
                           onHowTo: { sheet = .howTo },
                           onSettings: { sheet = .settings },
-                          onRecords: { sheet = .records })
+                          onRecords: { sheet = .records },
+                          onReady: {
+                              if !UserDefaults.standard.bool(forKey: "tourOffered") && !tour.active && !ProcessInfo.processInfo.arguments.contains("-tourRecord") {
+                                  UserDefaults.standard.set(true, forKey: "tourOffered")
+                                  offerTour = true
+                              }
+                          })
                     .transition(.opacity)
             case .newGame:
                 NewGameView(onStart: { city, mode, perk in
@@ -85,9 +93,21 @@ struct RootView: View {
             switch which {
             case .howTo: HowToPlayView().presentationBackground(Noir.ink).macSheetSize()
             case .settings: SettingsView(inGame: false, onAbandon: {}).presentationBackground(Noir.ink).macSheetSize()
-            case .records: RecordsView().presentationBackground(Noir.ink).macSheetSize()
+            case .records: RecordsView().presentationBackground(Noir.ink).macSheetSize().tourCard(.sheet)
             }
         }
+        .tourCard(.root)
+        .noirDialog(isPresented: $offerTour, title: "First time on the streets?",
+                    message: "Take a quick tour of everything in Noir Market? You can skip it at any point.",
+                    icon: "map.fill", tint: Noir.green,
+                    actions: [DialogAction(title: "Take the tour", kind: .primary) { tour.start() },
+                              DialogAction(title: "No thanks", kind: .quiet)])
+        .onReceive(NotificationCenter.default.publisher(for: .noirTour)) { _ in
+            sheet = nil
+            tour.start()
+        }
+        .onChange(of: tour.index) { applyTour() }
+        .onChange(of: tour.active) { applyTour() }
         .onReceive(NotificationCenter.default.publisher(for: .noirNewGame)) { _ in
             sheet = nil
             go(.newGame)
@@ -108,6 +128,14 @@ struct RootView: View {
         let args = ProcessInfo.processInfo.arguments
         if let i = args.firstIndex(of: "-palette"), i + 1 < args.count, let p = Palette(rawValue: args[i + 1]) { Theme.shared.palette = p }
         if args.contains("-settings") { sheet = .settings }
+        if args.contains("-tourRecord") {
+            let clean = args.contains("-tourClean")
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(13))
+                Tour.shared.start(recording: true, clean: clean)
+            }
+            return
+        }
         guard args.contains("-demo") else { return }
         let mode = args.firstIndex(of: "-mode").flatMap { i in i + 1 < args.count ? GameMode(rawValue: args[i + 1]) : nil } ?? .standard
         store.newGame(city: 0, mode: mode, perk: args.contains("-copper") ? .copper : nil)
@@ -194,6 +222,34 @@ struct RootView: View {
         if args.contains("-bigwin") { store.celebration = 48_250 }
         screen = .game
         #endif
+    }
+
+    /// Puts the right screen and demo game up for the current tour step, and restores the player's game afterwards.
+    private func applyTour() {
+        guard let step = tour.current else {
+            if store.touring {
+                store.endTour()
+                sheet = nil
+                go(.title)
+            }
+            return
+        }
+        store.beginTour()
+        switch step.scene {
+        case .title:
+            sheet = nil; go(.title)
+        case .newGame:
+            sheet = nil; go(.newGame)
+        case .leaderboard:
+            go(.title); sheet = .records
+        case .finish:
+            store.endTour()
+            sheet = nil; go(.title)
+        default:
+            if let s = TourScenes.state(for: step.scene) { store.setTourState(s) }
+            sheet = nil
+            if screen != .game { go(.game) }
+        }
     }
 
     private func go(_ s: Screen) {

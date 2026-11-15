@@ -14,6 +14,7 @@ struct GameView: View {
     @State private var trade: Int?
     @State private var help: StatHelp?
     @State private var note: InfoNote?
+    @State private var tour = Tour.shared
 
     var body: some View {
         if let s = store.state {
@@ -83,7 +84,10 @@ struct GameView: View {
                 .presentationDragIndicator(.visible)
                 .presentationBackground(Noir.ink)
                 .modifier(SheetChromeUnlessSettings(panel: p))
+                .tourCard(.sheet)
             }
+            .onChange(of: tour.index, initial: true) { syncTour() }
+            .onChange(of: tour.active) { syncTour() }
             .onReceive(NotificationCenter.default.publisher(for: .noirSettings)) { _ in
                 if trade == nil { panel = .settings }
             }
@@ -94,12 +98,14 @@ struct GameView: View {
                     .presentationDragIndicator(.visible)
                     .presentationBackground(Noir.coal)
                     .macSheet()
+                    .tourCard(.sheet)
             }
             .coverScreen(isPresented: overlayNeeded) {
                 Overlay(onQuit: {
                     onQuit()
                 }, onNewGame: onNewGame)
                 .buttonStyle(.plain)
+                .tourCard(.cover)
             }
             .noirErrors(store, when: panel == nil && trade == nil)
             .noirDialog(isPresented: Binding(get: { help != nil }, set: { if !$0 { help = nil } }),
@@ -128,6 +134,19 @@ struct GameView: View {
         if h == Noir.red || t == Noir.red { return Noir.red }
         if h == Noir.amber || t == Noir.amber { return Noir.amber }
         return Noir.green
+    }
+
+    /// Opens whichever panel, trade or explainer the current tour step is showing.
+    private func syncTour() {
+        let scene = tour.current?.scene
+        trade = scene == .trade ? 2 : nil
+        help = scene == .stats ? .heat : nil
+        switch scene {
+        case .travel: panel = .travel
+        case .money: panel = .money
+        case .street: panel = .street
+        default: if tour.active || panel != .settings { panel = nil }
+        }
     }
 
     private func stay() {

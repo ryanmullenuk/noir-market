@@ -10,6 +10,10 @@ struct TitleView: View {
     var onHowTo: () -> Void
     var onSettings: () -> Void
     var onRecords: () -> Void
+    /// Called once the title buttons are showing.
+    var onReady: () -> Void = {}
+    /// The logo and disclaimer play once per launch; coming back to the title just relights the signs.
+    @MainActor static var introPlayed = false
 
     /// 0 logo, 1 black, 2 disclaimer, 3 black, 4 title.
     @State private var phase = 0
@@ -39,7 +43,7 @@ struct TitleView: View {
                 EmptyView()
             }
         }
-        .onAppear { run(from: 0) }
+        .onAppear { run(from: Self.introPlayed ? 3 : 0) }
         .onTapGesture {
             // Tapping skips to the next card: logo → disclaimer → title.
             if phase < 2 { run(from: 1) } else if phase < 4 { run(from: 3) }
@@ -67,6 +71,7 @@ struct TitleView: View {
             try? await Task.sleep(for: .seconds(0.8))
             guard !Task.isCancelled else { return }
             withAnimation(.easeInOut(duration: 0.9)) { phase = 4 }
+            Self.introPlayed = true
             Audio.shared.play()
             // The signs hang dark for a beat, NOIR strikes on, then MARKET below it.
             try? await Task.sleep(for: .seconds(0.7))
@@ -76,6 +81,9 @@ struct TitleView: View {
             marketOn = true
             try? await Task.sleep(for: .seconds(1.1))
             withAnimation(.easeOut(duration: 0.9)) { buttonsIn = true }
+            try? await Task.sleep(for: .seconds(1.0))
+            guard !Task.isCancelled else { return }
+            onReady()
         }
     }
 

@@ -74,6 +74,30 @@ final class GameStore {
         persist()
     }
 
+    // MARK: Tour
+
+    /// True while the guided tour plays on its demo game; nothing is saved, filed or reported.
+    private(set) var touring = false
+    private var tourBackup: GameState?
+
+    func beginTour() {
+        guard !touring else { return }
+        tourBackup = state
+        touring = true
+    }
+
+    func setTourState(_ s: GameState) {
+        guard touring else { return }
+        state = s
+    }
+
+    func endTour() {
+        guard touring else { return }
+        state = tourBackup
+        tourBackup = nil
+        touring = false
+    }
+
     func abandon() {
         state = nil
         try? FileManager.default.removeItem(at: saveURL)
@@ -107,6 +131,7 @@ final class GameStore {
 
     /// Files new achievements, reports them to Game Center, and queues celebrations.
     private func drainProgress(_ s: inout GameState) {
+        if touring { s.unlocked = nil; s.lastBigWin = nil; return }
         for id in s.unlocked ?? [] where !achievements.contains(id) {
             achievements.insert(id)
             UserDefaults.standard.set(Array(achievements), forKey: "achievements")
@@ -129,7 +154,7 @@ final class GameStore {
     }
 
     private func finishIfOver() {
-        guard let s = state, let over = s.over else { return }
+        guard !touring, let s = state, let over = s.over else { return }
         let mode = Engine.mode(s)
         guard mode != .tutorial else { return }
         if let i = records.firstIndex(where: { $0.seed == s.seed }) {
@@ -150,7 +175,7 @@ final class GameStore {
     }
 
     func persist() {
-        guard let s = state else { return }
+        guard !touring, let s = state else { return }
         if s.over != nil {
             // Finished games are not resumable, so a reload can’t undo a death.
             try? FileManager.default.removeItem(at: saveURL)

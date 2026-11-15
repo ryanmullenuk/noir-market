@@ -222,6 +222,16 @@ struct HowToPlayView: View {
         ScrollView {
                 VStack(alignment: .leading, spacing: 26) {
                     MenuHeader(kicker: "The basics", title: "How to Play") { dismiss() }
+                    Button {
+                        dismiss()
+                        Task { @MainActor in
+                            try? await Task.sleep(for: .milliseconds(450))
+                            NotificationCenter.default.post(name: .noirTour, object: nil)
+                        }
+                    } label: {
+                        Label("Take the guided tour", systemImage: "map.fill")
+                    }
+                    .buttonStyle(.noirPrimary)
                     ForEach(pages, id: \.1) { icon, title, text in
                         HStack(alignment: .top, spacing: 16) {
                             Image(systemName: icon)

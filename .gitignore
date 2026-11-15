@@ -18,3 +18,6 @@ ios-release-build.log
 native/build/
 *.xcuserstate
 xcuserdata/
+
+# Tour recordings and rendered trailers (large; regenerate with Tools/record_tour.sh + Tools/Trailer)
+native/AppStore/video/
