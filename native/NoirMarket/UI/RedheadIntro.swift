@@ -94,7 +94,8 @@ struct RedheadIntro: View {
         // 0.55s: impact.
         impact = true
         squash = true
-        Audio.shared.play(.thud, volume: 0.55)
+        Audio.shared.play(.squish, volume: 0.9)
+        Audio.shared.play(.thud, volume: 0.3)
         Audio.shared.buzz(.danger)
         withAnimation(.timingCurve(0.3, 1.6, 0.5, 1, duration: 0.45)) { squash = false }
         withAnimation(.easeOut(duration: 0.8)) { glow = true }

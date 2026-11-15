@@ -161,3 +161,25 @@ for i in range(n):
     low = math.sin(2*math.pi*(90*math.exp(-3*t)+40)*t) * math.exp(-8*t)
     s.append(a*0.35 + b*0.45 + low*0.5)
 write("lose", s)
+
+def squish():
+    """Wet squish: noise through a resonant band-pass sweeping down, with bubbly wobble and a soft low thump."""
+    random.seed(7)
+    n = int(R * 0.42); s = []; y1 = y2 = 0.0; ph = 0
+    for i in range(n):
+        t = i / R
+        fc = 250 + 900 * math.exp(-11 * t)            # sweep 1150Hz → 250Hz
+        q = 7.0
+        w = 2 * math.pi * fc / R
+        r = 1 - w / (2 * q)
+        x = random.uniform(-1, 1)
+        y = x * (1 - r) * 2 + 2 * r * math.cos(w) * y1 - r * r * y2
+        y2, y1 = y1, y
+        wobble = 0.6 + 0.4 * math.sin(2 * math.pi * (38 - 40 * t) * t) ** 2   # bubbly gurgle
+        amp = min(1, t / 0.006) * math.exp(-7.5 * t)
+        ph += 2 * math.pi * (95 * math.exp(-5 * t) + 45) / R
+        thump = math.sin(ph) * math.exp(-14 * t) * 0.55
+        s.append(y * wobble * amp * 1.4 + thump)
+    write("squish", s)
+
+squish()
