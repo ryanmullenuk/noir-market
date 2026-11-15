@@ -163,23 +163,59 @@ for i in range(n):
 write("lose", s)
 
 def squish():
-    """Wet squish: noise through a resonant band-pass sweeping down, with bubbly wobble and a soft low thump."""
-    random.seed(7)
-    n = int(R * 0.42); s = []; y1 = y2 = 0.0; ph = 0
+    """Wet, squelchy brain splat: a fleshy slap, a sticky squelch whose resonances slide down like
+    something soft being squeezed, and a spray of small bubble pops (rising-pitch droplets) on top."""
+    random.seed(11)
+    n = int(R * 0.6); s = [0.0] * n
+
+    def resonate(sig, fc_of_t, q):
+        out = []; y1 = y2 = 0.0
+        for i, x in enumerate(sig):
+            t = i / R
+            w = 2 * math.pi * fc_of_t(t) / R
+            r = max(0.0, 1 - w / (2 * q))
+            y = x * (1 - r * r) + 2 * r * math.cos(w) * y1 - r * r * y2
+            y2, y1 = y1, y
+            out.append(y)
+        return out
+
+    # 1. Slap: a short burst of low-passed noise, the wet impact.
+    lp = 0.0
+    for i in range(int(R * 0.05)):
+        t = i / R
+        lp += (random.uniform(-1, 1) - lp) * 0.35
+        s[i] += lp * math.exp(-70 * t) * 1.6
+
+    # 2. Squelch: noise through two sliding resonances (vowel-like 'ooee-ugh'), choppy like air escaping.
+    noise = [random.uniform(-1, 1) for _ in range(n)]
+    f1 = resonate(noise, lambda t: 300 + 700 * math.exp(-9 * t) + 120 * math.sin(2 * math.pi * 7 * t), 9)
+    f2 = resonate(noise, lambda t: 900 + 1300 * math.exp(-7 * t), 12)
     for i in range(n):
         t = i / R
-        fc = 250 + 900 * math.exp(-11 * t)            # sweep 1150Hz → 250Hz
-        q = 7.0
-        w = 2 * math.pi * fc / R
-        r = 1 - w / (2 * q)
-        x = random.uniform(-1, 1)
-        y = x * (1 - r) * 2 + 2 * r * math.cos(w) * y1 - r * r * y2
-        y2, y1 = y1, y
-        wobble = 0.6 + 0.4 * math.sin(2 * math.pi * (38 - 40 * t) * t) ** 2   # bubbly gurgle
-        amp = min(1, t / 0.006) * math.exp(-7.5 * t)
-        ph += 2 * math.pi * (95 * math.exp(-5 * t) + 45) / R
-        thump = math.sin(ph) * math.exp(-14 * t) * 0.55
-        s.append(y * wobble * amp * 1.4 + thump)
+        chop = 0.35 + 0.65 * (0.5 + 0.5 * math.sin(2 * math.pi * (55 - 60 * t) * t + 3 * math.sin(2 * math.pi * 9 * t))) ** 3
+        amp = min(1, t / 0.008) * math.exp(-5.5 * t)
+        s[i] += (f1[i] * 1.0 + f2[i] * 0.55) * chop * amp * 2.2
+
+    # 3. Bubbles: little droplet pops, each a sine whose pitch flicks upward as it decays.
+    for k in range(14):
+        start = int(R * (0.012 + random.uniform(0, 0.32) * (k / 14 + 0.3)))
+        f0 = random.uniform(350, 1100)
+        dur = random.uniform(0.018, 0.045)
+        vol = random.uniform(0.25, 0.6) * math.exp(-3 * start / R)
+        ph = 0.0
+        for j in range(int(R * dur)):
+            t = j / R
+            if start + j >= n: break
+            f = f0 * (1 + 2.2 * (t / dur) ** 1.5)
+            ph += 2 * math.pi * f / R
+            s[start + j] += math.sin(ph) * vol * math.sin(math.pi * min(1, t / dur)) * math.exp(-40 * t)
+
+    # 4. A soft low thump for body.
+    ph = 0.0
+    for i in range(int(R * 0.25)):
+        t = i / R
+        ph += 2 * math.pi * (85 * math.exp(-6 * t) + 40) / R
+        s[i] += math.sin(ph) * math.exp(-13 * t) * 0.5
     write("squish", s)
 
 squish()
