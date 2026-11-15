@@ -230,6 +230,13 @@ extension Engine {
                 s.cash += dropped
                 s.stats.fightsWon += 1
                 changeRespect(&s, 2 + t.attacker)
+                if let crew = t.crew, crew == s.rival?.name, rivalHolds(s, s.city) {
+                    var r = s.rival!
+                    r.cities.removeAll { $0 == s.city }
+                    s.rival = r
+                    rivalLost(&s, how: "\(crew)’s people are carried out of \(Catalog.cities[s.city].name).")
+                    return (Outcome(title: "City Taken", text: s.notice + " Someone dropped \(Money.gbp(dropped)) on the way out.", good: true), false)
+                }
                 if let crew = t.crew {
                     lowerTurf(&s, city: s.city, by: 100)
                     s.rep = min(100, s.rep + 6)

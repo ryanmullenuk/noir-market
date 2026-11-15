@@ -65,8 +65,13 @@ struct TravelView: View {
                                                         .overlay(Capsule().strokeBorder(Noir.green.opacity(0.7)))
                                                 }
                                             }
+                                        } else if !open, let tease = Engine.lockedTeaser(s, c.id) {
+                                            Text(tease).font(Noir.ui(10, weight: .semibold)).foregroundStyle(Noir.amber)
                                         } else {
                                             Text(c.region).font(Noir.ui(10)).foregroundStyle(Noir.dim)
+                                        }
+                                        if Engine.rivalHolds(s, c.id) {
+                                            Text("RIVAL · SELLS 10% LOWER").font(Noir.label(8)).tracking(1).foregroundStyle(Noir.red)
                                         }
                                     }
                                     Spacer()
@@ -258,6 +263,11 @@ private struct DestinationCard: View {
             if open {
                 Button(flight ? "Fly to \(c.name)" : "Go to \(c.name)", action: onGo).buttonStyle(.noirPrimary)
             } else {
+                if let tease = Engine.lockedTeaser(s, dest, long: true) {
+                    Label(tease, systemImage: "lock.open.fill")
+                        .font(Noir.type(12)).foregroundStyle(Noir.amber)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 Button(unlock.busy ? "…" : "Unlock full game") { Task { await unlock.purchase() } }
                     .buttonStyle(.noirAmber)
             }

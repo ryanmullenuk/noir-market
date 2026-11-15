@@ -165,7 +165,11 @@ struct RootView: View {
             store.act { s in
                 s.report = nil
                 switch args[i + 1] {
-                case "police": s.encounters = [.police(Engine.policeStop(&s, airport: false))]
+                case "police":
+                    s.heat = 64
+                    var stop = Engine.policeStop(&s, airport: false)
+                    stop.why = Engine.policeWhy(s, chance: 0.27, flight: false)
+                    s.encounters = [.police(stop)]
                 case "collector": s.encounters = [.collector(Collector(loan: 0, owed: 12_500))]
                 default: s.encounters = [.trouble(Engine.trouble(&s))]
                 }
@@ -175,6 +179,17 @@ struct RootView: View {
         if !args.contains("-raid") { store.act { $0.raid = nil; $0.streak = 0 } }
         if args.contains("-raid") { store.act { $0.call = nil; $0.streak = 6; $0.raid = RaidAlert(city: $0.city, day: $0.day, seen: false) } }
         if args.contains("-quit") { store.walkOut() }
+        if !args.contains("-dilemma") { store.act { $0.dilemma = nil } }
+        if args.contains("-rivalhere") {
+            store.act { s in s.rival = RivalDealer(name: Engine.rivalNames[0], cities: [s.city, 3], beaten: false) }
+        }
+        if args.contains("-dilemma") {
+            store.act { s in
+                s.call = nil; s.day = max(s.day, 5)
+                var tries = 0
+                while s.dilemma?.kind != "copper", tries < 500 { s.dilemma = nil; Engine.maybeDilemma(&s); tries += 1 }
+            }
+        }
         if args.contains("-endgood") {
             store.act { s in
                 s.call = nil; s.report = nil; s.encounters = []

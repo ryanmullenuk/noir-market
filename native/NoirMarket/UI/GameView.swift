@@ -50,7 +50,12 @@ struct GameView: View {
                         .transition(.opacity)
                         .zIndex(6)
                 }
-                if let call = s.call, s.raid?.seen != false, !overlayNeeded, panel == nil, trade == nil {
+                if let d = s.dilemma, s.raid?.seen != false, !overlayNeeded, panel == nil, trade == nil {
+                    DilemmaView(dilemma: d)
+                        .transition(.opacity)
+                        .zIndex(6)
+                }
+                if let call = s.call, s.raid?.seen != false, s.dilemma == nil, !overlayNeeded, panel == nil, trade == nil {
                     IncomingCallView(call: call, city: Catalog.cities[s.city].name)
                         .transition(.opacity.combined(with: .scale(scale: 0.95)))
                         .zIndex(5)
@@ -58,6 +63,19 @@ struct GameView: View {
             }
             .animation(.spring(duration: 0.35), value: s.call == nil)
             .animation(.easeOut(duration: 0.25), value: s.raid?.seen)
+            .animation(.easeOut(duration: 0.25), value: s.dilemma == nil)
+            // Low health: a heartbeat you can hear and feel until you get patched up.
+            .task(id: s.health <= 30 && s.over == nil) {
+                guard let st = store.state, st.health <= 30, st.over == nil else { return }
+                while !Task.isCancelled {
+                    if store.state?.report == nil, (store.state?.encounters.isEmpty ?? true) {
+                        Audio.shared.play(.heartbeat, volume: 0.55)
+                        Audio.shared.buzz(.tap)
+                    }
+                    let health = store.state?.health ?? 30
+                    try? await Task.sleep(for: .milliseconds(health <= 15 ? 750 : 1050))
+                }
+            }
             .onAppear {
                 #if DEBUG
                 let args = ProcessInfo.processInfo.arguments
@@ -87,7 +105,9 @@ struct GameView: View {
                 .tourCard(.sheet)
             }
             .onChange(of: tour.index, initial: true) { syncTour() }
-            .onChange(of: tour.active) { syncTour() }
+            .onChange(of: tour.active) {
+                if tour.active { syncTour() } else { panel = nil; trade = nil; help = nil }
+            }
             .onReceive(NotificationCenter.default.publisher(for: .noirSettings)) { _ in
                 if trade == nil { panel = .settings }
             }
@@ -138,6 +158,7 @@ struct GameView: View {
 
     /// Opens whichever panel, trade or explainer the current tour step is showing.
     private func syncTour() {
+        guard tour.active else { return }
         let scene = tour.current?.scene
         trade = scene == .trade ? 2 : nil
         help = scene == .stats ? .heat : nil
@@ -145,7 +166,7 @@ struct GameView: View {
         case .travel: panel = .travel
         case .money: panel = .money
         case .street: panel = .street
-        default: if tour.active || panel != .settings { panel = nil }
+        default: panel = nil
         }
     }
 
@@ -364,6 +385,14 @@ private struct Header: View {
                                   note: InfoNote(title: "Festival weekend", text: "Pills, acid and MDA are flying out of every tent, and their prices are up by half.", symbol: "music.note", tint: Noir.amber)))
         }
 
+        if let r = s.rival, Engine.rivalHolds(s, s.city) {
+            out.append(HeaderChip(id: "rival", symbol: "person.fill.questionmark", text: "Rival city", colour: Noir.red,
+                                  note: InfoNote(title: r.name, text: "\(r.name) runs \(city). Their people undercut you, so everything sells for 10% less here.\n\nOpen The Street to buy them out or move on them. Win and the city is yours.", symbol: "person.fill.questionmark", tint: Noir.red)))
+        }
+        if (s.protectedUntil ?? 0) >= s.day {
+            out.append(HeaderChip(id: "protected", symbol: "shield.lefthalf.filled", text: "Protected", colour: Noir.green,
+                                  note: InfoNote(title: "Protected", text: "A bent copper is keeping uniforms off your back. No police stops until after day \(s.protectedUntil ?? 0).", symbol: "shield.lefthalf.filled", tint: Noir.green)))
+        }
         if let crew = Catalog.rivals[s.city] {
             let t = Engine.turf(s, s.city)
             let colour = t >= 45 ? Noir.red : t >= 20 ? Noir.amber : Noir.silver

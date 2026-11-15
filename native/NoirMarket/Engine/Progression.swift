@@ -13,8 +13,12 @@ extension Engine {
             s.rep = p.start.respect
             s.heat = p.start.heat
         }
-        if mode == .daily { s.fullAccess = false }
-        if mode == .tutorial { setUpTutorial(&s) }
+        if mode == .daily {
+            // Everyone gets the same Daily: drop to free-play cities and redraw the opening story to match.
+            s.fullAccess = false
+            s.story = newStory(&s)
+        }
+        if mode == .tutorial { setUpTutorial(&s) } else { spawnRival(&s) }
         recordHistory(&s)
     }
 
@@ -35,6 +39,9 @@ extension Engine {
     /// Records a deal's result for the end-of-game rundown.
     static func record(_ s: inout GameState, _ amount: Int, _ text: String) {
         if amount > (s.stats.bestDeal ?? 0) { s.stats.bestDeal = amount; s.stats.bestDealText = text }
+        var events = (s.stats.keyEvents ?? []) + [KeyEvent(day: s.day, amount: amount, text: text)]
+        events.sort { abs($0.amount) > abs($1.amount) }
+        s.stats.keyEvents = Array(events.prefix(12))
         if amount < 0 {
             s.stats.totalLost = (s.stats.totalLost ?? 0) - amount
             if amount < (s.stats.worstLoss ?? 0) { s.stats.worstLoss = amount; s.stats.worstLossText = text }

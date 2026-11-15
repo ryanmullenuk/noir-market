@@ -490,6 +490,10 @@ struct StreetView: View {
                         .transition(.opacity)
                     }
 
+                    if let r = s.rival {
+                        RivalCard(rival: r, s: s)
+                    }
+
                     Section(title: "Contracts", note: "Buyers who want a set amount delivered by a set day. Pays well over street price. Miss the date and your name suffers.", boxed: false) {
                         ForEach(s.contracts ?? []) { c in
                             ContractCard(c: c, s: s, active: true)
@@ -751,5 +755,51 @@ struct ContractCard: View {
             }
         }
         .card(padding: 14, tint: active ? (ready ? Noir.green : urgency) : Noir.amber)
+    }
+}
+
+
+/// The rival dealer: who they are, where they run, and what you can do about it here.
+private struct RivalCard: View {
+    let rival: RivalDealer
+    let s: GameState
+    @Environment(GameStore.self) private var store
+
+    var body: some View {
+        let here = Engine.rivalHolds(s, s.city)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 10) {
+                GlowIcon(symbol: rival.beaten ? "checkmark.seal.fill" : "person.fill.questionmark", color: rival.beaten ? Noir.green : Noir.red, size: 36)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("THE COMPETITION").font(Noir.label(10)).tracking(1.4).foregroundStyle(rival.beaten ? Noir.green : Noir.red)
+                    Text(rival.name).font(Noir.display(20)).foregroundStyle(Noir.paper)
+                }
+            }
+            if rival.beaten {
+                Text("Finished. You took every city they had.").font(Noir.ui(12)).foregroundStyle(Noir.silver)
+            } else {
+                Text("Runs " + rival.cities.map { Catalog.cities[$0].name }.joined(separator: ", ") + ". Their people undercut you: you sell for 10% less in their cities. They move into a new city every few nights.")
+                    .font(Noir.ui(12)).foregroundStyle(Noir.silver)
+                    .fixedSize(horizontal: false, vertical: true)
+                if here {
+                    HStack(spacing: 8) {
+                        Button("Buy them out · \(Money.short(Engine.rivalBuyoutCost(s)))") {
+                            if store.act({ try Engine.buyOutRival(&$0) }) { Audio.shared.play(.cash); Audio.shared.buzz(.success) }
+                        }
+                        .buttonStyle(.noirAmber)
+                        Button("Move on them") {
+                            if store.act({ try Engine.moveOnRival(&$0) }) { Audio.shared.play(.knuckles, volume: 0.6); Audio.shared.buzz(.danger) }
+                        }
+                        .buttonStyle(.noirDanger)
+                    }
+                    Text("Moving on them means a fight with their crew. Win and the city is yours.")
+                        .font(Noir.ui(10)).foregroundStyle(Noir.dim)
+                } else {
+                    Text("Go to one of their cities to buy them out or move on them.").font(Noir.ui(10)).foregroundStyle(Noir.dim)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .card(padding: 16, tint: rival.beaten ? Noir.green : Noir.red)
     }
 }

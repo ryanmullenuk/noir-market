@@ -14,6 +14,7 @@ func play(seed: UInt64, full: Bool, careful: Bool, borrow: Bool, perk: Perk? = n
     while s.over == nil && steps < 2_000 {
         steps += 1
         if !s.encounters.isEmpty { encounters += 1; _ = try? Engine.resolve(&s, choose(s.encounters[0], s)); continue }
+        if s.dilemma != nil { _ = try? Engine.resolveDilemma(&s, option: r.int(0, 1)); if s.dilemma != nil { s.dilemma = nil } }
         for g in Catalog.goods.indices where s.carry[g] > 0 {
             let unit = Engine.sellQuote(s, good: g, qty: s.carry[g]) / s.carry[g]
             let cost = s.carryCost[g] / max(1, s.carry[g])

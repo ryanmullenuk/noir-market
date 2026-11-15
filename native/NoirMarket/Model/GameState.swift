@@ -78,6 +78,8 @@ struct PoliceStop: Codable, Sendable, Equatable {
     var grass: String?
     /// Set when this is the raid a Breaking News alert warned about.
     var raid: Bool?
+    /// Plain-English reason this stop happened now.
+    var why: String?
 }
 
 /// A Breaking News tip-off that the police are about to raid the city you're in.
@@ -96,6 +98,34 @@ struct Trouble: Codable, Sendable, Equatable {
     var handOver: Int
     /// Set when this is a rival crew defending its turf.
     var crew: String?
+    /// Plain-English reason this happened now.
+    var why: String?
+}
+
+/// A two-way decision that turns up overnight: a journalist, a bent copper, a crew member wanting more…
+struct Dilemma: Codable, Sendable, Equatable {
+    var kind: String
+    var title: String
+    var text: String
+    var options: [String]
+    var details: [String]
+    var symbol: String
+    /// Numbers the outcome needs (a cost, a reward, a city, a good, a crew role).
+    var values: [Int]
+}
+
+/// The named rival dealer who spreads across the country during a game.
+struct RivalDealer: Codable, Sendable, Equatable {
+    var name: String
+    var cities: [Int]
+    var beaten: Bool
+}
+
+/// A notable money moment, for the case file's turning point and lowest point.
+struct KeyEvent: Codable, Sendable, Equatable {
+    var day: Int
+    var amount: Int
+    var text: String
 }
 
 struct Collector: Codable, Sendable, Equatable {
@@ -154,6 +184,7 @@ struct Stats: Codable, Sendable, Equatable {
     var contractsDone: Int?
     var worthByDay: [Int]?
     var earned: [String]?
+    var keyEvents: [KeyEvent]?
 }
 
 struct GameOver: Codable, Sendable, Equatable {
@@ -244,6 +275,12 @@ struct GameState: Codable, Sendable, Equatable {
     var streak: Int?
     var raid: RaidAlert?
     var vaultWeapons: [[Int]]?
+    /// An overnight decision waiting for the player, police protection bought from a bent copper,
+    /// a tipped-off container landing tomorrow ([city, good, day]) and the rival dealer.
+    var dilemma: Dilemma?
+    var protectedUntil: Int?
+    var dockDeal: [Int]?
+    var rival: RivalDealer?
     var calledToday = false
     var deal: DealOffer?
     var tradedToday = false

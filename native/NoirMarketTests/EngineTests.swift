@@ -529,6 +529,75 @@ struct EngineTests {
         #expect(t.streak == 0)
     }
 
+    @Test func dilemmasResolveEitherWay() throws {
+        var seen = Set<String>()
+        for seed in 1...400 {
+            for option in [0, 1] {
+                var s = fresh(seed: UInt64(seed), full: true)
+                s.day = 5; s.cash = 60_000; s.crew = [0]
+                s.rival = RivalDealer(name: "Test", cities: [3, 4], beaten: false)
+                Engine.maybeDilemma(&s)
+                guard let d = s.dilemma else { continue }
+                seen.insert(d.kind)
+                #expect(d.options.count == 2 && d.details.count == 2)
+                let before = s.cash
+                let r = try Engine.resolveDilemma(&s, option: option)
+                #expect(s.dilemma == nil)
+                #expect(!r.title.isEmpty)
+                if option == 0, ["journalist", "copper", "dock", "raise"].contains(d.kind) { #expect(s.cash < before) }
+            }
+        }
+        #expect(seen.count >= 5)
+
+        // Protection keeps the police away.
+        var p = fresh(seed: 9, full: true)
+        p.dilemma = Dilemma(kind: "copper", title: "", text: "", options: ["", ""], details: ["", ""], symbol: "", values: [1_000])
+        try Engine.resolveDilemma(&p, option: 0)
+        #expect(p.protectedUntil == p.day + 3)
+    }
+
+    @Test func rivalSpreadsUndercutsAndCanBeBeaten() throws {
+        var s = fresh(seed: 21, full: true)
+        Engine.spawnRival(&s)
+        let r = try #require(s.rival)
+        #expect(r.cities.count == 1 && !r.cities.contains(s.city))
+        s.day = 4
+        #expect(Engine.rivalExpands(&s) != nil)
+        #expect(s.rival!.cities.count == 2)
+        // Selling in a rival city pays 10% less.
+        let g = cheapest(s)
+        let normal = Engine.sellQuote(s, good: g, qty: 5)
+        s.rival!.cities.append(s.city)
+        #expect(Engine.sellQuote(s, good: g, qty: 5) < normal)
+        // Buying them out of every city finishes them.
+        s.cash = 10_000_000
+        for c in s.rival!.cities { s.city = c; try Engine.buyOutRival(&s) }
+        #expect(s.rival!.beaten)
+        #expect(!Engine.rivalHolds(s, s.city))
+    }
+
+    @Test func ironmanHasNoLendersAndHotterHeat() throws {
+        var s = fresh(seed: 4, full: true)
+        Engine.configure(&s, mode: .ironman, perk: nil)
+        #expect(s.maxDay == 30)
+        #expect(throws: (any Error).self) { try Engine.borrow(&s, lender: 0, amount: 1_000) }
+        #expect(Engine.heatMultiplier(s) == 2)
+        #expect(GameMode.ironman.premium && GameMode.ironman.leaderboard == "noir.ironman")
+    }
+
+    @Test func keyEventsAndWhyText() {
+        var s = fresh(seed: 2)
+        s.day = 9; Engine.record(&s, 140_000, "Big sale")
+        s.day = 14; Engine.record(&s, -20_000, "Robbed")
+        #expect(s.stats.keyEvents?.first?.day == 9)
+        #expect(s.stats.keyEvents?.contains { $0.day == 14 && $0.amount == -20_000 } == true)
+        s.heat = 70; s.carry[cheapest(s)] = 30
+        #expect(Engine.policeWhy(s, chance: 0.3, flight: false).contains("70%"))
+        s.cash = 150_000
+        #expect(Engine.troubleWhy(s).contains("Bank your cash"))
+        #expect(Engine.lockedTeaser(fresh(seed: 2), 9) == nil || Engine.lockedTeaser(fresh(seed: 2), 9)!.contains("%"))
+    }
+
     func cheapest(_ s: GameState) -> Int {
         Catalog.goods.indices.filter { s.markets[s.city].supply[$0] > 0 }.min { s.markets[s.city].price[$0] < s.markets[s.city].price[$1] }!
     }

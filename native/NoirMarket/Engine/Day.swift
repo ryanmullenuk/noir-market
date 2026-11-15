@@ -45,6 +45,8 @@ extension Engine {
         let yesterday = s.story
 
         tick(&s, lines: &lines)
+        applyDockDeal(&s, lines: &lines)
+        if let news = rivalExpands(&s) { lines.append(news); s.ticker.insert(news, at: 0) }
 
         // A Breaking News warning from last night: stay put and they come for you.
         var raidTonight = false
@@ -68,9 +70,10 @@ extension Engine {
         checks += checkTips(&s)
 
         // Heat drifts: up while you carry, down while you’re clean.
-        if carrying { s.heat = min(100, s.heat + s.rng.int(1, 4)) } else { s.heat = max(0, s.heat - s.rng.int(2, 6)) }
+        // Ironman: heat builds twice as fast.
+        if carrying { s.heat = min(100, s.heat + s.rng.int(1, 4) * heatMultiplier(s)) } else { s.heat = max(0, s.heat - s.rng.int(2, 6)) }
         let armed = s.weapons.enumerated().filter { $0.element > 0 }.count
-        s.heat = min(100, s.heat + armed / 2)
+        s.heat = min(100, s.heat + armed / 2 * heatMultiplier(s))
 
         // Street dangers: at most one encounter a night.
         if mode(s) == .tutorial {
@@ -97,6 +100,9 @@ extension Engine {
             if hasCrew(s, 1) { police *= 0.6 }
             if perk(s) == .copper { police *= 0.7 }
             if eventHere(s, "match") { police *= 1.4 }
+            if mode(s) == .ironman { police *= 1.25 }
+            // A bent copper's protection keeps uniforms away entirely.
+            if (s.protectedUntil ?? 0) >= s.day { police = 0 }
             let worthRobbing = s.cash > 200 || carrying
             var mugging = worthRobbing ? 0.06 + (s.cash > 20_000 ? 0.04 : 0) : 0
             mugging *= 1 - respect(s) * 0.55          // 45% … 155% of normal
@@ -114,16 +120,21 @@ extension Engine {
             } else if rivalVisit(&s) {
                 // The local crew got to you first.
             } else if r < police, carrying || weapons || s.heat > 60 {
-                s.encounters.append(.police(policeStop(&s, airport: flight)))
+                var stop = policeStop(&s, airport: flight)
+                stop.why = policeWhy(s, chance: police, flight: flight)
+                s.encounters.append(.police(stop))
             } else if r < police + mugging {
-                s.encounters.append(.trouble(Engine.trouble(&s)))
+                var t = Engine.trouble(&s)
+                t.why = troubleWhy(s)
+                s.encounters.append(.trouble(t))
             } else if r < police + mugging + 0.07 * (1 + respect(s) * 0.8) {
                 friendGift(&s, lines: &lines)
             }
         }
 
         maybeRaidAlert(&s)
-        maybeCall(&s)
+        maybeDilemma(&s)
+        if s.dilemma == nil { maybeCall(&s) }
         s.report = DayReport(day: s.day, city: s.city, travelled: travelled,
                              headline: s.ticker.first ?? "", story: s.story?.text ?? "", lines: lines, checks: checks)
         s.notice = lines.last ?? opening

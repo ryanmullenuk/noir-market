@@ -1,15 +1,15 @@
 import Foundation
 
 enum GameMode: String, CaseIterable, Identifiable, Sendable {
-    case standard, long, sprint, daily, tutorial
+    case standard, long, sprint, daily, tutorial, ironman
     var id: String { rawValue }
 
     /// Long Game and Sprint come with the Full Game; Standard, Daily and the Tutorial are free.
-    var premium: Bool { self == .long || self == .sprint }
+    var premium: Bool { self == .long || self == .sprint || self == .ironman }
 
     var days: Int {
         switch self {
-        case .standard, .daily: 30
+        case .standard, .daily, .ironman: 30
         case .long: 60
         case .sprint: 7
         case .tutorial: 3
@@ -23,6 +23,7 @@ enum GameMode: String, CaseIterable, Identifiable, Sendable {
         case .sprint: "Sprint"
         case .daily: "Daily Challenge"
         case .tutorial: "Tutorial"
+        case .ironman: "Ironman"
         }
     }
 
@@ -33,6 +34,7 @@ enum GameMode: String, CaseIterable, Identifiable, Sendable {
         case .sprint: "Seven days. No time to be careful."
         case .daily: "Same city, same seed, same luck for everyone today. Free-play cities, no perks."
         case .tutorial: "Three guided days: buying, travel, a police stop and NOIRNET."
+        case .ironman: "Thirty days, no lenders, heat builds twice as fast. For people who think Standard is soft."
         }
     }
 
@@ -43,6 +45,7 @@ enum GameMode: String, CaseIterable, Identifiable, Sendable {
         case .sprint: "bolt.fill"
         case .daily: "sun.max.fill"
         case .tutorial: "graduationcap.fill"
+        case .ironman: "flame.fill"
         }
     }
 
@@ -53,6 +56,7 @@ enum GameMode: String, CaseIterable, Identifiable, Sendable {
         case .long: "noir.long"
         case .sprint: "noir.sprint"
         case .daily: "noir.daily"
+        case .ironman: "noir.ironman"
         case .tutorial: nil
         }
     }

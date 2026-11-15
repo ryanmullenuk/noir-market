@@ -219,3 +219,32 @@ def squish():
     write("squish", s)
 
 squish()
+
+def loss():
+    """Selling at a loss: two low, falling, slightly sour notes."""
+    n = int(R * 0.55); s = []; ph = 0.0
+    for i in range(n):
+        t = i / R
+        f = 220 if t < 0.16 else 185
+        f *= 1 - 0.08 * (t / 0.55)
+        ph += 2 * math.pi * f / R
+        v = math.sin(ph) + 0.4 * math.sin(2 * ph + 0.3) + 0.2 * math.sin(3 * ph)
+        seg = t if t < 0.16 else t - 0.16
+        s.append(v * min(1, seg / 0.008) * math.exp(-(9 if t < 0.16 else 5) * seg) * 0.8)
+    write("loss", s)
+
+def heartbeat():
+    """Low health: a heavy lub-dub."""
+    n = int(R * 0.6); s = []
+    for i in range(n):
+        t = i / R
+        v = 0.0
+        for start, vol in ((0.0, 1.0), (0.2, 0.7)):
+            u = t - start
+            if u >= 0:
+                f = 55 + 35 * math.exp(-30 * u)
+                v += math.sin(2 * math.pi * f * u) * math.exp(-16 * u) * vol
+        s.append(v)
+    write("heartbeat", s)
+
+loss(); heartbeat()

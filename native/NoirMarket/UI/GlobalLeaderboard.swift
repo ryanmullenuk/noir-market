@@ -9,7 +9,7 @@ struct GlobalLeaderboard: View {
     @State private var loading = false
     @State private var failed = false
 
-    private let modes: [GameMode] = [.daily, .standard, .long, .sprint]
+    private let modes: [GameMode] = [.daily, .standard, .long, .sprint, .ironman]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {

@@ -210,6 +210,12 @@ private struct EncounterView: View {
                     .fixedSize(horizontal: false, vertical: true)
                 Text(text).font(Noir.type(16)).foregroundStyle(Noir.silver)
                     .fixedSize(horizontal: false, vertical: true)
+                if let why {
+                    Label { Text(why) } icon: { Image(systemName: "questionmark.circle.fill").foregroundStyle(Noir.amber) }
+                        .font(Noir.ui(12)).foregroundStyle(Noir.dim)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityLabel("Why: \(why)")
+                }
                 HStack(spacing: 14) {
                     Meter(label: "Health", symbol: "heart.fill", value: s.health, colour: Noir.rag(s.health, highIsGood: true))
                 }
@@ -288,6 +294,15 @@ private struct EncounterView: View {
         var odds = t.attacker == 0 ? 0.75 : min(0.96, 0.10 + machete.win)
         if t.attacker == 4 { odds *= 0.8 }
         return "Miss and they hit back. With a \(machete.name.lowercased()) it’d be \(Int((odds * 100).rounded()))%. The Black Market sells them."
+    }
+
+    /// Why this happened now, when the engine knows.
+    private var why: String? {
+        switch encounter {
+        case .police(let p): p.why
+        case .trouble(let t): t.round == 1 ? t.why : nil
+        default: nil
+        }
     }
 
     private var text: String {
@@ -637,8 +652,16 @@ private struct CaseClosed: View {
         add("RESPECT", "\(s.rep)/100", Noir.rag(s.rep, highIsGood: true))
         add("HEAT", "\(s.heat)%", Noir.rag(s.heat, highIsGood: false))
         add("DAYS", "\(min(s.day, s.maxDay)) of \(s.maxDay)")
-        if let best = st.bestDeal, best > 0 { add("BEST DEAL", "+\(Money.gbp(best)) · \(st.bestDealText ?? "")", Noir.green) }
-        if let worst = st.worstLoss, worst < 0 { add("WORST HIT", "−\(Money.gbp(-worst)) · \(st.worstLossText ?? "")", Noir.red) }
+        let events = st.keyEvents ?? []
+        if let top = events.filter({ $0.amount > 0 }).max(by: { $0.amount < $1.amount }) {
+            add("TURNING POINT", "Day \(top.day) · +\(Money.gbp(top.amount)) · \(top.text)", Noir.green)
+        } else if let best = st.bestDeal, best > 0 { add("BEST DEAL", "+\(Money.gbp(best)) · \(st.bestDealText ?? "")", Noir.green) }
+        if let low = events.filter({ $0.amount < 0 }).min(by: { $0.amount < $1.amount }) {
+            add("LOWEST POINT", "Day \(low.day) · −\(Money.gbp(-low.amount)) · \(low.text)", Noir.red)
+        } else if let worst = st.worstLoss, worst < 0 { add("WORST HIT", "−\(Money.gbp(-worst)) · \(st.worstLossText ?? "")", Noir.red) }
+        if let r = s.rival {
+            add("RIVAL", r.beaten ? "\(r.name) · finished. You took every city." : "\(r.name) · still runs \(r.cities.count) \(r.cities.count == 1 ? "city" : "cities")", r.beaten ? Noir.green : Noir.amber)
+        }
         if let lost = st.totalLost, lost > 0 { add("TOTAL LOST", Money.gbp(lost), Noir.red) }
         add("BIGGEST SALE", Money.gbp(st.biggestSale))
         add("PEAK WORTH", Money.gbp(st.bestWorth))
@@ -885,6 +908,9 @@ private struct ShareCard: View {
                 row("RANK", Catalog.ranks[over.rank].name.uppercased(), Color(hex: 0xF5BD4D))
                 row("MODE", Engine.mode(s).title.uppercased(), Color.white)
                 row("CITIES", "\((s.visited ?? []).count)", Color.white)
+                if let top = (s.stats.keyEvents ?? []).filter({ $0.amount > 0 }).max(by: { $0.amount < $1.amount }) {
+                    row("TURNING POINT", "DAY \(top.day) · +\(Money.short(top.amount))", Color(hex: 0x29FF85))
+                }
             }
             Text(over.epitaph).font(Noir.ui(12)).foregroundStyle(tint.opacity(0.9))
                 .fixedSize(horizontal: false, vertical: true)

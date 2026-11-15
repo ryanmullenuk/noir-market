@@ -93,9 +93,10 @@ struct TradeSheet: View {
                             if selling { try Engine.sell(&st, good: good, qty: q) } else { try Engine.buy(&st, good: good, qty: q) }
                         }
                         if ok {
-                            Audio.shared.buzz(.success)
+                            // Profit rings the till; a loss gets its own sour note and a warning buzz.
+                            Audio.shared.buzz(selling && profit < 0 ? .warning : .success)
                             if selling {
-                                Audio.shared.play(.cash)
+                                Audio.shared.play(profit >= 0 ? .cash : .loss, volume: profit >= 0 ? 0.6 : 0.7)
                                 store.flash(profit >= 0 ? "Sold at a profit" : "Sold at a loss",
                                             "\(q) \(g.name) for \(Money.gbp(quote)).", good: profit >= 0, amount: profit)
                             }

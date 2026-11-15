@@ -116,7 +116,9 @@ enum Engine {
     static func sellQuote(_ s: GameState, good: Int, qty: Int) -> Int {
         let m = s.markets[s.city]
         let i = impact(qty: qty, supply: m.supply[good])
-        return Int((Double(m.price[good]) * Double(qty) * (1 - i / 2) * (1 + respect(s) * 0.05)).rounded())
+        // The rival dealer undercuts you in any city they run.
+        let competition = rivalHolds(s, s.city) ? 0.9 : 1.0
+        return Int((Double(m.price[good]) * Double(qty) * (1 - i / 2) * (1 + respect(s) * 0.05) * competition).rounded())
     }
 
     static func maxBuy(_ s: GameState, good: Int) -> Int {
@@ -338,6 +340,7 @@ enum Engine {
     static func borrow(_ s: inout GameState, lender: Int, amount: Int) throws {
         try idle(s)
         let l = Catalog.lenders[lender]
+        guard mode(s) != .ironman else { throw Failure.invalid("Ironman. Nobody lends to you, and that’s the point.") }
         guard !s.loans.contains(where: { $0.lender == lender }) else {
             throw Failure.invalid("\(l.name) wants the last one back before he lends you another penny.")
         }
