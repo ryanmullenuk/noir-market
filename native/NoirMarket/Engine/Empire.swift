@@ -280,7 +280,29 @@ extension Engine {
         case "scorefail": "Nicked on the Last Job"
         case "raid": "Dawn Raid"
         case "jail": "Banged Up"
+        case "quit": "Couldn’t Hack It"
         default: "Thirty Days"
         }
+    }
+}
+
+extension Engine {
+    /// The player gives up mid-game. The file is closed on them, unkindly, and nothing counts for records.
+    static func walkOut(_ s: inout GameState) {
+        let worth = netWorth(s)
+        let city = Catalog.cities[s.city].name
+        let days = min(s.day, s.maxDay)
+        var r = SplitMix(seed: s.seed ^ UInt64(s.day * 7_919))
+        let verdicts = [
+            "Lasted \(days) day\(days == 1 ? "" : "s"). Turns out you weren’t cut out for this world. The pharmacy counter at a big supermarket is hiring: steady hours, a name badge, and the only thing you’ll be pushing is a trolley.",
+            "Folded on day \(days). The streets of \(city) won’t remember you. Try the supermarket pharmacy: the prescriptions are legal, the hours are sociable and nobody will ever try to rob you by the bins.",
+            "You couldn’t hack it. Hand in the burner, delete the contacts and go and ask about that till job. The supermarket pharmacy does a nice line in loyalty points, which is the closest you’ll get to respect.",
+            "Walked away on day \(days). Some people build empires; you’re more of a ‘would you like a bag for that?’ type. The pharmacy aisle at your local supermarket could use a steady pair of hands.",
+            "Not everyone’s built for the dark. You were built for a high-vis tabard and a staff discount. The supermarket pharmacy closes at eight. You’ll love it.",
+        ]
+        s.over = GameOver(worth: worth, rank: Catalog.rank(for: worth), died: false,
+                          epitaph: verdicts[Int(r.next() % UInt64(verdicts.count))], ending: "quit")
+        s.encounters = []
+        s.pendingEnding = nil
     }
 }

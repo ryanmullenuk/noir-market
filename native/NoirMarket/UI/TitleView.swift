@@ -25,11 +25,8 @@ struct TitleView: View {
             Color.black.ignoresSafeArea()
             switch phase {
             case 0:
-                Image("RedheadLogo")
-                    .resizable().scaledToFit()
-                    .frame(width: 240)
+                RedheadIntro()
                     .transition(.opacity)
-                    .accessibilityLabel("Redhead Games")
             case 2:
                 Disclaimer().transition(.opacity)
             case 4:
@@ -54,7 +51,8 @@ struct TitleView: View {
         sequence?.cancel()
         sequence = Task { @MainActor in
             if start <= 0 {
-                try? await Task.sleep(for: .seconds(1.8))
+                // The logo animation runs about 1.9s; hold it a beat before fading.
+                try? await Task.sleep(for: .seconds(3.0))
                 guard !Task.isCancelled else { return }
             }
             if start <= 1 {

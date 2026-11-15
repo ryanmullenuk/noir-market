@@ -146,6 +146,7 @@ struct RootView: View {
         if args.contains("-noCall") { store.act { $0.call = nil } }
         if !args.contains("-raid") { store.act { $0.raid = nil; $0.streak = 0 } }
         if args.contains("-raid") { store.act { $0.call = nil; $0.streak = 6; $0.raid = RaidAlert(city: $0.city, day: $0.day, seen: false) } }
+        if args.contains("-quit") { store.walkOut() }
         if args.contains("-endgood") {
             store.act { s in
                 s.call = nil; s.report = nil; s.encounters = []

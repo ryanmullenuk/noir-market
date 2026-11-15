@@ -79,6 +79,14 @@ final class GameStore {
         try? FileManager.default.removeItem(at: saveURL)
     }
 
+    /// Walking away mid-game: close the case file with a damning rundown. Doesn't count for records.
+    func walkOut() {
+        guard var s = state else { return }
+        Engine.walkOut(&s)
+        state = s
+        try? FileManager.default.removeItem(at: saveURL)
+    }
+
     /// Runs a game action, saving on success and surfacing the error text on failure.
     @discardableResult
     func act(_ action: (inout GameState) throws -> Void) -> Bool {

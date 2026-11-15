@@ -75,8 +75,7 @@ struct GameView: View {
                     case .street: StreetView()
                     case .settings: SettingsView(inGame: true, onAbandon: {
                         panel = nil
-                        store.abandon()
-                        onQuit()
+                        store.walkOut()
                     })
                     }
                 }

@@ -614,7 +614,7 @@ private struct CaseClosed: View {
 
     /// A good run: alive, not raided or busted, and up on the starting stake.
     private var good: Bool {
-        !over.died && !["raid", "scorefail", "jail"].contains(over.ending ?? "") && over.worth > 2_500
+        !over.died && !["raid", "scorefail", "jail", "quit"].contains(over.ending ?? "") && over.worth > 2_500
     }
     private var tint: Color { good ? Noir.green : Noir.red }
 
@@ -650,7 +650,7 @@ private struct CaseClosed: View {
         add("LAW", "\(st.arrests) arrests · \(st.bribesPaid) bribes · \(st.jailDays) nights inside")
         add("EMPIRE", "\((s.businesses ?? []).count) fronts · \((s.crew ?? []).count) crew · \(st.tipsBought) tips bought")
         add("VERDICT", over.epitaph, tint)
-        add(">", good ? "file closed. well played." : "file terminated.", Noir.dim)
+        add(">", good ? "file closed. well played." : over.ending == "quit" ? "subject withdrew. file archived under ‘never heard of them’." : "file terminated.", Noir.dim)
         return out
     }
 
@@ -668,7 +668,7 @@ private struct CaseClosed: View {
                     Text("// CASE FILE").font(Noir.label(10)).tracking(1.2).foregroundStyle(tint.opacity(0.7))
                     Spacer()
                 }
-                Text(good ? (over.ending == "spain" ? "RETIRED." : "CASE CLOSED.") : (over.died ? "FLATLINED." : "BUSTED."))
+                Text(good ? (over.ending == "spain" ? "RETIRED." : "CASE CLOSED.") : (over.died ? "FLATLINED." : over.ending == "quit" ? "BOTTLED IT." : "BUSTED."))
                     .font(Noir.title(46))
                     .foregroundStyle(tint)
                     .shadow(color: tint.opacity(0.6), radius: 14)
@@ -875,7 +875,7 @@ private struct ShareCard: View {
                 Spacer()
                 Text("DAY \(min(s.day, s.maxDay))/\(s.maxDay)").font(Noir.label(9)).tracking(1.2).foregroundStyle(Color.white.opacity(0.5))
             }
-            Text(good ? (over.ending == "spain" ? "RETIRED." : "CASE CLOSED.") : (over.died ? "FLATLINED." : "BUSTED."))
+            Text(good ? (over.ending == "spain" ? "RETIRED." : "CASE CLOSED.") : (over.died ? "FLATLINED." : over.ending == "quit" ? "BOTTLED IT." : "BUSTED."))
                 .font(Noir.title(40)).foregroundStyle(tint)
             Text(Money.gbp(over.worth)).font(Noir.mono(30)).foregroundStyle(Color.white)
             if let worth = s.stats.worthByDay, worth.count > 2 {
