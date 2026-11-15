@@ -27,6 +27,8 @@ final class GameStore {
     var celebration: Int?
     /// The centre-screen result alert currently showing.
     var flashing: Flash?
+    /// Where the last finished game landed on the global Game Center board.
+    var globalRank: (rank: Int, total: Int)?
     private(set) var achievements: Set<String> = Set(UserDefaults.standard.stringArray(forKey: "achievements") ?? [])
     var fullAccess = false {
         didSet {
@@ -129,7 +131,10 @@ final class GameStore {
         }
         let record = Record(name: s.playerName.isEmpty ? "Anonymous" : s.playerName, worth: over.worth, rank: over.rank,
                             died: over.died, date: .now, fullGame: s.fullAccess, seed: s.seed, mode: mode.rawValue)
-        if let board = mode.leaderboard { GameCenter.submit(score: over.worth, leaderboard: board) }
+        if let board = mode.leaderboard {
+            globalRank = nil
+            Task { globalRank = await GameCenter.submitAndRank(score: over.worth, leaderboard: board) }
+        }
         records.append(record)
         records.sort { $0.worth > $1.worth }
         records = Array(records.prefix(20))

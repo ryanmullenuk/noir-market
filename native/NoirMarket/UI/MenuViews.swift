@@ -248,20 +248,23 @@ struct HowToPlayView: View {
 struct RecordsView: View {
     @Environment(GameStore.self) private var store
     @Environment(\.dismiss) private var dismiss
-    @State private var tab = 0
+    @State private var tab = 2
 
     var body: some View {
         ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     MenuHeader(kicker: "Closed cases", title: "Records") { dismiss() }
                     HStack(spacing: 6) {
-                        tabButton("Records", 0)
+                        tabButton("Global", 2)
+                        tabButton("Mine", 0)
                         tabButton("Achievements", 1)
                     }
                     .padding(4)
                     .background(Capsule().fill(Color.white.opacity(0.05)))
 
-                    if tab == 1 {
+                    if tab == 2 {
+                        GlobalLeaderboard()
+                    } else if tab == 1 {
                         AchievementsList()
                     } else {
                         if store.records.isEmpty {
@@ -283,27 +286,6 @@ struct RecordsView: View {
                             .padding(.vertical, 8)
                         }
 
-                        VStack(alignment: .leading, spacing: 10) {
-                            Text("Game Center leaderboards").noirLabel(11, color: Noir.silver)
-                            ForEach([GameMode.daily, .standard, .long, .sprint]) { m in
-                                Button {
-                                    if let id = m.leaderboard { GameCenter.showLeaderboard(id) }
-                                } label: {
-                                    HStack {
-                                        Image(systemName: m.symbol)
-                                        Text(m.title)
-                                        Spacer()
-                                        Image(systemName: "chevron.right").font(.system(size: 12, weight: .bold))
-                                    }
-                                    .padding(.horizontal, 16)
-                                }
-                                .buttonStyle(m == .daily ? NoirButtonStyle(kind: .amber) : NoirButtonStyle(kind: .outline))
-                            }
-                            if !GameCenter.signedIn {
-                                Text("Sign in to Game Center in Settings to post scores.").font(Noir.ui(11)).foregroundStyle(Noir.dim)
-                            }
-                        }
-                        .padding(.top, 10)
                     }
                 }
                 .padding(22)

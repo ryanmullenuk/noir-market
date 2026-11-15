@@ -28,6 +28,37 @@ enum GameCenter {
         Task { try? await GKLeaderboard.submitScore(score, context: 0, player: GKLocalPlayer.local, leaderboardIDs: [leaderboard]) }
     }
 
+    /// One row of a global leaderboard.
+    struct Entry: Identifiable, Sendable {
+        let id: String
+        let rank: Int
+        let name: String
+        let score: Int
+        let isMe: Bool
+    }
+
+    /// The global top players for a leaderboard, plus the signed-in player's own entry.
+    /// Recurring boards (the Daily Challenge) return today's occurrence.
+    static func top(_ leaderboard: String, count: Int = 10) async throws -> (top: [Entry], me: Entry?, total: Int) {
+        guard signedIn else { return ([], nil, 0) }
+        guard let board = try await GKLeaderboard.loadLeaderboards(IDs: [leaderboard]).first else { return ([], nil, 0) }
+        let (local, entries, total) = try await board.loadEntries(for: .global, timeScope: .allTime, range: NSRange(location: 1, length: count))
+        let myID = GKLocalPlayer.local.gamePlayerID
+        func convert(_ e: GKLeaderboard.Entry) -> Entry {
+            Entry(id: e.player.gamePlayerID + "-\(e.rank)", rank: e.rank, name: e.player.displayName,
+                  score: e.score, isMe: e.player.gamePlayerID == myID)
+        }
+        return (entries.map(convert), local.map(convert), total)
+    }
+
+    /// Posts a score and waits for it to land, so the player's new global rank can be shown straight after.
+    static func submitAndRank(score: Int, leaderboard: String) async -> (rank: Int, total: Int)? {
+        guard signedIn, score > 0 else { return nil }
+        try? await GKLeaderboard.submitScore(score, context: 0, player: GKLocalPlayer.local, leaderboardIDs: [leaderboard])
+        guard let result = try? await top(leaderboard, count: 1), let me = result.me else { return nil }
+        return (me.rank, result.total)
+    }
+
     static func report(achievement id: String) {
         guard signedIn else { return }
         let a = GKAchievement(identifier: "noir.ach.\(id)")

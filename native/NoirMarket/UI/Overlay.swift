@@ -680,6 +680,14 @@ private struct CaseClosed: View {
                 if let worth = s.stats.worthByDay, worth.count > 2 {
                     Sparkline(values: worth, colour: tint).frame(height: 36).padding(.vertical, 8)
                 }
+                if let g = store.globalRank {
+                    Label("Global rank #\(g.rank) of \(g.total)\(Engine.mode(s) == .daily ? " today" : "")", systemImage: "globe.europe.africa.fill")
+                        .font(Noir.label(12)).tracking(1).textCase(.uppercase)
+                        .foregroundStyle(g.rank <= 10 ? Noir.amber : Noir.paper)
+                        .shadow(color: g.rank <= 10 ? Noir.amber.opacity(0.5) : .clear, radius: 8)
+                        .padding(.bottom, 8)
+                        .transition(.opacity)
+                }
                 Rectangle().fill(tint.opacity(0.35)).frame(height: 1)
 
                 ScrollViewReader { proxy in
