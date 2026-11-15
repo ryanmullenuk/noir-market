@@ -4,7 +4,7 @@ import CoreText
 import QuartzCore
 
 // The TikTok cut: 1080×1920, ~22s, every cut on a beat of Tools/Trailer/make_beat.py (128 BPM).
-// Hook in the first second, a drop on the logo slam, punch-in zooms, flashes, shakes, and a second
+// Opens on the Redhead logo, drops on the NOIR MARKET title, then the game: flashes, shakes, and a second
 // drop on the case-file reveal. Captions sit in TikTok's safe zone (clear of the top bar and the
 // caption/buttons area along the bottom and right).
 // Run from native/:  swiftc -O Tools/Trailer/tiktok.swift -o /tmp/tiktok && /tmp/tiktok
@@ -53,15 +53,16 @@ struct Cut {
 }
 
 let cuts: [Cut] = [
-    // Hook: the police stop, siren wailing.
-    Cut(asset: clean, from: at("police", 0.3), beats: 4, focus: 0.5, zoom: 1.0,
+    // Open on the Redhead logo: the halves fly in and slam together with the squish.
+    Cut(asset: clean, from: 2.3, beats: 4, sfx: [("squish", 1.28, 1.0)]),
+    // DROP: the NOIR MARKET neon.
+    Cut(asset: clean, from: at("title", 0.4), beats: 4, captions: [Caption(text: "30 NIGHTS.\nGET RICH.", accent: 0xFF4D4D, atBeat: 1)],
+        flash: 0xFFFFFF),
+    // Into the game: the police stop.
+    Cut(asset: clean, from: at("police", 0.3), beats: 4,
         captions: [Caption(text: "THE COPS\nJUST PULLED UP", accent: 0xFF4D4D, atBeat: 0, beats: 2),
                    Caption(text: "BRIBE. RUN.\nOR FIGHT?", accent: 0xFF4D4D, atBeat: 2)],
-        sfx: [("siren", 0, 0.55)]),
-    // DROP: the Redhead brain slams together.
-    Cut(asset: clean, from: 2.78, beats: 2, focus: 0.47, zoom: 1.05, sfx: [("squish", 0.25, 1.0)], flash: 0xFFFFFF, shake: true),
-    Cut(asset: clean, from: at("title", 0.6), beats: 2, focus: 0.33, zoom: 1.12,
-        captions: [Caption(text: "30 NIGHTS.\nGET RICH.", accent: 0xFF4D4D)]),
+        sfx: [("siren", 0, 0.55)], shake: true),
     Cut(asset: clean, from: at("market"), beats: 2, focus: 0.45, zoom: 1.18, captions: [Caption(text: "BUY\nCHEAP")]),
     Cut(asset: win, from: 2.45, beats: 2, focus: 0.33, zoom: 1.25, captions: [Caption(text: "SELL\nDEAR")],
         sfx: [("cash", 0.15, 0.8)], flash: 0x29FF85),
@@ -182,15 +183,9 @@ func render() async {
         let nat = try! await src.load(.naturalSize)
         let len = c.beats * beat
         try! vTrack.insertTimeRange(CMTimeRange(start: ts(c.from), duration: ts(len)), of: src, at: ts(t))
-        // Fill the frame, centre on the point of interest, and push in over the cut.
-        func transform(_ z: CGFloat) -> CGAffineTransform {
-            let s = W / nat.width * c.zoom * z
-            let h = nat.height * s, w = nat.width * s
-            let ty = min(0, max(H - h, H * 0.5 - c.focus * h))
-            let tx = (W - w) / 2
-            return CGAffineTransform(scaleX: s, y: s).concatenating(CGAffineTransform(translationX: tx, y: ty))
-        }
-        li.setTransformRamp(fromStart: transform(1.0), toEnd: transform(1.07), timeRange: CMTimeRange(start: ts(t), duration: ts(len)))
+        // No zoom: the whole phone screen, fitted to the frame height and centred.
+        let sc = H / nat.height
+        li.setTransform(CGAffineTransform(scaleX: sc, y: sc).concatenating(CGAffineTransform(translationX: (W - nat.width * sc) / 2, y: 0)), at: ts(t))
         starts.append(t)
         t += len
     }

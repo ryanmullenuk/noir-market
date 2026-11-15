@@ -1,13 +1,13 @@
 """A dark 128 BPM trap/house bed for the TikTok trailer, with a tense intro, two drops and an outro.
 Run from native/: python3 Tools/Trailer/make_beat.py AppStore/video/beat.wav
-Structure (beats): 0-4 intro tension + riser, 4 DROP, 4-30 groove, 30-32 break + riser, 32 DROP, 32-38 groove,
-38 final hit, 38-46 outro pad."""
+Structure (beats): 0-4 intro tension + riser (the Redhead logo), 4 DROP (the title), 4-34 groove, 34-36 break + riser,
+36 DROP, 36-42 groove, 42 final hit, 42-50 outro pad."""
 import math, random, struct, sys, wave
 
 R = 44100
 BPM = 128
 B = 60 / BPM
-BEATS = 46
+BEATS = 50
 N = int(R * (BEATS * B + 2.0))
 out = [0.0] * N
 random.seed(1947)
@@ -132,18 +132,18 @@ def groove(b0, b1):
         add((b1 - 1) * B + k * B / 8, CL, 0.12 + 0.05 * k)
 
 add(4 * B, impact(), 0.9)
-groove(4, 30)
-# Break (30-32): kick drops out, riser, ticking.
-add(30 * B, riser(2 * B), 0.7)
+groove(4, 34)
+# Break (34-36): kick drops out, riser, ticking.
+add(34 * B, riser(2 * B), 0.7)
 for k in range(16):
-    add(30 * B + k * B / 8, HC, 0.15 + 0.02 * k)
-add(32 * B, impact(), 1.0)
-groove(32, 38)
-# Final hit and outro (38-46).
-add(38 * B, impact(), 1.0)
-add(38 * B, K, 1.0)
-add(38 * B, pad([110, 130.8, 164.8, 220], 8 * B + 1.5), 0.25)
-for b in (40, 42, 44):
+    add(34 * B + k * B / 8, HC, 0.15 + 0.02 * k)
+add(36 * B, impact(), 1.0)
+groove(36, 42)
+# Final hit and outro (42-50).
+add(42 * B, impact(), 1.0)
+add(42 * B, K, 1.0)
+add(42 * B, pad([110, 130.8, 164.8, 220], 8 * B + 1.5), 0.25)
+for b in (44, 46, 48):
     add(b * B, K, 0.55)
 
 peak = max(1e-9, max(abs(x) for x in out))
