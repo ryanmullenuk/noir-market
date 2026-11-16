@@ -71,7 +71,7 @@ struct TravelView: View {
                                             Text(c.region).font(Noir.ui(10)).foregroundStyle(Noir.dim)
                                         }
                                         if Engine.rivalHolds(s, c.id) {
-                                            Text("RIVAL · SELLS 10% LOWER").font(Noir.label(8)).tracking(1).foregroundStyle(Noir.red)
+                                            Text("RIVAL CITY · YOU GET 10% LESS").font(Noir.label(8)).tracking(1).foregroundStyle(Noir.red)
                                         }
                                     }
                                     Spacer()

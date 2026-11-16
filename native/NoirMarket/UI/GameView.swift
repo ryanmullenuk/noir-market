@@ -387,7 +387,7 @@ private struct Header: View {
 
         if let r = s.rival, Engine.rivalHolds(s, s.city) {
             out.append(HeaderChip(id: "rival", symbol: "person.fill.questionmark", text: "Rival city", colour: Noir.red,
-                                  note: InfoNote(title: r.name, text: "\(r.name) runs \(city). Their people undercut you, so everything sells for 10% less here.\n\nOpen The Street to buy them out or move on them. Win and the city is yours.", symbol: "person.fill.questionmark", tint: Noir.red)))
+                                  note: InfoNote(title: r.name, text: "\(r.name) runs \(city). Their dealers undercut you, so anything you sell here pays 10% less. Buying isn’t affected. Sell somewhere else, or take the city off them.\n\nOpen The Street to buy them out or move on them. Win and the city is yours.", symbol: "person.fill.questionmark", tint: Noir.red)))
         }
         if (s.protectedUntil ?? 0) >= s.day {
             out.append(HeaderChip(id: "protected", symbol: "shield.lefthalf.filled", text: "Protected", colour: Noir.green,

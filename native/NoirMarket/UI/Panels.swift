@@ -778,7 +778,7 @@ private struct RivalCard: View {
             if rival.beaten {
                 Text("Finished. You took every city they had.").font(Noir.ui(12)).foregroundStyle(Noir.silver)
             } else {
-                Text("Runs " + rival.cities.map { Catalog.cities[$0].name }.joined(separator: ", ") + ". Their people undercut you: you sell for 10% less in their cities. They move into a new city every few nights.")
+                Text("Runs " + rival.cities.map { Catalog.cities[$0].name }.joined(separator: ", ") + ". Their dealers undercut you, so anything you sell in their cities pays 10% less. Buying isn’t affected. They move into a new city every few nights.")
                     .font(Noir.ui(12)).foregroundStyle(Noir.silver)
                     .fixedSize(horizontal: false, vertical: true)
                 if here {

@@ -108,9 +108,9 @@ extension Engine {
             let c = cities[Int(s.rng.next() % UInt64(cities.count))]
             let g = Int(s.rng.next() % UInt64(Catalog.goods.count))
             s.dilemma = Dilemma(kind: kind, title: "A docker has a tip",
-                                text: "A container of \(Catalog.goods[g].name) lands in \(Catalog.cities[c].name) tomorrow night. Whoever’s there first buys it for next to nothing. He wants £1,500 for the details.",
+                                text: "A docker leans in: a container lands somewhere tomorrow night, and whoever’s there first buys it for next to nothing. Where, and what’s in it, costs £1,500.",
                                 options: ["Pay for the tip · £1,500", "Not interested"],
-                                details: ["\(Catalog.goods[g].name) dirt cheap in \(Catalog.cities[c].name) tomorrow", "Keep your money"],
+                                details: ["Find out where and what", "Keep your money. The container goes to someone else"],
                                 symbol: "shippingbox.fill", values: [1_500, c, g])
         case "cousin":
             let reward = (2_500 + s.day * 150) / 100 * 100
@@ -165,10 +165,10 @@ extension Engine {
             }
             return ("Walked away", "He shrugs and finishes your drink.", true, nil)
         case "dock":
-            guard take else { return ("Passed", "You let someone else have it.", true, nil) }
+            guard take else { return ("Passed", "You keep your money. Someone else will be waiting at the docks tomorrow.", true, nil) }
             s.cash -= d.values[0]
             s.dockDeal = [d.values[1], d.values[2], s.day + 1]
-            return ("Tip bought", "Be in \(Catalog.cities[d.values[1]].name) tomorrow. \(Catalog.goods[d.values[2]].name) will be going for next to nothing.", true, -d.values[0])
+            return ("Tip bought", "\(Catalog.goods[d.values[2]].name), landing in \(Catalog.cities[d.values[1]].name). Be there tomorrow and it’ll be going for next to nothing.", true, -d.values[0])
         case "cousin":
             guard take else { return ("Family drama", "Your cousin calls you a coward and hangs up. Probably for the best.", true, nil) }
             s.cash += d.values[0]; s.heat = min(100, s.heat + 12)
