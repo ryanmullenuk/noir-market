@@ -1,35 +1,6 @@
 import SwiftUI
 
-/// The caller portrait: a hooded or capped figure on a glitching green screen.
-struct CallerPortrait: View {
-    var female: Bool
-    var unknown: Bool
-    @State private var glitch = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        Image(female ? "CallerFemale" : "CallerMale")
-            .resizable()
-            .scaledToFill()
-            .scaleEffect(1.12)
-            .offset(x: glitch ? 2 : 0)
-            .overlay(Color(red: 0.2, green: 1, blue: 0.5).opacity(glitch ? 0.12 : 0))
-            .frame(width: 140, height: 140)
-            .clipShape(Circle())
-            .task {
-                guard !reduceMotion else { return }
-                while !Task.isCancelled {
-                    try? await Task.sleep(for: .seconds(Double.random(in: 1.2...3.5)))
-                    glitch = true
-                    try? await Task.sleep(for: .milliseconds(70))
-                    glitch = false
-                }
-            }
-            .accessibilityHidden(true)
-    }
-}
-
-/// Ringing phone card, in the game's style.
+/// Ringing phone card: name, tag, secure line, voice bars, two big buttons.
 struct IncomingCallView: View {
     let call: IncomingCall
     let city: String
@@ -40,17 +11,25 @@ struct IncomingCallView: View {
     var body: some View {
         ZStack {
             Color.black.opacity(0.7).ignoresSafeArea()
-            VStack(spacing: 16) {
-                Text(call.answered ? "ON THE LINE" : "INCOMING CALL")
-                    .font(Noir.label(13)).tracking(3)
-                    .foregroundStyle(Noir.amber)
+            VStack(spacing: 18) {
+                HStack(spacing: 10) {
+                    Circle().fill(Noir.amber).frame(width: 9, height: 9)
+                        .opacity(call.answered || pulse ? 1 : 0.3)
+                        .shadow(color: Noir.amber, radius: 4)
+                    Text(call.answered ? "ON THE LINE" : "INCOMING CALL")
+                        .font(Noir.label(13)).tracking(3)
+                    Rectangle().fill(Noir.amber.opacity(0.6)).frame(width: 1, height: 14)
+                    Image(systemName: "phone.fill").font(.system(size: 14, weight: .semibold))
+                }
+                .foregroundStyle(Noir.amber)
 
-                avatar
-
-                VStack(spacing: 4) {
-                    Text(Engine.callerName(call.caller)).font(Noir.display(26)).foregroundStyle(Noir.paper)
-                    Text(call.caller < 3 ? "INFORMANT" : "NO CALLER ID").font(Noir.label(11)).tracking(2).foregroundStyle(Noir.amber)
-                    Text("Secure line · \(city)").font(Noir.ui(12)).foregroundStyle(Noir.silver)
+                VStack(spacing: 10) {
+                    Text(Engine.callerName(call)).font(Noir.display(28)).foregroundStyle(Noir.paper)
+                        .multilineTextAlignment(.center).lineLimit(2).minimumScaleFactor(0.7)
+                    Text(Engine.callerTag(call)).font(Noir.label(12)).tracking(2.4).foregroundStyle(Noir.amber)
+                        .padding(.horizontal, 12).padding(.vertical, 4)
+                        .overlay(Capsule().strokeBorder(Noir.amber, lineWidth: 1.2))
+                    Text("Secure line · \(city)").font(Noir.ui(13)).foregroundStyle(Noir.silver)
                 }
 
                 if let result = call.result {
@@ -80,10 +59,15 @@ struct IncomingCallView: View {
                             .font(Noir.ui(11)).foregroundStyle(Noir.rag(l, highIsGood: true))
                     }
                 } else {
-                    Waveform()
+                    VStack(spacing: 12) {
+                        Waveform()
+                        Text("ENCRYPTED CONNECTION").font(Noir.label(11)).tracking(2.2).foregroundStyle(Noir.silver)
+                    }
+                    .padding(.vertical, 4)
+                    Rectangle().fill(Noir.amber.opacity(0.5)).frame(height: 1).padding(.horizontal, 6)
                     HStack(spacing: 12) {
                         callButton("Decline", "phone.down.fill", Noir.red) { decline() }
-                        callButton("Answer", "phone.fill", Noir.green) {
+                        callButton("Answer", "phone.fill", Noir.green, filled: true) {
                             Audio.shared.play(.click, volume: 0.6)
                             store.act { Engine.answerCall(&$0) }
                         }
@@ -110,39 +94,23 @@ struct IncomingCallView: View {
     private var offer: String {
         let pct = Int((call.trust * 100).rounded())
         if call.caller < 3 {
-            return "\(Engine.callerName(call.caller).components(separatedBy: " ").first ?? "They") wants \(Money.gbp(call.fee)), half the usual, because they’re desperate. Odds it’s right: about \(pct)%."
+            return "\(Engine.callerName(call).components(separatedBy: " ").first ?? "They") wants \(Money.gbp(call.fee)), half the usual, because they’re desperate. Odds it’s right: about \(pct)%."
+        }
+        if call.contact != nil {
+            return "They want \(Money.gbp(call.fee)). You saved this number once and can’t remember why. They reckon it’s \(pct)% solid."
         }
         return "They want \(Money.gbp(call.fee)). No idea who this is. They reckon it’s \(pct)% solid, which is exactly what a liar would say."
     }
 
-    private var avatar: some View {
-        ZStack {
-            // Ringing arcs either side.
-            ForEach([-1.0, 1.0], id: \.self) { side in
-                ForEach(0..<2) { i in
-                    Circle()
-                        .trim(from: side < 0 ? 0.37 : 0.87, to: side < 0 ? 0.63 : 1.13)
-                        .stroke(Noir.green.opacity(call.answered ? 0.25 : (pulse ? 0.95 : 0.35)), style: StrokeStyle(lineWidth: 5, lineCap: .round))
-                        .frame(width: 168 + CGFloat(i) * 34, height: 168 + CGFloat(i) * 34)
-                        .shadow(color: Noir.green.opacity(0.7), radius: 6)
-                }
-            }
-            CallerPortrait(female: call.female ?? (call.caller == 1), unknown: call.caller == 3)
-            Circle().strokeBorder(Noir.amber, lineWidth: 2).frame(width: 140, height: 140)
-        }
-        .frame(width: 210, height: 210)
-        .accessibilityHidden(true)
-    }
-
-    private func callButton(_ title: String, _ symbol: String, _ tint: Color, action: @escaping () -> Void) -> some View {
+    private func callButton(_ title: String, _ symbol: String, _ tint: Color, filled: Bool = false, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             VStack(spacing: 6) {
-                Image(systemName: symbol).font(.system(size: 22, weight: .semibold))
-                Text(title).font(Noir.label(12)).tracking(1.2).textCase(.uppercase).lineLimit(1).minimumScaleFactor(0.7)
+                Image(systemName: symbol).font(.system(size: 22, weight: .semibold)).foregroundStyle(tint)
+                Text(title).font(Noir.label(13)).tracking(2).textCase(.uppercase).lineLimit(1).minimumScaleFactor(0.7)
+                    .foregroundStyle(filled ? Noir.paper : tint)
             }
-            .foregroundStyle(tint)
             .frame(maxWidth: .infinity, minHeight: 78)
-            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(tint.opacity(0.1)))
+            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(tint.opacity(filled ? 0.28 : 0.1)))
             .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(tint.opacity(0.85), lineWidth: 1.2))
             .shadow(color: tint.opacity(0.35), radius: 8)
         }
@@ -153,7 +121,7 @@ struct IncomingCallView: View {
         var out: Outcome?
         let fee = call.fee
         if store.act({ out = try Engine.acceptCall(&$0) }), let out {
-            store.flash(out.good ? "Tip in" : out.title, out.good ? "\(Engine.callerName(call.caller)) talks. The tip’s on the call card." : out.text,
+            store.flash(out.good ? "Tip in" : out.title, out.good ? "\(Engine.callerName(call)) talks. The tip’s on the call card." : out.text,
                         good: out.good, amount: out.good ? nil : -fee)
         }
     }
@@ -176,21 +144,23 @@ struct IncomingCallView: View {
     }
 }
 
-/// Little animated voice bars.
+/// Animated voice bars fading into dots at the edges.
 private struct Waveform: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         TimelineView(.animation(paused: reduceMotion)) { ctx in
             let t = ctx.date.timeIntervalSinceReferenceDate
-            HStack(spacing: 4) {
-                ForEach(0..<13) { i in
-                    let d = abs(Double(i) - 6)
-                    let h = 4 + (1 - d / 7) * 26 * (0.5 + 0.5 * sin(t * 7 + Double(i) * 0.9))
-                    Capsule().fill(Noir.amber).frame(width: 3, height: max(3, h))
+            HStack(spacing: 5) {
+                ForEach(0..<29) { i in
+                    let d = abs(Double(i) - 14) / 14
+                    let amp = max(0, 1 - d * 1.15)
+                    let wobble = 0.45 + 0.55 * abs(sin(t * 6 + Double(i) * 1.7) * cos(t * 2.3 + Double(i) * 0.6))
+                    Capsule().fill(Noir.green.opacity(0.4 + 0.6 * amp))
+                        .frame(width: 3, height: max(3, 4 + amp * 54 * wobble))
                 }
             }
-            .frame(height: 34)
-            .shadow(color: Noir.amber.opacity(0.6), radius: 4)
+            .frame(height: 60)
+            .shadow(color: Noir.green.opacity(0.7), radius: 5)
         }
         .accessibilityHidden(true)
     }

@@ -169,6 +169,38 @@ enum Press {
          "A voice run through a toy voice-changer: “I KNOW THINGS.” Then, normally: “Sorry, it’s stuck.”"],
     ]
 
+    /// Whoever's saved in your burner under a name that made sense at 3am. They ring instead of an unknown number.
+    static let randomContacts: [(name: String, tag: String, line: String)] = [
+        ("Kebab Kev", "SAVED CONTACT", "“Kev. I’m on a break. Garlic sauce everywhere. Listen, I heard something over the counter.”"),
+        ("Dave DO NOT ANSWER", "SAVED CONTACT", "“Before you hang up, I’ve changed. Mostly. Also I’ve got a tip.”"),
+        ("Gaz (Van)", "SAVED CONTACT", "“Gaz. Van’s fixed. Sort of. Anyway, I drove past something interesting.”"),
+        ("Big Sue Chippy", "SAVED CONTACT", "“Sue. I hear everything over that fryer, love. Everything.”"),
+        ("Mum (Not Mum)", "SAVED CONTACT", "“It’s your mother. Not really. Saved it like that for the coppers. Clever, eh?”"),
+        ("Tommy Two Phones", "SAVED CONTACT", "“Tommy. Ringing from the other phone. The first phone’s busy. Long story.”"),
+        ("Dentist", "SAVED CONTACT", "“This is your dentist. You’re overdue a check-up. And I’ve got a tip that isn’t about teeth.”"),
+        ("Lenny Lanyard", "SAVED CONTACT", "“Len. I’ve still got my lanyard from the council. Gets me in places. Listen.”"),
+        ("Auntie Pat (Bingo)", "SAVED CONTACT", "“Two fat ladies, eighty-eight. That’s not code, I’m at bingo. But I do have something.”"),
+        ("Scaffold Steve", "SAVED CONTACT", "“Steve. I’m forty foot up and I can see everything from here. Everything.”"),
+        ("Pizza Guy", "SAVED CONTACT", "“Your pizza’s not coming. But this is better than pizza. Probably.”"),
+        ("Craig From The Gym", "SAVED CONTACT", "“Craig. Leg day. Can’t feel anything. Heard something in the changing rooms.”"),
+        ("Wrong Number Wendy", "SAVED CONTACT", "“Is that Barry? No? Well, while I’ve got you…”"),
+        ("Taxi Tariq", "SAVED CONTACT", "“Tariq. People talk in the back of a cab like I’m not there. I’m always there.”"),
+        ("Do Not Lend Money", "SAVED CONTACT", "“Don’t start. I’m not after money. I’m offering a tip. For money.”"),
+        ("The Plumber", "SAVED CONTACT", "“It’s the plumber. I’ve been under a lot of sinks this week, if you catch my drift.”"),
+        ("Ex (Ignore)", "SAVED CONTACT", "“Don’t hang up. This isn’t about us. It’s about money. Which was always the problem.”"),
+        ("Bouncer Bez", "SAVED CONTACT", "“Bez. Door’s quiet. Heard a lot in the queue though.”"),
+        ("Granny Smith", "SAVED CONTACT", "“Hello dear. Bridge club has been very informative this week.”"),
+        ("Window Cleaner", "SAVED CONTACT", "“I clean windows. I see through windows. That’s the whole point of windows.”"),
+        ("Postie Phil", "SAVED CONTACT", "“Phil. Some parcels this week rattled. Some rattled a LOT.”"),
+        ("Uncle Tony ‘Business’", "SAVED CONTACT", "“Tony. Don’t ask what kind of business. Ask what kind of tip.”"),
+        ("Car Wash Carl", "SAVED CONTACT", "“Carl. Hand wash, eight quid. Tips, a bit more. Listen.”"),
+        ("Mystic Meg (Sort Of)", "SAVED CONTACT", "“I see… a price. Going up. Or down. The crystal’s cracked. Pay me and I’ll be more specific.”"),
+        ("Brian Burner #4", "SAVED CONTACT", "“Brian. Burner number four. Three’s in the canal. Anyway.”"),
+        ("Landlord (Avoid)", "SAVED CONTACT", "“Not about the rent. Well, a bit about the rent. Mostly a tip.”"),
+        ("Ice Cream Van", "SAVED CONTACT", "“The chimes are a cover. Everyone knows the chimes are a cover.”"),
+        ("Psychic Sandra", "SAVED CONTACT", "“I knew you’d answer. I also know where the money’s going tomorrow.”"),
+    ]
+
     static let intelTrue = [
         "The rumour mill grinds slow, but it grinds.",
         "Even a stopped clock, et cetera.",

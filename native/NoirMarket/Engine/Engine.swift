@@ -496,7 +496,7 @@ enum Engine {
     }
 
     /// Every tip looks the same; only the source's reliability says how far to trust it.
-    static func makeTip(_ s: inout GameState, informant: Int, trust: Double, title: String) -> Outcome {
+    static func makeTip(_ s: inout GameState, informant: Int, trust: Double, title: String, contact: Int? = nil) -> Outcome {
         let cities = accessibleCities(s)
         let city = cities[s.rng.int(0, cities.count - 1)]
         let good = s.rng.int(0, Catalog.goods.count - 1)
@@ -505,7 +505,7 @@ enum Engine {
         if s.rng.chance(trust) {
             s.events.append(ActiveEvent(city: city, good: good, pct: pct, startsDay: s.day + 1, daysLeft: 2, title: "Tip"))
         }
-        s.pendingTips = (s.pendingTips ?? []) + [PendingTip(informant: informant, city: city, good: good, up: up,
+        s.pendingTips = (s.pendingTips ?? []) + [PendingTip(informant: informant, contact: contact, city: city, good: good, up: up,
                                                             price: s.markets[city].price[good], due: s.day + 1)]
         let name = Catalog.goods[good].name, place = Catalog.cities[city].name
         let line = up
@@ -522,7 +522,7 @@ enum Engine {
         let chance = 0.18 + loyal.reduce(0, +) / 300 * 0.12
         guard s.call == nil, s.day < s.maxDay, mode(s) != .tutorial, s.rng.chance(chance) else { return }
         // Loyal snitches ring more; bitter ones stop calling.
-        let caller = s.rng.pick(weights: loyal.map { max(0.05, $0 / 50) } + [1.0]) // 3 = unknown number
+        let caller = s.rng.pick(weights: loyal.map { max(0.05, $0 / 50) } + [2.0]) // 3 = someone from your contacts
         let fee: Int, trust: Double
         if caller < 3 {
             fee = max(20, s.informantPrice[caller] / 2 / 10 * 10)
@@ -531,12 +531,35 @@ enum Engine {
             fee = s.rng.int(4, 18) * 10
             trust = s.rng.uniform(0.3, 0.75)
         }
-        let lines = Press.callOpeners[caller]
+        var contact: Int?
+        var line: String
+        if caller == 3, s.rng.chance(0.85) {
+            // Someone saved in your phone; never the same one twice in a row.
+            let recent = s.recentContacts ?? []
+            let fresh = Press.randomContacts.indices.filter { !recent.contains($0) }
+            let pick = fresh.isEmpty ? s.rng.int(0, Press.randomContacts.count - 1) : fresh[s.rng.int(0, fresh.count - 1)]
+            contact = pick
+            s.recentContacts = Array((recent + [pick]).suffix(10))
+            line = Press.randomContacts[pick].line
+        } else {
+            let lines = Press.callOpeners[caller]
+            line = lines[s.rng.int(0, lines.count - 1)]
+        }
         let female = caller == 1 || (caller == 3 && s.rng.chance(0.5))
-        s.call = IncomingCall(caller: caller, fee: fee, trust: trust, line: lines[s.rng.int(0, lines.count - 1)], answered: false, female: female)
+        s.call = IncomingCall(caller: caller, fee: fee, trust: trust, line: line, answered: false, female: female, contact: contact)
     }
 
-    static func callerName(_ caller: Int) -> String { caller < 3 ? Catalog.informants[caller].name : "Unknown number" }
+    static func callerName(_ caller: Int, contact: Int? = nil) -> String {
+        if caller < 3 { return Catalog.informants[caller].name }
+        if let c = contact, Press.randomContacts.indices.contains(c) { return Press.randomContacts[c].name }
+        return "Unknown number"
+    }
+    static func callerName(_ call: IncomingCall) -> String { callerName(call.caller, contact: call.contact) }
+    static func callerTag(_ call: IncomingCall) -> String {
+        if call.caller < 3 { return "INFORMANT" }
+        if let c = call.contact, Press.randomContacts.indices.contains(c) { return Press.randomContacts[c].tag }
+        return "NO CALLER ID"
+    }
 
     static func answerCall(_ s: inout GameState) {
         s.call?.answered = true
@@ -552,7 +575,7 @@ enum Engine {
         changeLoyalty(&s, call.caller, 6)
         let outcome = call.caller == 3 && s.rng.chance(0.15)
             ? Outcome(title: "Dead Line", text: "You send the money. The number stops working. Somewhere, someone is buying chips with it.", good: false)
-            : makeTip(&s, informant: call.caller, trust: call.trust, title: callerName(call.caller))
+            : makeTip(&s, informant: call.caller, trust: call.trust, title: callerName(call), contact: call.contact)
         s.call?.result = outcome
         return outcome
     }
@@ -568,7 +591,7 @@ enum Engine {
         let outcome: Outcome
         if call.caller < 3 {
             changeLoyalty(&s, call.caller, -30)
-            outcome = stiffed(&s, call.caller, title: callerName(call.caller))
+            outcome = stiffed(&s, call.caller, title: callerName(call))
         } else {
             outcome = Outcome(title: "Line Dead", text: "“No money, no chat.” Click.", good: false)
         }

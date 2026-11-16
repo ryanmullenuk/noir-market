@@ -158,7 +158,11 @@ struct RootView: View {
         if let i = args.firstIndex(of: "-call"), i + 1 < args.count, let caller = Int(args[i + 1]) {
             store.act { s in
                 s.report = nil
-                s.call = IncomingCall(caller: caller, fee: 90, trust: 0.55, line: Press.callOpeners[caller][0], answered: args.contains("-answered"))
+                // -call 4+ rings a saved contact (index caller - 4).
+                let contact = caller >= 4 ? caller - 4 : nil
+                s.call = IncomingCall(caller: min(caller, 3), fee: 90, trust: 0.55,
+                                      line: contact.map { Press.randomContacts[$0].line } ?? Press.callOpeners[caller][0],
+                                      answered: args.contains("-answered"), contact: contact)
             }
         }
         if let i = args.firstIndex(of: "-encounter"), i + 1 < args.count {

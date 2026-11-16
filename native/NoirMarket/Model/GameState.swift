@@ -155,10 +155,13 @@ struct IncomingCall: Codable, Sendable, Equatable {
     var result: Outcome?
     /// Silhouette shown on the call card. Optional for older saves.
     var female: Bool?
+    /// Index into Press.randomContacts when an unknown caller is someone saved in your phone.
+    var contact: Int?
 }
 
 struct PendingTip: Codable, Sendable, Equatable {
     var informant: Int
+    var contact: Int? = nil
     var city: Int
     var good: Int
     var up: Bool
@@ -282,6 +285,8 @@ struct GameState: Codable, Sendable, Equatable {
     var dilemma: Dilemma?
     var protectedUntil: Int?
     var dockDeal: [Int]?
+    /// Saved contacts who rang lately, so the same one does not call again straight away.
+    var recentContacts: [Int]?
     var rival: RivalDealer?
     /// What the rival paid you to stay out of their cities, while that deal stands.
     var rivalPaid: Int?
