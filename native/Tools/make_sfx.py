@@ -248,3 +248,18 @@ def heartbeat():
     write("heartbeat", s)
 
 loss(); heartbeat()
+
+# Calltone: a basic electronic ringtone, two quick trills of a marimba-ish blip, matched by the call haptics (0-0.7s, 0.9-1.6s).
+def calltone():
+    n = int(R * 1.8); s = [0.0] * n
+    for burst in (0.0, 0.9):
+        for k in range(8):
+            t0 = burst + k * 0.0875
+            f = 1318.5 if k % 2 == 0 else 1568.0
+            for i in range(int(R * 0.12)):
+                t = i / R; j = int((t0 + t) * R)
+                if j < n:
+                    s[j] += (math.sin(2*math.pi*f*t) + 0.25*math.sin(2*math.pi*f*4*t) * math.exp(-40*t)) * min(1, t/0.003) * math.exp(-28*t)
+    return s
+if len(sys.argv) > 2 and sys.argv[2] == "calltone":
+    write("calltone", calltone())

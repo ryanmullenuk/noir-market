@@ -839,8 +839,20 @@ private struct Confetti: View {
 private struct EndingChoice: View {
     let s: GameState
     @Environment(GameStore.self) private var store
+    @State private var chosen: Engine.Ending?
 
     var body: some View {
+        if let chosen {
+            EndingReveal(before: s, choice: chosen) {
+                store.act { Engine.chooseEnding(&$0, chosen) }
+            }
+            .transition(.opacity)
+        } else {
+            picker
+        }
+    }
+
+    private var picker: some View {
         ZStack {
             Noir.ink.ignoresSafeArea()
             RadialGradient(colors: [Noir.amber.opacity(0.08), .clear], center: .top, startRadius: 20, endRadius: 500).ignoresSafeArea()
@@ -854,7 +866,7 @@ private struct EndingChoice: View {
                     ForEach(Engine.endingOptions(s)) { o in
                         Button {
                             Audio.shared.play(.click, volume: 0.6)
-                            store.act { Engine.chooseEnding(&$0, o.id) }
+                            withAnimation(.easeInOut(duration: 0.4)) { chosen = o.id }
                         } label: {
                             HStack(alignment: .top, spacing: 12) {
                                 GlowIcon(symbol: o.id == .spain ? "sun.horizon.fill" : o.id == .score ? "suitcase.fill" : "figure.walk",
@@ -887,6 +899,129 @@ private struct EndingChoice: View {
     }
 }
 
+
+/// The last-night reveal: what you chose, what happened in a few fading lines, the verdict, then the case file.
+private struct EndingReveal: View {
+    let before: GameState
+    let choice: Engine.Ending
+    var onDone: () -> Void
+
+    enum Phase { case chose, story, verdict }
+    @State private var phase: Phase = .chose
+    @State private var shownLines = 0
+    @State private var slam = false
+    @State private var run: Task<Void, Never>?
+
+    /// The ending is worked out on a copy now; the same deterministic roll is committed at the end.
+    private var result: (lines: [String], verdict: String, good: Bool) {
+        var after = before
+        Engine.chooseEnding(&after, choice)
+        return Engine.endingStory(before: before, after: after)
+    }
+
+    var body: some View {
+        let pitch = Engine.endingPitch(before, choice)
+        let r = result
+        let tint = r.good ? Noir.green : Noir.red
+        ZStack {
+            Color.black.ignoresSafeArea()
+            if phase == .chose {
+                VStack(spacing: 18) {
+                    Text("YOU CHOSE").font(Noir.label(13)).tracking(4).foregroundStyle(Noir.amber)
+                    Text(pitch.title.uppercased()).font(Noir.display(38)).foregroundStyle(Noir.paper)
+                        .multilineTextAlignment(.center).minimumScaleFactor(0.6).lineLimit(2)
+                    Text(pitch.line).font(Noir.ui(15)).foregroundStyle(Noir.silver)
+                        .multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+                }
+                .padding(28)
+                .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Noir.surface))
+                .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(Noir.amber.opacity(0.8), lineWidth: 1.2))
+                .shadow(color: Noir.amber.opacity(0.35), radius: 30)
+                .padding(.horizontal, 26)
+                .transition(.scale(scale: 0.85).combined(with: .opacity))
+            } else {
+                VStack(alignment: .leading, spacing: 20) {
+                    ForEach(Array(r.lines.enumerated()), id: \.offset) { i, line in
+                        Text(line).font(Noir.type(17)).foregroundStyle(Noir.paper.opacity(i < shownLines ? (i == shownLines - 1 ? 1 : 0.55) : 0))
+                            .blur(radius: i < shownLines ? 0 : 6)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .animation(.easeOut(duration: 1.1), value: shownLines)
+                    }
+                    if phase == .verdict {
+                        Text(r.verdict).font(Noir.title(54)).foregroundStyle(tint)
+                            .shadow(color: tint.opacity(0.8), radius: 18)
+                            .scaleEffect(slam ? 1 : 1.8).opacity(slam ? 1 : 0)
+                            .padding(.top, 12)
+                        Button("Open the case file") { finish() }
+                            .buttonStyle(.noir)
+                            .opacity(slam ? 1 : 0)
+                            .padding(.top, 8)
+                    }
+                }
+                .padding(28)
+                .frame(maxWidth: 560, maxHeight: .infinity, alignment: .center)
+                .transition(.opacity)
+            }
+            FilmGrain()
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { skip() }
+        .task { await play(r) }
+        .accessibilityAddTraits(.isModal)
+    }
+
+    private func play(_ r: (lines: [String], verdict: String, good: Bool)) async {
+        Audio.shared.play(.heartbeat, volume: 0.8)
+        Audio.shared.buzz(.warning)
+        try? await Task.sleep(for: .seconds(2.8))
+        guard !Task.isCancelled, phase == .chose else { return }
+        withAnimation(.easeInOut(duration: 0.8)) { phase = .story }
+        try? await Task.sleep(for: .seconds(0.9))
+        for i in 1...r.lines.count {
+            guard !Task.isCancelled, phase == .story else { return }
+            shownLines = i
+            Audio.shared.play(.page, volume: 0.25)
+            try? await Task.sleep(for: .seconds(2.2))
+        }
+        guard !Task.isCancelled, phase == .story else { return }
+        showVerdict(r)
+    }
+
+    private func showVerdict(_ r: (lines: [String], verdict: String, good: Bool)) {
+        shownLines = r.lines.count
+        phase = .verdict
+        if r.good {
+            Audio.shared.play(.win, volume: 0.8); Audio.shared.buzz(.success)
+        } else {
+            Audio.shared.play(.siren, volume: 0.6); Audio.shared.play(.thud, volume: 0.9); Audio.shared.buzz(.danger)
+        }
+        withAnimation(.spring(duration: 0.45, bounce: 0.3)) { slam = true }
+    }
+
+    /// A tap moves things along: from the choice to the story, then straight to the verdict.
+    private func skip() {
+        switch phase {
+        case .chose:
+            withAnimation(.easeInOut(duration: 0.5)) { phase = .story }
+            Task { @MainActor in
+                let r = result
+                for i in 1...r.lines.count {
+                    guard phase == .story else { return }
+                    shownLines = i
+                    try? await Task.sleep(for: .seconds(2.2))
+                }
+                if phase == .story { showVerdict(r) }
+            }
+        case .story: showVerdict(result)
+        case .verdict: finish()
+        }
+    }
+
+    private func finish() {
+        Audio.shared.play(.click, volume: 0.6)
+        onDone()
+    }
+}
 
 /// The shareable case file: a square card with the result, in the game's NOIRNET style.
 private struct ShareCard: View {

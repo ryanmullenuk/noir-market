@@ -1,6 +1,7 @@
 import AVFoundation
 #if os(iOS)
 import UIKit
+import CoreHaptics
 #endif
 
 /// Background music plus haptics. Music respects the silent switch (ambient category).
@@ -25,7 +26,7 @@ final class Audio {
 
     private var effects: [String: AVAudioPlayer] = [:]
 
-    enum Effect: String { case cash, siren, page, thud, click, key, gunshot, swipe, boom, knuckles, train, bingbong, ring, win, lose, squish, loss, heartbeat }
+    enum Effect: String { case cash, siren, page, thud, click, key, gunshot, swipe, boom, knuckles, train, bingbong, ring, calltone, win, lose, squish, loss, heartbeat }
 
     func play(_ effect: Effect, volume: Float = 0.6) {
         guard soundsOn else { return }
@@ -108,6 +109,34 @@ final class Audio {
         guard hapticsOn else { return }
         #if os(iOS)
         typing.impactOccurred(intensity: 0.45)
+        #endif
+    }
+
+    #if os(iOS)
+    private var hapticEngine: CHHapticEngine?
+    #endif
+
+    /// One ring cycle of phone vibration: two long buzzes, in time with the call tone.
+    func ringBuzz() {
+        guard hapticsOn else { return }
+        #if os(iOS)
+        guard CHHapticEngine.capabilitiesForHardware().supportsHaptics else { return }
+        if hapticEngine == nil {
+            hapticEngine = try? CHHapticEngine()
+            hapticEngine?.isAutoShutdownEnabled = true
+        }
+        guard let engine = hapticEngine else { return }
+        try? engine.start()
+        let events = [0.0, 0.9].map { t in
+            CHHapticEvent(eventType: .hapticContinuous,
+                          parameters: [CHHapticEventParameter(parameterID: .hapticIntensity, value: 1.0),
+                                       CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.3)],
+                          relativeTime: t, duration: 0.7)
+        }
+        if let pattern = try? CHHapticPattern(events: events, parameters: []),
+           let player = try? engine.makePlayer(with: pattern) {
+            try? player.start(atTime: CHHapticTimeImmediate)
+        }
         #endif
     }
 

@@ -83,9 +83,9 @@ struct IncomingCallView: View {
         .task {
             guard !call.answered else { return }
             while !Task.isCancelled, store.state?.call?.answered == false {
-                Audio.shared.play(.ring, volume: 0.45)
-                Audio.shared.buzz(.tap)
-                try? await Task.sleep(for: .seconds(2.2))
+                Audio.shared.play(.calltone, volume: 0.55)
+                Audio.shared.ringBuzz()
+                try? await Task.sleep(for: .seconds(2.6))
             }
         }
         .onAppear { if !reduceMotion { withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) { pulse = true } } }

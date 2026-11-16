@@ -273,6 +273,48 @@ extension Engine {
         awardEnd(&s)
     }
 
+    /// What the player picked, as a headline and one line of stakes, for the reveal before the case file.
+    static func endingPitch(_ s: GameState, _ choice: Ending) -> (title: String, line: String) {
+        switch choice {
+        case .spain: ("Retire to Spain", "A one-way ticket and a name that isn’t yours.")
+        case .score: ("One last score", "Half your cash, \(Money.gbp(s.cash / 2)), on one deal. About \(Int(lastScoreChance(s) * 100))% it goes your way.")
+        case .walk: ("Walk away", "No last deal. Count it and call it a career.")
+        }
+    }
+
+    /// A few lines of what happened that night, read before the case file. `before` is the state the choice was made from.
+    static func endingStory(before: GameState, after: GameState) -> (lines: [String], verdict: String, good: Bool) {
+        let city = Catalog.cities[before.city].name
+        let stake = before.cash / 2
+        switch after.over?.ending {
+        case "raid":
+            let taken = max(0, netWorth(before) - netWorth(after))
+            return (["You made your choice. The police made theirs first.",
+                     "At 4:58am a van with blacked-out windows parks across the road in \(city).",
+                     "At 5am the door comes in. Armed police, a helicopter, a man from the BBC.",
+                     "They take \(Money.gbp(taken)) and most of your dignity."], "RAIDED.", false)
+        case "spain":
+            return (["You pack one bag. The rest goes in the canal, the bin, or the car you torch behind the retail park.",
+                     "An early flight out of \(city), under a name you practised in the mirror.",
+                     "Three weeks later you own a bar on the Costa del Sol that is never, ever open.",
+                     "Nobody from back home finds you. Eventually, they stop looking."], "RETIRED.", true)
+        case "score":
+            return (["Half your cash in a holdall: \(Money.gbp(stake)). A lock-up on an industrial estate outside \(city). Midnight.",
+                     "The buyer is late. Then early. Then counting.",
+                     "Every note is real. Every brick is there. Nobody blinks.",
+                     "You drive away \(Money.gbp(stake)) richer and you’re gone before the sun comes up."], "CLEAN GETAWAY.", true)
+        case "scorefail":
+            return (["Half your cash in a holdall: \(Money.gbp(stake)). A car park behind a closed-down carpet warehouse in \(city). Midnight.",
+                     "The buyer has a very good moustache and a lot of questions about ‘the supply chain’.",
+                     "The holdall changes hands. Then the headlights come on. All of them.",
+                     "Face down on wet tarmac, you hear your rights read out. Slowly. Twice."], "BUSTED.", false)
+        default:
+            return (["No last deal. No big goodbye.",
+                     "You count it twice at the kitchen table: \(Money.gbp(after.over?.worth ?? netWorth(after))).",
+                     "Then the burner goes in a drawer, and stays there."], "OUT.", (after.over?.worth ?? 0) > 0)
+        }
+    }
+
     static func endingTitle(_ ending: String?) -> String {
         switch ending {
         case "spain": "Retired to Spain"
