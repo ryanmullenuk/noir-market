@@ -167,7 +167,8 @@ extension Engine {
         case "dock":
             guard take else { return ("Passed", "You keep your money. Someone else will be waiting at the docks tomorrow.", true, nil) }
             s.cash -= d.values[0]
-            s.dockDeal = [d.values[1], d.values[2], s.day + 1]
+            // Dockers lie: about one tip in four is nonsense. Tomorrow's NOIRNET tells you which.
+            s.dockDeal = [d.values[1], d.values[2], s.day + 1, s.rng.chance(0.75) ? 1 : 0]
             return ("Tip bought", "\(Catalog.goods[d.values[2]].name), landing in \(Catalog.cities[d.values[1]].name). Be there tomorrow and it’ll be going for next to nothing.", true, -d.values[0])
         case "cousin":
             guard take else { return ("Family drama", "Your cousin calls you a coward and hangs up. Probably for the best.", true, nil) }
@@ -188,7 +189,9 @@ extension Engine {
         default:
             if take {
                 s.cash += d.values[0]; changeRespect(&s, -8)
-                return ("Paid off", "You take the money. Word gets round that you can be bought. Respect −8.", false, d.values[0])
+                s.rivalPaid = d.values[0]
+                let cities = (s.rival?.cities ?? []).map { Catalog.cities[$0].name }.joined(separator: ", ")
+                return ("Paid off", "You take the money. Now stay out of \(cities). Word gets round that you can be bought. Respect −8.", false, d.values[0])
             }
             changeRespect(&s, 4)
             let line = rivalExpands(&s, force: true)
@@ -196,15 +199,17 @@ extension Engine {
         }
     }
 
-    /// The tipped-off container lands: prices crash in that city for a day.
-    static func applyDockDeal(_ s: inout GameState, lines: inout [String]) {
-        guard let d = s.dockDeal, d.count == 3 else { return }
-        if s.day == d[2] {
+    /// The tipped-off container lands (or doesn't). Returns the verdict for the morning's NOIRNET.
+    static func applyDockDeal(_ s: inout GameState) -> String? {
+        guard let d = s.dockDeal, d.count >= 3, s.day >= d[2] else { return nil }
+        s.dockDeal = nil
+        let city = Catalog.cities[d[0]].name, good = Catalog.goods[d[1]].name
+        if d.count < 4 || d[3] == 1 {
             s.markets[d[0]].price[d[1]] = max(1, s.markets[d[0]].price[d[1]] * 45 / 100)
             s.markets[d[0]].supply[d[1]] += 200
-            lines.append("A container of \(Catalog.goods[d[1]].name) has landed in \(Catalog.cities[d[0]].name). Prices are on the floor.")
+            return "TIP PAID OFF: the docker’s container landed in \(city). \(good) now \(Money.gbp(s.markets[d[0]].price[d[1]])). Get there before it’s gone."
         }
-        if s.day >= d[2] { s.dockDeal = nil }
+        return "TIP WAS WRONG: no container in \(city), no \(good), no docker. Your £1,500 has gone the same way."
     }
 
     // MARK: Why did that happen?
@@ -256,5 +261,30 @@ extension Engine {
         let name = Catalog.goods[g].name
         return long ? "\(Catalog.cities[city].name) pays \(pct)% more for \(name) than \(Catalog.cities[s.city].name) today. Full Game opens it."
                     : "Pays +\(pct)% for \(name) today"
+    }
+}
+
+
+extension Engine {
+    // MARK: Breaking the rival's deal
+
+    /// True when you took the rival's money and this city is one of theirs.
+    static func offLimits(_ s: GameState, _ city: Int) -> Bool { s.rivalPaid != nil && rivalHolds(s, city) }
+
+    /// What it costs to buy your way out: the pay-off back, plus half again.
+    static func paybackAmount(_ s: GameState) -> Int { ((s.rivalPaid ?? 0) * 3 / 2) / 100 * 100 }
+
+    /// Spent a night in a city you were paid to stay out of: the rival's enforcers come to collect.
+    static func rivalCollects(_ s: inout GameState) -> Bool {
+        guard offLimits(s, s.city), let r = s.rival else { return false }
+        var t = trouble(&s, attacker: 4)
+        t.crew = r.name
+        t.payback = paybackAmount(s)
+        t.handOver = paybackAmount(s)
+        t.runChance = max(0.1, t.runChance - 0.15)
+        t.fightChance *= 0.75
+        t.why = "You took \(r.name)’s money to stay out of their cities, then spent a night in \(Catalog.cities[s.city].name)."
+        s.encounters.append(.trouble(t))
+        return true
     }
 }

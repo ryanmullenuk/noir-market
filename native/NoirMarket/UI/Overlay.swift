@@ -317,6 +317,9 @@ private struct EncounterView: View {
                 + "You’ve got \(what)." + (Engine.hasWeapons(s) ? " And something heavier under your coat." : "")
         case .trouble(let t):
             let a = Catalog.attackers[t.attacker]
+            if let crew = t.crew, let owed = t.payback, t.round == 1 {
+                return "Three of \(crew)’s people are waiting in your room. You took their money to stay away, and here you are. They want it back with interest: \(Money.gbp(owed)). Or they take it out of you."
+            }
             if let crew = t.crew, t.round == 1 {
                 return "The \(crew) step out of a parked car. You’ve been selling on their streets, and they want their cut. All of it."
             }
@@ -376,7 +379,10 @@ private struct EncounterView: View {
                 Option(choice: .fight, label: again ? (weapon.map { WeaponKind($0) == .gun ? "Fire again" : "Fight on" } ?? "Swing again")
                                                     : (weapon.map { "Fight with the \($0.name.lowercased())" } ?? "Fight with your fists"),
                        odds: t.fightChance, note: fightNote(t, armed: weapon != nil), danger: true),
-                Option(choice: .handOver, label: (again ? "Give up · " : t.crew != nil ? "Pay the rent · " : "Hand over ") + Money.gbp(min(s.cash, t.handOver)),
+                t.payback.map { owed in
+                    Option(choice: .handOver, label: "Pay it back + 50% · " + Money.gbp(owed),
+                           note: s.cash >= owed ? "The deal’s off and you can work their cities again." : "You’re \(Money.gbp(owed - s.cash)) short: they’ll take half your stock and hurt you.")
+                } ?? Option(choice: .handOver, label: (again ? "Give up · " : t.crew != nil ? "Pay the rent · " : "Hand over ") + Money.gbp(min(s.cash, t.handOver)),
                        note: again ? "They take extra for the trouble." : t.attacker >= 2 ? "They’ll take some stock too." : "Nobody gets hurt."),
             ]
         case .collector(let c):

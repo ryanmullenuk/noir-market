@@ -385,7 +385,10 @@ private struct Header: View {
                                   note: InfoNote(title: "Festival weekend", text: "Pills, acid and MDA are flying out of every tent, and their prices are up by half.", symbol: "music.note", tint: Noir.amber)))
         }
 
-        if let r = s.rival, Engine.rivalHolds(s, s.city) {
+        if let r = s.rival, Engine.offLimits(s, s.city) {
+            out.append(HeaderChip(id: "offlimits", symbol: "exclamationmark.octagon.fill", text: "Paid to stay out", colour: Noir.red,
+                                  note: InfoNote(title: "You shouldn’t be here", text: "You took \(r.name)’s money to stay out of \(city). Spend a night here and their people will come for \(Money.gbp(Engine.paybackAmount(s))) back, or worse.\n\nLeave tonight and they’ll never know.", symbol: "exclamationmark.octagon.fill", tint: Noir.red)))
+        } else if let r = s.rival, Engine.rivalHolds(s, s.city) {
             out.append(HeaderChip(id: "rival", symbol: "person.fill.questionmark", text: "Rival city", colour: Noir.red,
                                   note: InfoNote(title: r.name, text: "\(r.name) runs \(city). Their dealers undercut you, so anything you sell here pays 10% less. Buying isn’t affected. Sell somewhere else, or take the city off them.\n\nOpen The Street to buy them out or move on them. Win and the city is yours.", symbol: "person.fill.questionmark", tint: Noir.red)))
         }

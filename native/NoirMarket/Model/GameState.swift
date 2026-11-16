@@ -100,6 +100,8 @@ struct Trouble: Codable, Sendable, Equatable {
     var crew: String?
     /// Plain-English reason this happened now.
     var why: String?
+    /// Set when the rival has come to collect: you took their money to stay away and came back anyway.
+    var payback: Int?
 }
 
 /// A two-way decision that turns up overnight: a journalist, a bent copper, a crew member wanting more…
@@ -281,6 +283,8 @@ struct GameState: Codable, Sendable, Equatable {
     var protectedUntil: Int?
     var dockDeal: [Int]?
     var rival: RivalDealer?
+    /// What the rival paid you to stay out of their cities, while that deal stands.
+    var rivalPaid: Int?
     var calledToday = false
     var deal: DealOffer?
     var tradedToday = false

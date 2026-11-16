@@ -8,6 +8,8 @@ struct TravelView: View {
     @State private var shipMode = false
     @State private var shipQty: [Int] = Array(repeating: 0, count: Catalog.goods.count)
     @State private var preflight: Int?
+    @State private var offLimits: Int?
+    @State private var warned: Int?
 
     var body: some View {
         if let s = store.state {
@@ -70,7 +72,9 @@ struct TravelView: View {
                                         } else {
                                             Text(c.region).font(Noir.ui(10)).foregroundStyle(Noir.dim)
                                         }
-                                        if Engine.rivalHolds(s, c.id) {
+                                        if Engine.offLimits(s, c.id) {
+                                            Text("PAID TO STAY OUT · THEY’LL COME FOR YOU").font(Noir.label(8)).tracking(1).foregroundStyle(Noir.red)
+                                        } else if Engine.rivalHolds(s, c.id) {
                                             Text("RIVAL CITY · YOU GET 10% LESS").font(Noir.label(8)).tracking(1).foregroundStyle(Noir.red)
                                         }
                                     }
@@ -113,7 +117,19 @@ struct TravelView: View {
             .noirDialog(isPresented: Binding(get: { preflight != nil }, set: { if !$0 { preflight = nil } }),
                         title: "Airport security", message: preflightMessage(s), icon: "airplane.departure", tint: Noir.amber,
                         actions: preflightActions(s))
+            .noirDialog(isPresented: Binding(get: { offLimits != nil }, set: { if !$0 { offLimits = nil } }),
+                        title: "You were paid to stay out",
+                        message: offLimitsMessage(s), icon: "hand.raised.fill", tint: Noir.red,
+                        actions: [DialogAction(title: "Go anyway", kind: .danger) {
+                                      if let d = offLimits { warned = d; offLimits = nil; go(d) }
+                                  },
+                                  DialogAction(title: "Stay away", kind: .quiet) { offLimits = nil }])
         }
+    }
+
+    private func offLimitsMessage(_ s: GameState) -> String {
+        guard let d = offLimits, let r = s.rival else { return "" }
+        return "You took \(Money.gbp(s.rivalPaid ?? 0)) from \(r.name) to stay out of their cities, and \(Catalog.cities[d].name) is one of them.\n\nSpend a night there and their people will come to collect: \(Money.gbp(Engine.paybackAmount(s))) back, or they take it out of you. And they hit hard."
     }
 
     private func preflightActions(_ s: GameState) -> [DialogAction] {
@@ -159,6 +175,11 @@ struct TravelView: View {
 
     private func go(_ dest: Int) {
         guard let s = store.state else { return }
+        if Engine.offLimits(s, dest), warned != dest {
+            offLimits = dest
+            Audio.shared.buzz(.warning)
+            return
+        }
         let flight = Catalog.cities[s.city].needsFlight(to: Catalog.cities[dest])
         if flight && (Engine.carried(s) > 0 || Engine.hasWeapons(s)) {
             preflight = dest

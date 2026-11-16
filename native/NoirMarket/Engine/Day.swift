@@ -17,8 +17,12 @@ extension Engine {
         s.stats.trips += 1
         if !(s.visited ?? []).contains(dest) { s.visited = (s.visited ?? []) + [dest] }
         s.streak = 0
+        let broke = offLimits(s, dest)
         advance(&s, travelled: true, flight: flight,
                 opening: "\(flight ? "You fly" : "You take the late train") from \(from) to \(Catalog.cities[dest].name). \(Money.gbp(cost)) well spent, probably.")
+        if broke, let r = s.rival {
+            s.notice = "You’re in \(r.name)’s city after taking their money. Word will reach them by tomorrow night. Leave, or be ready to pay \(Money.gbp(paybackAmount(s)))."
+        }
     }
 
     static func stay(_ s: inout GameState) throws {
@@ -45,7 +49,7 @@ extension Engine {
         let yesterday = s.story
 
         tick(&s, lines: &lines)
-        applyDockDeal(&s, lines: &lines)
+        let dockCheck = applyDockDeal(&s)
         if let news = rivalExpands(&s) { lines.append(news); s.ticker.insert(news, at: 0) }
 
         // A Breaking News warning from last night: stay put and they come for you.
@@ -68,6 +72,7 @@ extension Engine {
             checks.append(verdict(&s, story: story, before: before))
         }
         checks += checkTips(&s)
+        if let dockCheck { checks.append(dockCheck) }
 
         // Heat drifts: up while you carry, down while you’re clean.
         // Ironman: heat builds twice as fast.
@@ -117,6 +122,8 @@ extension Engine {
                 s.heat = min(100, s.heat + 15)
                 changeLoyalty(&s, id, 30)
                 s.encounters.append(.police(stop))
+            } else if !travelled, rivalCollects(&s) {
+                // You took the rival's money and stayed a night on their patch.
             } else if rivalVisit(&s) {
                 // The local crew got to you first.
             } else if r < police, carrying || weapons || s.heat > 60 {

@@ -186,6 +186,26 @@ extension Engine {
     private static func trouble(_ s: inout GameState, _ t: Trouble, _ choice: Choice) throws -> (Outcome, Bool) {
         let a = Catalog.attackers[t.attacker]
         switch choice {
+        case .handOver where t.payback != nil:
+            let owed = t.payback ?? 0
+            let paid = min(s.cash, owed)
+            s.cash -= paid
+            record(&s, -paid, "Paid back \(t.crew ?? "the rival") with interest")
+            if paid >= owed {
+                s.rivalPaid = nil
+                changeRespect(&s, -3)
+                return (Outcome(title: "Debt Settled", text: "You pay back every penny and half again. They count it twice and leave. The deal’s off: you can work their cities again.", good: false), false)
+            }
+            // Couldn't cover it: they take the rest out of your stock and your face.
+            for g in s.carry.indices where s.carry[g] > 0 {
+                let lost = s.carry[g] / 2
+                s.carryCost[g] -= s.carryCost[g] * lost / max(1, s.carry[g])
+                s.carry[g] -= lost
+            }
+            let hurt = s.rng.int(15, 30)
+            s.health -= hurt
+            s.rivalPaid = nil
+            return (Outcome(title: "Short", text: "You’re \(Money.gbp(owed - paid)) short. They take half your stock and \(hurt)% of your health to make up the difference. The deal’s off.", good: false), false)
         case .handOver:
             let take = min(s.cash, t.handOver)
             s.cash -= take
@@ -231,6 +251,7 @@ extension Engine {
                 s.stats.fightsWon += 1
                 changeRespect(&s, 2 + t.attacker)
                 if let crew = t.crew, crew == s.rival?.name, rivalHolds(s, s.city) {
+                    s.rivalPaid = nil   // It's war now: the pay-off deal is dead.
                     var r = s.rival!
                     r.cities.removeAll { $0 == s.city }
                     s.rival = r

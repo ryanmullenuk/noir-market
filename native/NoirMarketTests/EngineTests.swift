@@ -598,6 +598,41 @@ struct EngineTests {
         #expect(Engine.lockedTeaser(fresh(seed: 2), 9) == nil || Engine.lockedTeaser(fresh(seed: 2), 9)!.contains("%"))
     }
 
+    @Test func takingTheRivalsMoneyThenComingBackCosts() throws {
+        var s = fresh(seed: 31, full: true)
+        s.rival = RivalDealer(name: "Rival", cities: [3], beaten: false)
+        s.dilemma = Dilemma(kind: "rivaloffer", title: "", text: "", options: ["", ""], details: ["", ""], symbol: "", values: [12_000])
+        try Engine.resolveDilemma(&s, option: 0)
+        #expect(s.rivalPaid == 12_000)
+        #expect(Engine.offLimits(s, 3) && !Engine.offLimits(s, 1))
+        #expect(Engine.paybackAmount(s) == 18_000)
+        // Arriving is fine; staying the night brings the collectors.
+        try Engine.travel(&s, to: 3)
+        s.encounters = []; s.report = nil; s.outcome = nil
+        try Engine.stay(&s)
+        guard case .trouble(let t)? = s.encounters.first else { Issue.record("no visit"); return }
+        #expect(t.payback == 18_000 && t.crew == "Rival")
+        // Paying it back clears the deal.
+        s.cash = 50_000
+        _ = try Engine.resolve(&s, .handOver)
+        #expect(s.rivalPaid == nil && s.cash == 32_000)
+    }
+
+    @Test func dockTipIsVerifiedOrDebunkedNextMorning() {
+        var verified = 0, debunked = 0
+        for seed in 1...60 {
+            var s = fresh(seed: UInt64(seed), full: true)
+            s.cash = 10_000
+            s.dilemma = Dilemma(kind: "dock", title: "", text: "", options: ["", ""], details: ["", ""], symbol: "", values: [1_500, 4, 2])
+            _ = try? Engine.resolveDilemma(&s, option: 0)
+            s.day += 1
+            let check = Engine.applyDockDeal(&s) ?? ""
+            if check.hasPrefix("TIP PAID OFF") { verified += 1 } else if check.hasPrefix("TIP WAS WRONG") { debunked += 1 }
+            #expect(s.dockDeal == nil)
+        }
+        #expect(verified > 30 && debunked > 5)
+    }
+
     func cheapest(_ s: GameState) -> Int {
         Catalog.goods.indices.filter { s.markets[s.city].supply[$0] > 0 }.min { s.markets[s.city].price[$0] < s.markets[s.city].price[$1] }!
     }

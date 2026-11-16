@@ -180,6 +180,23 @@ struct RootView: View {
         if args.contains("-raid") { store.act { $0.call = nil; $0.streak = 6; $0.raid = RaidAlert(city: $0.city, day: $0.day, seen: false) } }
         if args.contains("-quit") { store.walkOut() }
         if !args.contains("-dilemma") { store.act { $0.dilemma = nil } }
+        if args.contains("-paidoff") {
+            store.act { s in s.rival = RivalDealer(name: Engine.rivalNames[0], cities: [1, 3], beaten: false); s.rivalPaid = 12_000 }
+        }
+        if args.contains("-payback") {
+            store.act { s in
+                s.rival = RivalDealer(name: Engine.rivalNames[0], cities: [s.city], beaten: false); s.rivalPaid = 12_000
+                s.report = nil; s.call = nil
+                _ = Engine.rivalCollects(&s)
+            }
+        }
+        if args.contains("-dockcheck") {
+            store.act { s in
+                s.call = nil; s.dockDeal = [1, 4, s.day + 1, 1]
+                try? Engine.stay(&s)
+                s.encounters = []
+            }
+        }
         if args.contains("-rivalhere") {
             store.act { s in s.rival = RivalDealer(name: Engine.rivalNames[0], cities: [s.city, 3], beaten: false) }
         }
