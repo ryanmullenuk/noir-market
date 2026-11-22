@@ -62,7 +62,7 @@ struct BreakingNewsView: View {
                 .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(yellow.opacity(blink ? 1 : 0.6), lineWidth: 1.6))
                 .shadow(color: yellow.opacity(blink ? 0.55 : 0.25), radius: 26)
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 20).frame(maxWidth: 520)
                 .scaleEffect(shown ? 1 : 0.9)
                 .opacity(shown ? 1 : 0)
             }

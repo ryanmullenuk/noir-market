@@ -937,7 +937,7 @@ private struct EndingReveal: View {
                 .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Noir.surface))
                 .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(Noir.amber.opacity(0.8), lineWidth: 1.2))
                 .shadow(color: Noir.amber.opacity(0.35), radius: 30)
-                .padding(.horizontal, 26)
+                .padding(.horizontal, 26).frame(maxWidth: 520)
                 .transition(.scale(scale: 0.85).combined(with: .opacity))
             } else {
                 VStack(alignment: .leading, spacing: 20) {

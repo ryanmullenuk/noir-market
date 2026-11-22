@@ -1,8 +1,30 @@
 import SwiftUI
 import StoreKit
 
+#if os(iOS)
+/// Every orientation is declared in Info.plist so foldables like the iPhone Duo run the game full screen
+/// instead of letterboxed. Ordinary iPhones (and the Duo's cover screen) still lock to portrait here.
+final class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
+        guard let screen = window?.windowScene?.screen else { return .portrait }
+        return Layout.isLargeScreen(screen.bounds.size) ? .all : .portrait
+    }
+}
+#endif
+
+/// Screen-size rules shared by the app delegate and the views.
+enum Layout {
+    /// The Duo's inner screen and anything like it: big enough on both axes for a tablet-style layout.
+    static func isLargeScreen(_ size: CGSize) -> Bool { min(size.width, size.height) >= 600 }
+    /// Wide enough to put the stats and the market side by side.
+    static func useColumns(_ size: CGSize) -> Bool { size.width >= 760 && size.height >= 500 }
+}
+
 @main
 struct NoirMarketApp: App {
+    #if os(iOS)
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    #endif
     @State private var store = GameStore()
     @State private var unlock = Unlock()
 
@@ -82,6 +104,7 @@ struct RootView: View {
                     Audio.shared.duck()
                     go(.game)
                 }, onBack: { go(.title) })
+                .readableWidth()
                 .transition(.opacity)
             case .game:
                 GameView(onQuit: { go(.title) }, onNewGame: { go(.newGame) })
@@ -91,9 +114,9 @@ struct RootView: View {
         .macReadableWidth()
         .sheet(item: $sheet) { which in
             switch which {
-            case .howTo: HowToPlayView().presentationBackground(Noir.ink).macSheetSize()
-            case .settings: SettingsView(inGame: false, onAbandon: {}).presentationBackground(Noir.ink).macSheetSize()
-            case .records: RecordsView().presentationBackground(Noir.ink).macSheetSize().tourCard(.sheet)
+            case .howTo: HowToPlayView().readableWidth().presentationBackground(Noir.ink).macSheetSize()
+            case .settings: SettingsView(inGame: false, onAbandon: {}).readableWidth().presentationBackground(Noir.ink).macSheetSize()
+            case .records: RecordsView().readableWidth().presentationBackground(Noir.ink).macSheetSize().tourCard(.sheet)
             }
         }
         .tourCard(.root)

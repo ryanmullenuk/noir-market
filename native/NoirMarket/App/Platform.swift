@@ -112,6 +112,18 @@ extension View {
         #endif
     }
 
+    /// On a wide iPhone screen (the Duo's inner display), keep sheets and full-screen pages to a readable column.
+    /// No change on ordinary phones, which are narrower than the cap.
+    @ViewBuilder func readableWidth(_ maxWidth: CGFloat = 680, background: Color = Noir.ink) -> some View {
+        #if os(iOS)
+        frame(maxWidth: maxWidth)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(background.ignoresSafeArea())
+        #else
+        self
+        #endif
+    }
+
     /// On the Mac, keep the game a readable width in the middle of a wide window.
     @ViewBuilder func macReadableWidth() -> some View {
         #if os(macOS)

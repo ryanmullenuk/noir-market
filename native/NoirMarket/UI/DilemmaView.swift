@@ -41,7 +41,7 @@ struct DilemmaView: View {
             .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Noir.surface))
             .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(Noir.amber.opacity(0.75), lineWidth: 1.2))
             .shadow(color: Noir.amber.opacity(0.3), radius: 24)
-            .padding(.horizontal, 22)
+            .padding(.horizontal, 22).frame(maxWidth: 520)
             .scaleEffect(shown ? 1 : 0.92)
             .opacity(shown ? 1 : 0)
         }

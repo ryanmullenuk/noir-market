@@ -15,6 +15,8 @@ struct GameView: View {
     @State private var help: StatHelp?
     @State private var note: InfoNote?
     @State private var tour = Tour.shared
+    /// Two-column layout on wide screens (the iPhone Duo unfolded).
+    @State private var wide = false
 
     var body: some View {
         if let s = store.state {
@@ -22,18 +24,42 @@ struct GameView: View {
                 Noir.ink.ignoresSafeArea()
                 EdgeGlow(colour: condition(s), heat: s.heat)
 
-                VStack(spacing: 0) {
-                    Header(s: s, onMenu: { panel = .settings }, onInfo: { note = $0 })
-                        .padding(.horizontal, 16)
-                    StatStrip(s: s, onPanel: { panel = $0 }, onHelp: { help = $0 })
-                        .padding(.horizontal, 16)
-                        .padding(.top, 10)
-                    Ticker(lines: s.ticker)
-                        .padding(.horizontal, 16)
-                        .padding(.top, 10)
-                    MarketList(s: s, onTap: { trade = $0 })
-                        .padding(.top, 6)
-                    Dock(onSelect: { panel = $0 }, onStay: { stay() }, s: s)
+                GeometryReader { geo in
+                    let _ = updateWide(Layout.useColumns(geo.size))
+                    if Layout.useColumns(geo.size) {
+                        // Wide screens (the iPhone Duo unfolded): your situation on the left, the market on the right.
+                        HStack(alignment: .top, spacing: 8) {
+                            VStack(spacing: 0) {
+                                Header(s: s, onMenu: { panel = .settings }, onInfo: { note = $0 })
+                                    .padding(.horizontal, 16)
+                                StatStrip(s: s, onPanel: { panel = $0 }, onHelp: { help = $0 })
+                                    .padding(.horizontal, 16)
+                                    .padding(.top, 10)
+                                Ticker(lines: s.ticker)
+                                    .padding(.horizontal, 16)
+                                    .padding(.top, 10)
+                                Spacer(minLength: 10)
+                                Dock(onSelect: { panel = $0 }, onStay: { stay() }, s: s)
+                            }
+                            .frame(width: min(440, geo.size.width * 0.46))
+                            MarketList(s: s, onTap: { trade = $0 })
+                                .padding(.trailing, 8)
+                        }
+                    } else {
+                        VStack(spacing: 0) {
+                            Header(s: s, onMenu: { panel = .settings }, onInfo: { note = $0 })
+                                .padding(.horizontal, 16)
+                            StatStrip(s: s, onPanel: { panel = $0 }, onHelp: { help = $0 })
+                                .padding(.horizontal, 16)
+                                .padding(.top, 10)
+                            Ticker(lines: s.ticker)
+                                .padding(.horizontal, 16)
+                                .padding(.top, 10)
+                            MarketList(s: s, onTap: { trade = $0 })
+                                .padding(.top, 6)
+                            Dock(onSelect: { panel = $0 }, onStay: { stay() }, s: s)
+                        }
+                    }
                 }
                 FilmGrain()
                 if panel == nil && trade == nil {
@@ -99,6 +125,7 @@ struct GameView: View {
                     }
                 }
                 .buttonStyle(.plain)
+                .readableWidth()
                 .presentationDragIndicator(.visible)
                 .presentationBackground(Noir.ink)
                 .modifier(SheetChromeUnlessSettings(panel: p))
@@ -114,7 +141,8 @@ struct GameView: View {
             .sheet(item: Binding(get: { trade.map(TradeID.init) }, set: { trade = $0?.id })) { t in
                 TradeSheet(good: t.id)
                     .buttonStyle(.plain)
-                    .presentationDetents([.fraction(0.68), .large])
+                    .readableWidth(background: Noir.coal)
+                    .presentationDetents(wide ? [.large] : [.fraction(0.68), .large])
                     .presentationDragIndicator(.visible)
                     .presentationBackground(Noir.coal)
                     .macSheet()
@@ -125,6 +153,7 @@ struct GameView: View {
                     onQuit()
                 }, onNewGame: onNewGame)
                 .buttonStyle(.plain)
+                .readableWidth()
                 .tourCard(.cover)
             }
             .noirErrors(store, when: panel == nil && trade == nil)
@@ -168,6 +197,11 @@ struct GameView: View {
         case .street: panel = .street
         default: panel = nil
         }
+    }
+
+    private func updateWide(_ value: Bool) {
+        guard value != wide else { return }
+        DispatchQueue.main.async { wide = value }
     }
 
     private func stay() {

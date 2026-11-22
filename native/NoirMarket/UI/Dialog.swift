@@ -47,7 +47,7 @@ struct NoirDialog: View {
             .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Noir.surface))
             .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(tint.opacity(0.75), lineWidth: 1.2))
             .shadow(color: tint.opacity(0.3), radius: 24)
-            .padding(.horizontal, 26)
+            .padding(.horizontal, 26).frame(maxWidth: 520)
             .transition(.scale(scale: 0.92).combined(with: .opacity))
         }
         .onAppear { Audio.shared.buzz(.warning) }

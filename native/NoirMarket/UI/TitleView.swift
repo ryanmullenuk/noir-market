@@ -171,6 +171,7 @@ struct TitleView: View {
                         .buttonStyle(.plain)
                     }
                     .padding(.horizontal, 30)
+                    .frame(maxWidth: 520)
                     .opacity(buttonsIn ? 1 : 0)
                     .offset(y: buttonsIn ? 0 : 10)
                     .allowsHitTesting(buttonsIn)
