@@ -113,26 +113,30 @@ struct GameView: View {
                 if let i = args.firstIndex(of: "-help"), i + 1 < args.count { help = StatHelp(rawValue: args[i + 1]) }
                 #endif
             }
-            .sheet(item: $panel) { p in
-                Group {
-                    switch p {
-                    case .travel: TravelView(onDone: { panel = nil })
-                    case .stash: StashView()
-                    case .money: MoneyView()
-                    case .shop: ShopView()
-                    case .street: StreetView()
-                    case .settings: SettingsView(inGame: true, onAbandon: {
-                        panel = nil
-                        store.walkOut()
-                    })
+            // Phones get sheets; the unfolded Duo opens each panel across the whole screen.
+            .sheet(item: Binding(get: { fullPanels ? nil : panel }, set: { panel = $0 })) { p in
+                panelView(p)
+                    .presentationDragIndicator(.visible)
+                    .presentationBackground(Noir.ink)
+                    .modifier(SheetChromeUnlessSettings(panel: p))
+                    .tourCard(.sheet)
+            }
+            .fullPanel(item: Binding(get: { fullPanels ? panel : nil }, set: { panel = $0 })) { p in
+                panelView(p)
+                    .background(Noir.ink.ignoresSafeArea())
+                    .hideStatusBar(true)
+                    .overlay(alignment: .topTrailing) {
+                        if p != .settings {
+                            Button { panel = nil } label: {
+                                Image(systemName: "xmark").font(.system(size: 15, weight: .bold))
+                            }
+                            .buttonStyle(AmberTile(size: 42))
+                            .padding(.trailing, 20)
+                            .padding(.top, 14)
+                            .accessibilityLabel("Close")
+                        }
                     }
-                }
-                .buttonStyle(.plain)
-                .readableWidth()
-                .presentationDragIndicator(.visible)
-                .presentationBackground(Noir.ink)
-                .modifier(SheetChromeUnlessSettings(panel: p))
-                .tourCard(.sheet)
+                    .tourCard(.sheet)
             }
             .onChange(of: tour.index, initial: true) { syncTour() }
             .onChange(of: tour.active) {
@@ -156,7 +160,7 @@ struct GameView: View {
                     onQuit()
                 }, onNewGame: onNewGame)
                 .buttonStyle(.plain)
-                .readableWidth()
+                .hideStatusBar(wide)
                 .tourCard(.cover)
             }
             .noirErrors(store, when: panel == nil && trade == nil)
@@ -200,6 +204,32 @@ struct GameView: View {
         case .street: panel = .street
         default: panel = nil
         }
+    }
+
+    /// Panels fill the screen on a wide iPhone (the Duo unfolded); the Mac keeps sheets.
+    private var fullPanels: Bool {
+        #if os(iOS)
+        wide
+        #else
+        false
+        #endif
+    }
+
+    @ViewBuilder private func panelView(_ p: Panel) -> some View {
+        Group {
+            switch p {
+            case .travel: TravelView(onDone: { panel = nil })
+            case .stash: StashView()
+            case .money: MoneyView()
+            case .shop: ShopView()
+            case .street: StreetView()
+            case .settings: SettingsView(inGame: true, onAbandon: {
+                panel = nil
+                store.walkOut()
+            })
+            }
+        }
+        .buttonStyle(.plain)
     }
 
     private func updateWide(_ value: Bool) {

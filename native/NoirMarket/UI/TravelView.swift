@@ -13,99 +13,33 @@ struct TravelView: View {
 
     var body: some View {
         if let s = store.state {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    SheetTitle(kicker: shipMode ? "Overnight, to the depot" : "Every trip takes a night", title: shipMode ? "Ship Ahead" : "Travel")
-
-                    HStack(spacing: 6) {
-                        modeButton("Travel", active: !shipMode) { shipMode = false }
-                        modeButton("Ship ahead", active: shipMode) { shipMode = true }
-                    }
-                    .padding(4)
-                    .background(Capsule().fill(Color.white.opacity(0.05)))
-
-                    MapView(s: s, selected: $selected)
-                        .frame(height: 330)
-                        .background(RadialGradient(colors: [Noir.green.opacity(0.06), .clear], center: .center, startRadius: 10, endRadius: 260))
-                        .card(padding: 0)
-                        .clipShape(RoundedRectangle(cornerRadius: Noir.radius, style: .continuous))
-
-                    if shipMode {
-                        ShipForm(s: s, dest: selected, qty: $shipQty, onSent: {
-                            shipQty = Array(repeating: 0, count: Catalog.goods.count)
-                            Audio.shared.play(.click)
-                        })
-                    } else if let dest = selected {
-                        DestinationCard(s: s, dest: dest, onGo: { go(dest) })
-                    } else {
-                        Text("Tap a city on the map or pick one below.").font(Noir.type(13)).foregroundStyle(Noir.dim)
-                    }
-
-                    let carrying = Engine.carried(s) > 0
-                    let estimates = Dictionary(uniqueKeysWithValues: Catalog.cities.filter { $0.id != s.city && Engine.accessible(s, $0.id) }
-                        .map { ($0.id, Engine.bagEstimate(s, at: $0.id)) })
-                    let best = carrying ? estimates.max { $0.value.value < $1.value.value }?.key : nil
-                    VStack(spacing: 0) {
-                        ForEach(Catalog.cities.filter { $0.id != s.city }.sorted { Engine.fare(s, to: $0.id) < Engine.fare(s, to: $1.id) }) { c in
-                            let open = Engine.accessible(s, c.id)
-                            Button {
-                                selected = c.id
-                                Audio.shared.buzz(.tap)
-                            } label: {
-                                HStack {
-                                    if !open { Image(systemName: "lock.fill").font(.system(size: 11)).foregroundStyle(Noir.brass) }
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(c.name.uppercased()).font(Noir.ui(15, weight: .semibold)).foregroundStyle(open ? Noir.paper : Noir.dim)
-                                        if carrying, let est = estimates[c.id] {
-                                            HStack(spacing: 6) {
-                                                Text("Your bag \(est.guessed ? "≈" : "") \(Money.short(est.value))")
-                                                    .font(Noir.ui(10, weight: .semibold))
-                                                    .foregroundStyle(c.id == best ? Noir.green : Noir.silver)
-                                                if c.id == best {
-                                                    Text("BEST").font(Noir.label(8)).tracking(1).foregroundStyle(Noir.green)
-                                                        .padding(.horizontal, 5).padding(.vertical, 1)
-                                                        .overlay(Capsule().strokeBorder(Noir.green.opacity(0.7)))
-                                                }
-                                            }
-                                        } else if !open, let tease = Engine.lockedTeaser(s, c.id) {
-                                            Text(tease).font(Noir.ui(10, weight: .semibold)).foregroundStyle(Noir.amber)
-                                        } else {
-                                            Text(c.region).font(Noir.ui(10)).foregroundStyle(Noir.dim)
-                                        }
-                                        if Engine.offLimits(s, c.id) {
-                                            Text("PAID TO STAY OUT · THEY’LL COME FOR YOU").font(Noir.label(8)).tracking(1).foregroundStyle(Noir.red)
-                                        } else if Engine.rivalHolds(s, c.id) {
-                                            Text("RIVAL CITY · YOU GET 10% LESS").font(Noir.label(8)).tracking(1).foregroundStyle(Noir.red)
-                                        }
-                                    }
-                                    Spacer()
-                                    Image(systemName: Catalog.cities[s.city].needsFlight(to: c) ? "airplane" : "tram.fill")
-                                        .font(.system(size: 11)).foregroundStyle(Noir.dim)
-                                    Text(open ? Money.gbp(Engine.fare(s, to: c.id)) : "Full game")
-                                        .font(Noir.mono(13)).foregroundStyle(open ? Noir.silver : Noir.brass)
-                                        .frame(width: 84, alignment: .trailing)
-                                }
-                                .padding(.vertical, 10)
-                                .padding(.horizontal, 12)
-                                .background(selected == c.id ? Noir.green.opacity(0.1) : .clear)
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            Rectangle().fill(Noir.rule).frame(height: 1)
+            GeometryReader { geo in
+                if Layout.useColumns(geo.size) {
+                    // Wide screens (the iPhone Duo unfolded): a big map on the left, the details and cities on the right.
+                    HStack(alignment: .top, spacing: 0) {
+                        VStack(alignment: .leading, spacing: 16) {
+                            header
+                            mapCard(s).frame(maxHeight: .infinity)
+                        }
+                        .padding(20)
+                        .frame(width: geo.size.width * 0.52)
+                        ScrollView {
+                            VStack(alignment: .leading, spacing: 16) { details(s) }
+                                .padding(.horizontal, 20)
+                                .padding(.top, 76)
+                                .padding(.bottom, 20)
                         }
                     }
-                    .card(padding: 0)
-                    .clipShape(RoundedRectangle(cornerRadius: Noir.radius, style: .continuous))
-
-                    if carrying {
-                        Text("Bag values use the last prices you saw there. ≈ means you haven’t been: it’s a guess from what the city is known to want.")
-                            .font(Noir.ui(10)).foregroundStyle(Noir.dim)
-                            .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 16) {
+                            header
+                            mapCard(s).frame(height: 330)
+                            details(s)
+                        }
+                        .padding(20)
                     }
-
-                    if !unlock.unlocked { UnlockCard() }
                 }
-                .padding(20)
             }
             .background(Noir.ink)
             .onAppear {
@@ -125,6 +59,103 @@ struct TravelView: View {
                                   },
                                   DialogAction(title: "Stay away", kind: .quiet) { offLimits = nil }])
         }
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            SheetTitle(kicker: shipMode ? "Overnight, to the depot" : "Every trip takes a night", title: shipMode ? "Ship Ahead" : "Travel")
+
+            HStack(spacing: 6) {
+                modeButton("Travel", active: !shipMode) { shipMode = false }
+                modeButton("Ship ahead", active: shipMode) { shipMode = true }
+            }
+            .padding(4)
+            .background(Capsule().fill(Color.white.opacity(0.05)))
+        }
+    }
+
+    private func mapCard(_ s: GameState) -> some View {
+        MapView(s: s, selected: $selected)
+            .background(RadialGradient(colors: [Noir.green.opacity(0.06), .clear], center: .center, startRadius: 10, endRadius: 260))
+            .card(padding: 0)
+            .clipShape(RoundedRectangle(cornerRadius: Noir.radius, style: .continuous))
+    }
+
+    @ViewBuilder private func details(_ s: GameState) -> some View {
+        if shipMode {
+            ShipForm(s: s, dest: selected, qty: $shipQty, onSent: {
+                shipQty = Array(repeating: 0, count: Catalog.goods.count)
+                Audio.shared.play(.click)
+            })
+        } else if let dest = selected {
+            DestinationCard(s: s, dest: dest, onGo: { go(dest) })
+        } else {
+            Text("Tap a city on the map or pick one below.").font(Noir.type(13)).foregroundStyle(Noir.dim)
+        }
+
+        let carrying = Engine.carried(s) > 0
+        let estimates = Dictionary(uniqueKeysWithValues: Catalog.cities.filter { $0.id != s.city && Engine.accessible(s, $0.id) }
+            .map { ($0.id, Engine.bagEstimate(s, at: $0.id)) })
+        let best = carrying ? estimates.max { $0.value.value < $1.value.value }?.key : nil
+        VStack(spacing: 0) {
+            ForEach(Catalog.cities.filter { $0.id != s.city }.sorted { Engine.fare(s, to: $0.id) < Engine.fare(s, to: $1.id) }) { c in
+                let open = Engine.accessible(s, c.id)
+                Button {
+                    selected = c.id
+                    Audio.shared.buzz(.tap)
+                } label: {
+                    HStack {
+                        if !open { Image(systemName: "lock.fill").font(.system(size: 11)).foregroundStyle(Noir.brass) }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(c.name.uppercased()).font(Noir.ui(15, weight: .semibold)).foregroundStyle(open ? Noir.paper : Noir.dim)
+                            if carrying, let est = estimates[c.id] {
+                                HStack(spacing: 6) {
+                                    Text("Your bag \(est.guessed ? "≈" : "") \(Money.short(est.value))")
+                                        .font(Noir.ui(10, weight: .semibold))
+                                        .foregroundStyle(c.id == best ? Noir.green : Noir.silver)
+                                    if c.id == best {
+                                        Text("BEST").font(Noir.label(8)).tracking(1).foregroundStyle(Noir.green)
+                                            .padding(.horizontal, 5).padding(.vertical, 1)
+                                            .overlay(Capsule().strokeBorder(Noir.green.opacity(0.7)))
+                                    }
+                                }
+                            } else if !open, let tease = Engine.lockedTeaser(s, c.id) {
+                                Text(tease).font(Noir.ui(10, weight: .semibold)).foregroundStyle(Noir.amber)
+                            } else {
+                                Text(c.region).font(Noir.ui(10)).foregroundStyle(Noir.dim)
+                            }
+                            if Engine.offLimits(s, c.id) {
+                                Text("PAID TO STAY OUT · THEY’LL COME FOR YOU").font(Noir.label(8)).tracking(1).foregroundStyle(Noir.red)
+                            } else if Engine.rivalHolds(s, c.id) {
+                                Text("RIVAL CITY · YOU GET 10% LESS").font(Noir.label(8)).tracking(1).foregroundStyle(Noir.red)
+                            }
+                        }
+                        Spacer()
+                        Image(systemName: Catalog.cities[s.city].needsFlight(to: c) ? "airplane" : "tram.fill")
+                            .font(.system(size: 11)).foregroundStyle(Noir.dim)
+                        Text(open ? Money.gbp(Engine.fare(s, to: c.id)) : "Full game")
+                            .font(Noir.mono(13)).foregroundStyle(open ? Noir.silver : Noir.brass)
+                            .frame(width: 84, alignment: .trailing)
+                    }
+                    .padding(.vertical, 10)
+                    .padding(.horizontal, 12)
+                    .background(selected == c.id ? Noir.green.opacity(0.1) : .clear)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                Rectangle().fill(Noir.rule).frame(height: 1)
+            }
+        }
+        .card(padding: 0)
+        .clipShape(RoundedRectangle(cornerRadius: Noir.radius, style: .continuous))
+
+        if carrying {
+            Text("Bag values use the last prices you saw there. ≈ means you haven’t been: it’s a guess from what the city is known to want.")
+                .font(Noir.ui(10)).foregroundStyle(Noir.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+
+        if !unlock.unlocked { UnlockCard() }
     }
 
     private func offLimitsMessage(_ s: GameState) -> String {

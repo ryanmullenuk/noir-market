@@ -124,6 +124,15 @@ extension View {
         #endif
     }
 
+    /// A full-screen panel on iOS; on the Mac a sheet, as before.
+    @ViewBuilder func fullPanel<Item: Identifiable, Content: View>(item: Binding<Item?>, @ViewBuilder content: @escaping (Item) -> Content) -> some View {
+        #if os(iOS)
+        fullScreenCover(item: item, content: content)
+        #else
+        self
+        #endif
+    }
+
     /// Hides the iPhone status bar (no status bar on the Mac).
     @ViewBuilder func hideStatusBar(_ hidden: Bool) -> some View {
         #if os(iOS)
