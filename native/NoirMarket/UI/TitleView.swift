@@ -30,9 +30,14 @@ struct TitleView: View {
             switch phase {
             case 0:
                 RedheadIntro()
+                    .ignoresSafeArea()
                     .transition(.opacity)
             case 2:
-                Disclaimer().transition(.opacity)
+                Disclaimer()
+                    .frame(maxWidth: 560)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .ignoresSafeArea()
+                    .transition(.opacity)
             case 4:
                 ZStack {
                     Noir.ink.ignoresSafeArea()
@@ -107,6 +112,88 @@ struct TitleView: View {
                 RadialGradient(colors: [.clear, .black.opacity(0.6)], center: .center, startRadius: 220, endRadius: 640)
                     .allowsHitTesting(false)
 
+                if geo.size.width > geo.size.height && geo.size.width >= 760 {
+                    // Wide screens (the iPhone Duo unfolded): the sign on the left, the menu on the right.
+                    HStack(alignment: .center, spacing: 36) {
+                        VStack(spacing: 0) {
+                            VStack(spacing: 6) {
+                                NeonSign(text: "NOIR", style: .outline, font: NeonSign.condensed(.heavy), kern: 4,
+                                         colour: Color(white: 0.92), core: .white, powered: noirOn, flickerEvery: 9...18)
+                                    .padding(.horizontal, 44)
+                                NeonSign(text: "MARKET", font: NeonSign.rounded(.semibold),
+                                         colour: Noir.neon, core: Color(hex: Theme.shared.palette.accentHex, lift: 0.55),
+                                         powered: marketOn, broken: 4)
+                                    .padding(.horizontal, 40)
+                            }
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel("Noir Market")
+                            .accessibilityAddTraits(.isHeader)
+
+                            Text("TRADE SMART – PLAY DIRTY – COME OUT ON TOP")
+                                .font(Noir.label(12)).tracking(1.4)
+                                .foregroundStyle(Noir.paper.opacity(0.85))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.6)
+                                .padding(.horizontal, 24)
+                                .padding(.top, 22)
+                                .opacity(titleIn ? 1 : 0)
+                        }
+                        .frame(width: geo.size.width * 0.5)
+                        VStack(spacing: 0) {
+                            VStack(spacing: 14) {
+                                Button(action: press("main", hasSave ? onContinue : onNewGame)) {
+                                    HStack {
+                                        Spacer()
+                                        VStack(spacing: 5) {
+                                            Text(hasSave ? "Continue" : "New Game")
+                                            if hasSave, let saveSummary {
+                                                Text(saveSummary)
+                                                    .font(Noir.label(11)).tracking(1.4)
+                                                    .foregroundStyle(Noir.paper.opacity(0.8))
+                                                    .lineLimit(1).minimumScaleFactor(0.7)
+                                            }
+                                        }
+                                        .padding(.vertical, 8)
+                                        Spacer()
+                                        Image(systemName: "arrow.right").font(.system(size: 18, weight: .semibold))
+                                    }
+                                    .padding(.horizontal, 22)
+                                }
+                                .buttonStyle(NeonRedButton())
+                                if hasSave {
+                                    Button("New Game", action: press("new", onNewGame)).buttonStyle(TitleOutlineButton())
+                                }
+                                HStack(spacing: 12) {
+                                    Button("How to Play", action: press("how", onHowTo)).buttonStyle(TitleOutlineButton())
+                                    Button("Records", action: press("records", onRecords)).buttonStyle(TitleOutlineButton())
+                                }
+                                Button(action: press("settings", onSettings)) {
+                                    HStack(spacing: 12) {
+                                        Image(systemName: "gearshape.fill").font(.system(size: 17))
+                                        Text("Settings").font(Noir.label(13)).tracking(2.2).textCase(.uppercase)
+                                    }
+                                    .foregroundStyle(Noir.silver)
+                                    .padding(.vertical, 10)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            .padding(.horizontal, 30)
+                            .frame(maxWidth: 520)
+                            .opacity(buttonsIn ? 1 : 0)
+                            .offset(y: buttonsIn ? 0 : 10)
+                            .allowsHitTesting(buttonsIn)
+                        }
+                        .frame(maxWidth: 420)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .overlay(alignment: .bottom) {
+                        Text("a redhead games production · fiction · 18+ · entertainment only")
+                            .font(Noir.ui(10)).lineLimit(1).minimumScaleFactor(0.7)
+                            .foregroundStyle(Noir.silver.opacity(0.7))
+                            .opacity(buttonsIn ? 1 : 0)
+                            .padding(.bottom, insets.bottom + 20)
+                    }
+                } else {
                 VStack(spacing: 0) {
                     Spacer().frame(height: insets.top + geo.size.height * 0.15)
                     VStack(spacing: 6) {
@@ -185,6 +272,7 @@ struct TitleView: View {
                         .opacity(buttonsIn ? 1 : 0)
                         .padding(.top, 36)
                         .padding(.bottom, insets.bottom + 62)
+                }
                 }
             }
         }

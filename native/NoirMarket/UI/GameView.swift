@@ -28,7 +28,7 @@ struct GameView: View {
                     let _ = updateWide(Layout.useColumns(geo.size))
                     if Layout.useColumns(geo.size) {
                         // Wide screens (the iPhone Duo unfolded): your situation on the left, the market on the right.
-                        HStack(alignment: .top, spacing: 8) {
+                        HStack(alignment: .top, spacing: 0) {
                             VStack(spacing: 0) {
                                 Header(s: s, onMenu: { panel = .settings }, onInfo: { note = $0 })
                                     .padding(.horizontal, 16)
@@ -38,12 +38,13 @@ struct GameView: View {
                                 Ticker(lines: s.ticker)
                                     .padding(.horizontal, 16)
                                     .padding(.top, 10)
-                                Spacer(minLength: 10)
+                                MarketList(s: s, part: .briefing, onTap: { trade = $0 })
+                                    .padding(.top, 10)
                                 Dock(onSelect: { panel = $0 }, onStay: { stay() }, s: s)
                             }
-                            .frame(width: min(440, geo.size.width * 0.46))
-                            MarketList(s: s, onTap: { trade = $0 })
-                                .padding(.trailing, 8)
+                            .frame(width: geo.size.width * 0.46)
+                            MarketList(s: s, part: .market, onTap: { trade = $0 })
+                                .frame(maxWidth: .infinity)
                         }
                     } else {
                         VStack(spacing: 0) {
@@ -87,6 +88,8 @@ struct GameView: View {
                         .zIndex(5)
                 }
             }
+            // Unfolded, the game takes the whole screen; the clock column would only waste the right edge.
+            .hideStatusBar(wide)
             .animation(.spring(duration: 0.35), value: s.call == nil)
             .animation(.easeOut(duration: 0.25), value: s.raid?.seen)
             .animation(.easeOut(duration: 0.25), value: s.dilemma == nil)
@@ -609,13 +612,41 @@ struct Ticker: View {
 // MARK: Market
 
 private struct MarketList: View {
+    /// `.all` on phones; on wide screens the briefing (tips, notices, jobs, gossip) sits in the left pane and the market in the right.
+    enum Part { case all, briefing, market }
+
     let s: GameState
+    var part: Part = .all
     var onTap: (Int) -> Void
     @AppStorage("seenTips") private var seenTips = false
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
+                if part != .market { briefing }
+                if part != .briefing { market }
+                if part == .briefing { BagCard(s: s, onTap: onTap) }
+                if part != .market, let story = s.story {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label("Word on the street", systemImage: "ear.fill")
+                            .font(Noir.label(10)).tracking(1.4).textCase(.uppercase)
+                            .foregroundStyle(Noir.amber)
+                        Text(story.text).font(Noir.type(14)).foregroundStyle(Noir.paper.opacity(0.9))
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text("Half of what you hear is nonsense.").font(Noir.ui(11)).foregroundStyle(Noir.dim)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .card(padding: 14, tint: Noir.amber)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, part == .market ? 8 : 0)
+            .padding(.bottom, 24)
+        }
+        .scrollIndicators(.hidden)
+    }
+
+    @ViewBuilder private var briefing: some View {
                 if let step = Engine.tutorialStep(s) {
                     VStack(alignment: .leading, spacing: 8) {
                         Label(step.title, systemImage: "graduationcap.fill")
@@ -677,7 +708,9 @@ private struct MarketList: View {
                     }
                     .card(padding: 12)
                 }
+    }
 
+    @ViewBuilder private var market: some View {
                 HStack(alignment: .firstTextBaseline) {
                     Text("The Market").font(Noir.display(22)).foregroundStyle(Noir.green)
                     Spacer()
@@ -703,24 +736,52 @@ private struct MarketList: View {
                     }
                 }
                 .card(padding: 0)
+    }
+}
 
-                if let story = s.story {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Label("Word on the street", systemImage: "ear.fill")
-                            .font(Noir.label(10)).tracking(1.4).textCase(.uppercase)
-                            .foregroundStyle(Noir.amber)
-                        Text(story.text).font(Noir.type(14)).foregroundStyle(Noir.paper.opacity(0.9))
-                            .fixedSize(horizontal: false, vertical: true)
-                        Text("Half of what you hear is nonsense.").font(Noir.ui(11)).foregroundStyle(Noir.dim)
+/// Wide screens only: what you're carrying, what it cost and what it's worth here tonight.
+private struct BagCard: View {
+    let s: GameState
+    var onTap: (Int) -> Void
+
+    var body: some View {
+        let held = Catalog.goods.filter { s.carry[$0.id] > 0 }
+        let used = s.carry.reduce(0, +)
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Label("Your bag", systemImage: "bag.fill")
+                    .font(Noir.label(10)).tracking(1.4).textCase(.uppercase)
+                    .foregroundStyle(Noir.green)
+                Spacer()
+                Text("\(used)/\(Engine.capacity(s)) slots").font(Noir.mono(11)).foregroundStyle(Noir.silver)
+            }
+            if held.isEmpty {
+                Text("Empty. Tap a drug in the market to buy.")
+                    .font(Noir.ui(13)).foregroundStyle(Noir.dim)
+            } else {
+                ForEach(held) { g in
+                    let qty = s.carry[g.id]
+                    let price = s.markets[s.city].price[g.id]
+                    let avg = s.carryCost[g.id] / max(1, qty)
+                    let pnl = (price - avg) * qty
+                    Button { onTap(g.id) } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: g.symbol).font(.system(size: 14)).foregroundStyle(Noir.paper).frame(width: 22)
+                            Text("\(qty) \(g.name)").font(Noir.ui(14, weight: .semibold)).foregroundStyle(Noir.paper)
+                            Spacer()
+                            Text(Money.gbp(price * qty)).font(Noir.mono(13)).foregroundStyle(Noir.paper)
+                            Text("\(pnl >= 0 ? "+" : "−")\(Money.short(abs(pnl)))")
+                                .font(Noir.mono(11)).foregroundStyle(pnl >= 0 ? Noir.green : Noir.red)
+                                .frame(minWidth: 54, alignment: .trailing)
+                        }
+                        .contentShape(Rectangle())
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .card(padding: 14, tint: Noir.amber)
+                    .buttonStyle(.plain)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.bottom, 24)
         }
-        .scrollIndicators(.hidden)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .card(padding: 14, tint: Noir.green)
     }
 }
 

@@ -19,7 +19,8 @@ struct RedheadIntro: View {
 
     var body: some View {
         GeometryReader { geo in
-            let width = min(480, geo.size.width * 0.78)
+            // As wide as a phone allows; on bigger screens (the Duo unfolded) limited by the height instead.
+            let width = min(geo.size.width * 0.78, geo.size.height * 0.84, 640)
             let brainW = width * 0.62
             VStack(spacing: 0) {
                 ZStack {

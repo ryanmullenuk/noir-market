@@ -124,6 +124,15 @@ extension View {
         #endif
     }
 
+    /// Hides the iPhone status bar (no status bar on the Mac).
+    @ViewBuilder func hideStatusBar(_ hidden: Bool) -> some View {
+        #if os(iOS)
+        statusBarHidden(hidden)
+        #else
+        self
+        #endif
+    }
+
     /// On the Mac, keep the game a readable width in the middle of a wide window.
     @ViewBuilder func macReadableWidth() -> some View {
         #if os(macOS)
