@@ -98,7 +98,8 @@ func show(_ layer: CALayer, at start: Double, for length: Double) {
 func duoFrame(_ size: CGSize, screenHeight: CGFloat, centreY: CGFloat) -> (CGImage, CGRect) {
     let sw = screenHeight * 2853 / 2007, sh = screenHeight
     let screen = CGRect(x: (size.width - sw) / 2, y: centreY - sh / 2, width: sw, height: sh)
-    let bezel: CGFloat = 16, edge: CGFloat = 7
+    let k = sh / 756   // drawn for a 756px-tall screen; everything scales with it
+    let bezel: CGFloat = 16 * k, edge: CGFloat = 7 * k
     let body = screen.insetBy(dx: -(bezel + edge), dy: -(bezel + edge))
     let img = bitmap(size) { ctx in
         let H = size.height
@@ -113,42 +114,42 @@ func duoFrame(_ size: CGSize, screenHeight: CGFloat, centreY: CGFloat) -> (CGIma
                                endCenter: CGPoint(x: size.width * 0.12, y: H * 0.1), endRadius: size.width * 0.35, options: [])
         // Buttons: power on the top edge, volume on the right half's top edge (drawn before the body so they tuck in).
         ctx.setFillColor(cg(0x3A3B40))
-        for b in [CGRect(x: body.maxX - 260, y: body.minY - 5, width: 110, height: 12),
-                  CGRect(x: body.maxX - 130, y: body.minY - 5, width: 70, height: 12)] {
-            ctx.addPath(CGPath(roundedRect: flip(b), cornerWidth: 5, cornerHeight: 5, transform: nil)); ctx.fillPath()
+        for b in [CGRect(x: body.maxX - 260 * k, y: body.minY - 5 * k, width: 110 * k, height: 12 * k),
+                  CGRect(x: body.maxX - 130 * k, y: body.minY - 5 * k, width: 70 * k, height: 12 * k)] {
+            ctx.addPath(CGPath(roundedRect: flip(b), cornerWidth: 5 * k, cornerHeight: 5 * k, transform: nil)); ctx.fillPath()
         }
         // Body: dark titanium with a soft drop shadow and a bright rim.
-        let bodyPath = CGPath(roundedRect: flip(body), cornerWidth: 56, cornerHeight: 56, transform: nil)
+        let bodyPath = CGPath(roundedRect: flip(body), cornerWidth: 56 * k, cornerHeight: 56 * k, transform: nil)
         ctx.saveGState()
-        ctx.setShadow(offset: CGSize(width: 0, height: -18), blur: 60, color: cg(0x000000, 0.9))
+        ctx.setShadow(offset: CGSize(width: 0, height: -18 * k), blur: 60 * k, color: cg(0x000000, 0.9))
         ctx.addPath(bodyPath); ctx.setFillColor(cg(0x1C1D21)); ctx.fillPath()
         ctx.restoreGState()
         ctx.saveGState(); ctx.addPath(bodyPath); ctx.clip()
         let metal = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [cg(0x4A4B52), cg(0x1E1F23), cg(0x2C2D33)] as CFArray, locations: [0, 0.55, 1])!
         ctx.drawLinearGradient(metal, start: CGPoint(x: 0, y: H - body.minY), end: CGPoint(x: 0, y: H - body.maxY), options: [])
         ctx.restoreGState()
-        ctx.addPath(bodyPath); ctx.setStrokeColor(cg(0x8A8B92, 0.55)); ctx.setLineWidth(2); ctx.strokePath()
+        ctx.addPath(bodyPath); ctx.setStrokeColor(cg(0x8A8B92, 0.55)); ctx.setLineWidth(2 * k); ctx.strokePath()
         // Black bezel, then cut the screen out so the video shows through.
         let glass = body.insetBy(dx: edge, dy: edge)
-        ctx.addPath(CGPath(roundedRect: flip(glass), cornerWidth: 49, cornerHeight: 49, transform: nil)); ctx.setFillColor(cg(0x000000)); ctx.fillPath()
+        ctx.addPath(CGPath(roundedRect: flip(glass), cornerWidth: 49 * k, cornerHeight: 49 * k, transform: nil)); ctx.setFillColor(cg(0x000000)); ctx.fillPath()
         // Hinge marks where the two halves meet, top and bottom.
         ctx.setFillColor(cg(0x5A5B62))
-        for y in [body.minY - 1, body.maxY - 5] {
-            ctx.addPath(CGPath(roundedRect: flip(CGRect(x: body.midX - 3, y: y, width: 6, height: 6)), cornerWidth: 2, cornerHeight: 2, transform: nil)); ctx.fillPath()
+        for y in [body.minY - 1 * k, body.maxY - 5 * k] {
+            ctx.addPath(CGPath(roundedRect: flip(CGRect(x: body.midX - 3 * k, y: y, width: 6 * k, height: 6 * k)), cornerWidth: 2 * k, cornerHeight: 2 * k, transform: nil)); ctx.fillPath()
         }
         ctx.setBlendMode(.clear)
-        ctx.addPath(CGPath(roundedRect: flip(screen), cornerWidth: 36, cornerHeight: 36, transform: nil)); ctx.fillPath()
+        ctx.addPath(CGPath(roundedRect: flip(screen), cornerWidth: 36 * k, cornerHeight: 36 * k, transform: nil)); ctx.fillPath()
         ctx.setBlendMode(.normal)
         // The crease: a whisper of shade and light down the middle of the screen.
         let crease = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB),
                                 colors: [cg(0x000000, 0), cg(0x000000, 0.22), cg(0xFFFFFF, 0.07), cg(0x000000, 0.22), cg(0x000000, 0)] as CFArray,
                                 locations: [0, 0.4, 0.5, 0.6, 1])!
-        ctx.saveGState(); ctx.clip(to: flip(CGRect(x: screen.midX - 14, y: screen.minY, width: 28, height: screen.height)))
-        ctx.drawLinearGradient(crease, start: CGPoint(x: screen.midX - 14, y: 0), end: CGPoint(x: screen.midX + 14, y: 0), options: [])
+        ctx.saveGState(); ctx.clip(to: flip(CGRect(x: screen.midX - 14 * k, y: screen.minY, width: 28 * k, height: screen.height)))
+        ctx.drawLinearGradient(crease, start: CGPoint(x: screen.midX - 14 * k, y: 0), end: CGPoint(x: screen.midX + 14 * k, y: 0), options: [])
         ctx.restoreGState()
         // A faint reflection across the glass.
         let sheen = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [cg(0xFFFFFF, 0.05), cg(0xFFFFFF, 0)] as CFArray, locations: [0, 1])!
-        ctx.saveGState(); ctx.addPath(CGPath(roundedRect: flip(screen), cornerWidth: 36, cornerHeight: 36, transform: nil)); ctx.clip()
+        ctx.saveGState(); ctx.addPath(CGPath(roundedRect: flip(screen), cornerWidth: 36 * k, cornerHeight: 36 * k, transform: nil)); ctx.clip()
         ctx.drawLinearGradient(sheen, start: CGPoint(x: screen.minX, y: H - screen.minY), end: CGPoint(x: screen.midX, y: H - screen.midY), options: [])
         ctx.restoreGState()
     }
@@ -198,7 +199,10 @@ func renderDuo(_ rec: Recording, cuts: [Cut], size: CGSize, framed: Bool = false
 
     // Picture: the inner screen is recorded in its native portrait orientation; turn it upright, then fit the height.
     let landscapeW = natural.height, landscapeH = natural.width
-    let device = framed ? duoFrame(size, screenHeight: (size.height * 0.70).rounded(), centreY: size.height * 0.585) : nil
+    let vertical = size.height > size.width
+    let device = !framed ? nil : vertical
+        ? duoFrame(size, screenHeight: (size.width * 0.87 * 2007 / 2853).rounded(), centreY: size.height * 0.5)
+        : duoFrame(size, screenHeight: (size.height * 0.70).rounded(), centreY: size.height * 0.585)
     let scale = (device?.1.height ?? size.height) / landscapeH
     let x = device?.1.minX ?? (size.width - landscapeW * scale) / 2
     let y = device?.1.minY ?? 0
@@ -218,10 +222,39 @@ func renderDuo(_ rec: Recording, cuts: [Cut], size: CGSize, framed: Bool = false
     let video = CALayer(); video.frame = parent.frame
     parent.addSublayer(video)
     let w = size.width, h = size.height
-    if let (frameImage, _) = device { parent.addSublayer(imageLayer(frameImage, frame: parent.frame)) }
+    if let (frameImage, screen) = device {
+        parent.addSublayer(imageLayer(frameImage, frame: parent.frame))
+        if vertical {
+            // A steady brand strip under the device for the whole video.
+            let strip = bitmap(CGSize(width: w, height: 300)) { ctx in
+                drawText(ctx, "NOIR MARKET", font: "MonaSans-Black", size: w * 0.075, colour: cg(0xFF4D4D), glow: cg(0xFF4D4D, 0.9), centreX: w / 2, top: 20, height: 300)
+                drawText(ctx, "NOW ON iPHONE DUO", font: "JetBrainsMono-Bold", size: w * 0.038, colour: cg(0x29FF85), glow: cg(0x29FF85, 0.6), centreX: w / 2, top: 130, height: 300)
+            }
+            parent.addSublayer(imageLayer(strip, frame: CGRect(x: 0, y: screen.maxY + 80, width: w, height: 300)))
+        }
+    }
     // Lower-third captions over a dark gradient; framed, they sit above the device instead.
     for (c, start) in placed {
         guard let caption = c.caption else { continue }
+        if framed && vertical {
+            // Big two-line headline above the device, inside TikTok's safe area.
+            let text = verticalCaptions[caption] ?? caption
+            let band = CGSize(width: w, height: 520)
+            let img = bitmap(band) { ctx in
+                drawText(ctx, text, font: "MonaSans-Black", size: w * 0.115, colour: cg(c.colour), glow: cg(c.colour, 0.9),
+                         centreX: w / 2, top: 40, height: band.height)
+                if let sub = c.sub {
+                    let lines = CGFloat(text.components(separatedBy: "\n").count)
+                    drawText(ctx, sub, font: "JetBrainsMono-Bold", size: w * 0.034, colour: cg(0xEDEDED, 0.92), glow: nil,
+                             centreX: w / 2, top: 40 + w * 0.115 * (lines * 0.95 + 0.3), height: band.height)
+                }
+            }
+            let top = (device?.1.minY ?? h / 2) - band.height - 20
+            let l = imageLayer(img, frame: CGRect(x: 0, y: top, width: w, height: band.height))
+            show(l, at: start + 0.1, for: c.length - 0.15)
+            parent.addSublayer(l)
+            continue
+        }
         if framed {
             let band = CGSize(width: w, height: (h * 0.215).rounded())
             let img = bitmap(band) { ctx in
@@ -255,7 +288,16 @@ func renderDuo(_ rec: Recording, cuts: [Cut], size: CGSize, framed: Bool = false
     }
     // End card.
     let card = bitmap(size) { ctx in
-        ctx.setFillColor(cg(0x000000, 0.86)); ctx.fill(CGRect(origin: .zero, size: size))
+        ctx.setFillColor(cg(0x000000, vertical ? 0.96 : 0.86)); ctx.fill(CGRect(origin: .zero, size: size))
+        if vertical {
+            let top = h * 0.30
+            drawText(ctx, "NOIR", font: "MonaSans-Black", size: w * 0.26, colour: cg(0xFFFFFF), glow: cg(0xFFFFFF, 0.6), centreX: w / 2, top: top, height: h)
+            drawText(ctx, "MARKET", font: "MonaSans-Black", size: w * 0.18, colour: cg(0xFF4D4D), glow: cg(0xFF4D4D, 0.95), centreX: w / 2, top: top + w * 0.25, height: h)
+            drawText(ctx, "NOW ON\niPHONE DUO", font: "MonaSans-Black", size: w * 0.095, colour: cg(0x29FF85), glow: cg(0x29FF85, 0.8), centreX: w / 2, top: top + w * 0.52, height: h)
+            drawText(ctx, "Trade smart · Play dirty · Come out on top", font: "JetBrainsMono-Bold", size: w * 0.034, colour: cg(0xEDEDED), glow: nil, centreX: w / 2, top: top + w * 0.76, height: h)
+            drawText(ctx, "OUT NOW ON THE APP STORE", font: "JetBrainsMono-Bold", size: w * 0.034, colour: cg(0xF5BD4D), glow: nil, centreX: w / 2, top: top + w * 0.84, height: h)
+            return
+        }
         drawText(ctx, "NOIR", font: "MonaSans-Black", size: h * 0.24, colour: cg(0xFFFFFF), glow: cg(0xFFFFFF, 0.6), centreX: w / 2, top: h * 0.12, height: h)
         drawText(ctx, "MARKET", font: "MonaSans-Black", size: h * 0.17, colour: cg(0xFF4D4D), glow: cg(0xFF4D4D, 0.95), centreX: w / 2, top: h * 0.35, height: h)
         drawText(ctx, "NOW ON iPHONE DUO", font: "MonaSans-Black", size: h * 0.08, colour: cg(0x29FF85), glow: cg(0x29FF85, 0.8), centreX: w / 2, top: h * 0.62, height: h)
@@ -276,6 +318,12 @@ func renderDuo(_ rec: Recording, cuts: [Cut], size: CGSize, framed: Bool = false
 }
 
 let duo = Recording("tour-duo")
+/// Two-line headlines for the vertical (TikTok) cut.
+let verticalCaptions: [String: String] = [
+    "NOW ON iPHONE DUO": "NOW ON\niPHONE DUO", "THE WHOLE MARKET": "THE WHOLE\nMARKET", "BUY LOW. SELL HIGH.": "BUY LOW.\nSELL HIGH.",
+    "HALF THE NEWS IS TRUE": "HALF THE NEWS\nIS TRUE", "TRUST NO ONE": "TRUST\nNO ONE", "BRIBE. RUN. FIGHT.": "BRIBE. RUN.\nFIGHT.",
+    "THE HEAT IS COMING": "THE HEAT\nIS COMING", "BUILD AN EMPIRE": "BUILD AN\nEMPIRE", "HOW DOES IT END?": "HOW DOES\nIT END?", "KEEP MOVING": "KEEP\nMOVING",
+]
 func at(_ scene: String, _ offset: Double = 0.9) -> Double { duo.scenes[scene]! + offset }
 
 let cuts: [Cut] = [
@@ -295,3 +343,4 @@ let cuts: [Cut] = [
 
 await renderDuo(duo, cuts: cuts, size: CGSize(width: 1920, height: 1080), out: "duo-promo.mp4")
 await renderDuo(duo, cuts: cuts, size: CGSize(width: 1920, height: 1080), framed: true, out: "duo-promo-framed.mp4")
+await renderDuo(duo, cuts: cuts, size: CGSize(width: 1080, height: 1920), framed: true, out: "duo-promo-tiktok.mp4")
