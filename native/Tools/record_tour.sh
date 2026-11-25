@@ -2,6 +2,7 @@
 # Records the guided tour from the simulator as an MP4, plus a timeline of when each scene starts.
 #   Tools/record_tour.sh            → walkthrough with captions: AppStore/video/walkthrough-raw.mp4
 #   Tools/record_tour.sh clean      → no captions, for trailers: AppStore/video/tour-clean.mp4
+#   UDID=<duo> REC_DISPLAY=3 OUT_NAME=tour-duo Tools/record_tour.sh clean   → the iPhone Duo's inner screen
 # Needs a Debug build installed on the simulator (UDID below; defaults to the 6.9" iPhone).
 set -e
 cd "${0:A:h}/.."
@@ -11,6 +12,8 @@ BUNDLE=games.redhead.noirmarket
 OUT=AppStore/video; mkdir -p $OUT
 NAME=walkthrough-raw; EXTRA=()
 if [[ "$1" == clean ]]; then NAME=tour-clean; EXTRA=(-tourClean); fi
+[[ -n "$OUT_NAME" ]] && NAME=$OUT_NAME
+DISP=(); [[ -n "$REC_DISPLAY" ]] && DISP=(--display=$REC_DISPLAY)
 
 xcrun simctl boot $UDID 2>/dev/null || true
 xcrun simctl status_bar $UDID override --time 9:41 --batteryState charged --batteryLevel 100 --wifiBars 3 --cellularBars 4
@@ -19,7 +22,7 @@ rm -f "$DATA/Documents/tour-timeline.json"
 xcrun simctl terminate $UDID $BUNDLE 2>/dev/null || true
 sleep 1
 
-xcrun simctl io $UDID recordVideo --codec h264 --force $OUT/$NAME.mp4 &
+xcrun simctl io $UDID recordVideo $DISP --codec h264 --force $OUT/$NAME.mp4 &
 REC=$!
 sleep 1
 python3 -c 'import time; print(time.time())' > $OUT/$NAME.start

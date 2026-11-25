@@ -21,3 +21,4 @@ xcuserdata/
 
 # Tour recordings and rendered trailers (large; regenerate with Tools/record_tour.sh + Tools/Trailer)
 native/AppStore/video/
+native/AppStore/promo-duo/
