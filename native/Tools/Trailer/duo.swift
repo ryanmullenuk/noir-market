@@ -6,7 +6,7 @@ import QuartzCore
 // Cuts a 30-second landscape promo for the iPhone Duo from the inner-screen tour recording.
 // Record first:  UDID=<duo> REC_DISPLAY=3 OUT_NAME=tour-duo Tools/record_tour.sh clean
 // Then from native/:  swiftc -O Tools/Trailer/duo.swift -o /tmp/duotrailer && /tmp/duotrailer
-// Writes AppStore/video/duo-promo.mp4 (1920×1080, 30s).
+// Writes AppStore/video/duo-promo.mp4 and duo-promo-framed.mp4 (in a drawn iPhone Duo), both 1920×1080, 30s.
 
 let dir = "AppStore/video"
 let res = "NoirMarket/Resources"
@@ -93,7 +93,69 @@ func show(_ layer: CALayer, at start: Double, for length: Double) {
 }
 
 
-func renderDuo(_ rec: Recording, cuts: [Cut], size: CGSize, out: String) async {
+/// The unfolded iPhone Duo, drawn: a titanium body with a hole where the screen goes, a faint centre crease
+/// where it folds like a book, hinge marks and buttons, on a dark neon backdrop. Returns the overlay and the screen rect (top-left origin).
+func duoFrame(_ size: CGSize, screenHeight: CGFloat, centreY: CGFloat) -> (CGImage, CGRect) {
+    let sw = screenHeight * 2853 / 2007, sh = screenHeight
+    let screen = CGRect(x: (size.width - sw) / 2, y: centreY - sh / 2, width: sw, height: sh)
+    let bezel: CGFloat = 16, edge: CGFloat = 7
+    let body = screen.insetBy(dx: -(bezel + edge), dy: -(bezel + edge))
+    let img = bitmap(size) { ctx in
+        let H = size.height
+        func flip(_ r: CGRect) -> CGRect { CGRect(x: r.minX, y: H - r.maxY, width: r.width, height: r.height) }
+        // Backdrop.
+        ctx.setFillColor(cg(0x050505)); ctx.fill(CGRect(origin: .zero, size: size))
+        let glow = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [cg(0x29FF85, 0.16), cg(0x29FF85, 0)] as CFArray, locations: [0, 1])!
+        ctx.drawRadialGradient(glow, startCenter: CGPoint(x: size.width / 2, y: H - centreY), startRadius: 0,
+                               endCenter: CGPoint(x: size.width / 2, y: H - centreY), endRadius: size.width * 0.55, options: [])
+        let red = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [cg(0xFF4D4D, 0.10), cg(0xFF4D4D, 0)] as CFArray, locations: [0, 1])!
+        ctx.drawRadialGradient(red, startCenter: CGPoint(x: size.width * 0.12, y: H * 0.1), startRadius: 0,
+                               endCenter: CGPoint(x: size.width * 0.12, y: H * 0.1), endRadius: size.width * 0.35, options: [])
+        // Buttons: power on the top edge, volume on the right half's top edge (drawn before the body so they tuck in).
+        ctx.setFillColor(cg(0x3A3B40))
+        for b in [CGRect(x: body.maxX - 260, y: body.minY - 5, width: 110, height: 12),
+                  CGRect(x: body.maxX - 130, y: body.minY - 5, width: 70, height: 12)] {
+            ctx.addPath(CGPath(roundedRect: flip(b), cornerWidth: 5, cornerHeight: 5, transform: nil)); ctx.fillPath()
+        }
+        // Body: dark titanium with a soft drop shadow and a bright rim.
+        let bodyPath = CGPath(roundedRect: flip(body), cornerWidth: 56, cornerHeight: 56, transform: nil)
+        ctx.saveGState()
+        ctx.setShadow(offset: CGSize(width: 0, height: -18), blur: 60, color: cg(0x000000, 0.9))
+        ctx.addPath(bodyPath); ctx.setFillColor(cg(0x1C1D21)); ctx.fillPath()
+        ctx.restoreGState()
+        ctx.saveGState(); ctx.addPath(bodyPath); ctx.clip()
+        let metal = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [cg(0x4A4B52), cg(0x1E1F23), cg(0x2C2D33)] as CFArray, locations: [0, 0.55, 1])!
+        ctx.drawLinearGradient(metal, start: CGPoint(x: 0, y: H - body.minY), end: CGPoint(x: 0, y: H - body.maxY), options: [])
+        ctx.restoreGState()
+        ctx.addPath(bodyPath); ctx.setStrokeColor(cg(0x8A8B92, 0.55)); ctx.setLineWidth(2); ctx.strokePath()
+        // Black bezel, then cut the screen out so the video shows through.
+        let glass = body.insetBy(dx: edge, dy: edge)
+        ctx.addPath(CGPath(roundedRect: flip(glass), cornerWidth: 49, cornerHeight: 49, transform: nil)); ctx.setFillColor(cg(0x000000)); ctx.fillPath()
+        // Hinge marks where the two halves meet, top and bottom.
+        ctx.setFillColor(cg(0x5A5B62))
+        for y in [body.minY - 1, body.maxY - 5] {
+            ctx.addPath(CGPath(roundedRect: flip(CGRect(x: body.midX - 3, y: y, width: 6, height: 6)), cornerWidth: 2, cornerHeight: 2, transform: nil)); ctx.fillPath()
+        }
+        ctx.setBlendMode(.clear)
+        ctx.addPath(CGPath(roundedRect: flip(screen), cornerWidth: 36, cornerHeight: 36, transform: nil)); ctx.fillPath()
+        ctx.setBlendMode(.normal)
+        // The crease: a whisper of shade and light down the middle of the screen.
+        let crease = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB),
+                                colors: [cg(0x000000, 0), cg(0x000000, 0.22), cg(0xFFFFFF, 0.07), cg(0x000000, 0.22), cg(0x000000, 0)] as CFArray,
+                                locations: [0, 0.4, 0.5, 0.6, 1])!
+        ctx.saveGState(); ctx.clip(to: flip(CGRect(x: screen.midX - 14, y: screen.minY, width: 28, height: screen.height)))
+        ctx.drawLinearGradient(crease, start: CGPoint(x: screen.midX - 14, y: 0), end: CGPoint(x: screen.midX + 14, y: 0), options: [])
+        ctx.restoreGState()
+        // A faint reflection across the glass.
+        let sheen = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [cg(0xFFFFFF, 0.05), cg(0xFFFFFF, 0)] as CFArray, locations: [0, 1])!
+        ctx.saveGState(); ctx.addPath(CGPath(roundedRect: flip(screen), cornerWidth: 36, cornerHeight: 36, transform: nil)); ctx.clip()
+        ctx.drawLinearGradient(sheen, start: CGPoint(x: screen.minX, y: H - screen.minY), end: CGPoint(x: screen.midX, y: H - screen.midY), options: [])
+        ctx.restoreGState()
+    }
+    return (img, screen)
+}
+
+func renderDuo(_ rec: Recording, cuts: [Cut], size: CGSize, framed: Bool = false, out: String) async {
     let comp = AVMutableComposition()
     let vTrack = comp.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid)!
     let src = try! await rec.asset.loadTracks(withMediaType: .video)[0]
@@ -136,14 +198,16 @@ func renderDuo(_ rec: Recording, cuts: [Cut], size: CGSize, out: String) async {
 
     // Picture: the inner screen is recorded in its native portrait orientation; turn it upright, then fit the height.
     let landscapeW = natural.height, landscapeH = natural.width
-    let scale = size.height / landscapeH
-    let x = (size.width - landscapeW * scale) / 2
+    let device = framed ? duoFrame(size, screenHeight: (size.height * 0.70).rounded(), centreY: size.height * 0.585) : nil
+    let scale = (device?.1.height ?? size.height) / landscapeH
+    let x = device?.1.minX ?? (size.width - landscapeW * scale) / 2
+    let y = device?.1.minY ?? 0
     let upright = CGAffineTransform(rotationAngle: .pi / 2).concatenating(CGAffineTransform(translationX: natural.height, y: 0))
     let vc = AVMutableVideoComposition()
     vc.renderSize = size
     vc.frameDuration = CMTime(value: 1, timescale: 30)
     let li = AVMutableVideoCompositionLayerInstruction(assetTrack: vTrack)
-    li.setTransform(upright.concatenating(CGAffineTransform(scaleX: scale, y: scale)).concatenating(CGAffineTransform(translationX: x, y: 0)), at: .zero)
+    li.setTransform(upright.concatenating(CGAffineTransform(scaleX: scale, y: scale)).concatenating(CGAffineTransform(translationX: x, y: y)), at: .zero)
     let ins = AVMutableVideoCompositionInstruction()
     ins.timeRange = CMTimeRange(start: .zero, duration: CMTime(seconds: total, preferredTimescale: 600))
     ins.layerInstructions = [li]
@@ -154,9 +218,25 @@ func renderDuo(_ rec: Recording, cuts: [Cut], size: CGSize, out: String) async {
     let video = CALayer(); video.frame = parent.frame
     parent.addSublayer(video)
     let w = size.width, h = size.height
-    // Lower-third captions over a dark gradient.
+    if let (frameImage, _) = device { parent.addSublayer(imageLayer(frameImage, frame: parent.frame)) }
+    // Lower-third captions over a dark gradient; framed, they sit above the device instead.
     for (c, start) in placed {
         guard let caption = c.caption else { continue }
+        if framed {
+            let band = CGSize(width: w, height: (h * 0.215).rounded())
+            let img = bitmap(band) { ctx in
+                drawText(ctx, caption, font: "MonaSans-Black", size: h * 0.088, colour: cg(c.colour), glow: cg(c.colour, 0.9),
+                         centreX: w / 2, top: h * 0.025, height: band.height)
+                if let sub = c.sub {
+                    drawText(ctx, sub, font: "JetBrainsMono-Bold", size: h * 0.028, colour: cg(0xEDEDED, 0.92), glow: nil,
+                             centreX: w / 2, top: h * 0.125, height: band.height)
+                }
+            }
+            let l = imageLayer(img, frame: CGRect(x: 0, y: 0, width: w, height: band.height))
+            show(l, at: start + 0.1, for: c.length - 0.15)
+            parent.addSublayer(l)
+            continue
+        }
         let band = CGSize(width: w, height: (h * 0.36).rounded())
         let img = bitmap(band) { ctx in
             let g = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB), colors: [cg(0x000000, 0), cg(0x000000, 0.8), cg(0x000000, 0.94)] as CFArray, locations: [0, 0.45, 1])!
@@ -214,3 +294,4 @@ let cuts: [Cut] = [
 ]
 
 await renderDuo(duo, cuts: cuts, size: CGSize(width: 1920, height: 1080), out: "duo-promo.mp4")
+await renderDuo(duo, cuts: cuts, size: CGSize(width: 1920, height: 1080), framed: true, out: "duo-promo-framed.mp4")
